@@ -1,0 +1,1066 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4F34A21C187CCBB50012E91E /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
+		4F34A24C187CD03F0012E91E /* GTMSessionFetcher.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B11862981000D6D62C /* GTMSessionFetcher.framework */; };
+		4F5566B51862981000D6D62C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
+		4F5566CA1862981000D6D62C /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
+		4F5566CB1862981000D6D62C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
+		4F63A7AB19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */; };
+		4F63A7AC19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */; };
+		4F6F7E8218D6B2CD00CA4B4C /* GTMGatherInputStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */; };
+		4F6F7E8318D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		4F6F7E8418D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		4F6F7E8518D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		4F6F7E8618D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		4F6F7E8718D6B2CD00CA4B4C /* GTMMIMEDocument.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7618D6B2CC00CA4B4C /* GTMMIMEDocument.h */; };
+		4F6F7E8818D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		4F6F7E8918D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		4F6F7E8A18D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		4F6F7E8B18D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		4F6F7E8C18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7818D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h */; };
+		4F6F7E8D18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		4F6F7E8E18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		4F6F7E8F18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		4F6F7E9018D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		4F6F7E9118D6B2CD00CA4B4C /* GTMSessionFetcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7A18D6B2CD00CA4B4C /* GTMSessionFetcher.h */; };
+		4F6F7E9218D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		4F6F7E9318D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		4F6F7E9418D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		4F6F7E9518D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		4F6F7E9618D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7C18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h */; };
+		4F6F7E9718D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		4F6F7E9818D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		4F6F7E9918D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		4F6F7E9A18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		4F6F7E9B18D6B2CD00CA4B4C /* GTMSessionFetcherService.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E7E18D6B2CD00CA4B4C /* GTMSessionFetcherService.h */; };
+		4F6F7E9C18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		4F6F7E9D18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		4F6F7E9E18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		4F6F7E9F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		4F6F7EA018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */; };
+		4F6F7EA118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
+		4F6F7EA218D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
+		4F6F7EA318D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
+		4F6F7EA418D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
+		4F6F7EA818D6B3CE00CA4B4C /* FTAAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EA618D6B3CE00CA4B4C /* FTAAppDelegate.m */; };
+		4F6F7EA918D6B3CE00CA4B4C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4F6F7EA718D6B3CE00CA4B4C /* MainMenu.xib */; };
+		4F6F7EAB18D6B3D900CA4B4C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EAA18D6B3D900CA4B4C /* main.m */; };
+		4F6F7EB318D6B48B00CA4B4C /* FTAIOSAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EB118D6B48B00CA4B4C /* FTAIOSAppDelegate.m */; };
+		4F6F7EB418D6B48B00CA4B4C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EB218D6B48B00CA4B4C /* main.m */; };
+		4F6F7EB818D6B4A900CA4B4C /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4F6F7EB518D6B4A900CA4B4C /* Default-568h@2x.png */; };
+		4F6F7EC718D6B60300CA4B4C /* GTMMIMEDocumentTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */; };
+		4F6F7EC818D6B60300CA4B4C /* GTMMIMEDocumentTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */; };
+		4F6F7EC918D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */; };
+		4F6F7ECA18D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */; };
+		4F6F7ECB18D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */; };
+		4F6F7ECC18D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */; };
+		4F6F7ECD18D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC418D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m */; };
+		4F6F7ECE18D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC418D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m */; };
+		4F6F7ECF18D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC518D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m */; };
+		4F6F7ED018D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC518D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m */; };
+		4F6F7ED118D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */; };
+		4F6F7ED218D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */; };
+		4F6F7ED418D6B61700CA4B4C /* gettysburgaddress.txt in Resources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED318D6B61700CA4B4C /* gettysburgaddress.txt */; };
+		4F6F7ED518D6B61700CA4B4C /* gettysburgaddress.txt in Resources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED318D6B61700CA4B4C /* gettysburgaddress.txt */; };
+		4F6F7EDA18D6B62900CA4B4C /* GTMHTTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */; };
+		4F6F7EDB18D6B62900CA4B4C /* GTMHTTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */; };
+		4F6F7EDC18D6B62900CA4B4C /* GTMSessionFetcherTestServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */; };
+		4F6F7EDD18D6B62900CA4B4C /* GTMSessionFetcherTestServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */; };
+		4F6F7EDE18D6BDD600CA4B4C /* GTMSessionFetcherTestServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */; };
+		4F6F7EDF18D6BDDA00CA4B4C /* GTMHTTPServer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */; };
+		4FA8DB7B193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
+		4FA8DB7C193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
+		4FA8DB7D193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
+		4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
+		4FA8DB7F193D13B60071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
+		4FE52ABC18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
+		4FE52ABD18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
+		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
+		8E24A1D418B5417F0035CD94 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
+		8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */; };
+		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
+		8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
+		8EC566A618AAFB1200E2C97D /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
+		8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
+		8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4F15C84518D6C02F00B691EB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4F5566A81862981000D6D62C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4F5566B01862981000D6D62C;
+			remoteInfo = GTMSessionFetcher;
+		};
+		4FE2702D18FCCAFC00AD34BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4F5566A81862981000D6D62C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8EC5668C18AAFB1200E2C97D;
+			remoteInfo = FetcheriOSTestApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		4F34A21B187CCBB50012E91E /* FetcherOSXTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcherOSXTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F34A21E187CCBB50012E91E /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		4F34A21F187CCBB50012E91E /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		4F34A220187CCBB50012E91E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		4F5566B11862981000D6D62C /* GTMSessionFetcher.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcher.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F5566B41862981000D6D62C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		4F5566B71862981000D6D62C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		4F5566B81862981000D6D62C /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		4F5566B91862981000D6D62C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		4F5566BC1862981000D6D62C /* GTMSessionFetcher-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GTMSessionFetcher-Info.plist"; sourceTree = "<group>"; };
+		4F5566C81862981000D6D62C /* FetcherMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcherMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F5566C91862981000D6D62C /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherChunkedUploadTest.m; path = UnitTests/GTMSessionFetcherChunkedUploadTest.m; sourceTree = SOURCE_ROOT; };
+		4F63A7AD19831242004D4315 /* GTMSessionFetcherFetchingTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherFetchingTest.h; path = UnitTests/GTMSessionFetcherFetchingTest.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMGatherInputStream.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMGatherInputStream.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7618D6B2CC00CA4B4C /* GTMMIMEDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMMIMEDocument.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMMIMEDocument.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7818D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMReadMonitorInputStream.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMReadMonitorInputStream.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7A18D6B2CD00CA4B4C /* GTMSessionFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcher.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcher.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7C18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcherLogging.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcherLogging.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7E18D6B2CD00CA4B4C /* GTMSessionFetcherService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcherService.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcherService.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionUploadFetcher.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionUploadFetcher.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EA518D6B3CE00CA4B4C /* FTAAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FTAAppDelegate.h; path = TestApps/FetcherOSXTestApp/FTAAppDelegate.h; sourceTree = SOURCE_ROOT; };
+		4F6F7EA618D6B3CE00CA4B4C /* FTAAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FTAAppDelegate.m; path = TestApps/FetcherOSXTestApp/FTAAppDelegate.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EA718D6B3CE00CA4B4C /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = MainMenu.xib; path = TestApps/FetcherOSXTestApp/MainMenu.xib; sourceTree = SOURCE_ROOT; };
+		4F6F7EAA18D6B3D900CA4B4C /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = TestApps/FetcherOSXTestApp/main.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EAD18D6B40500CA4B4C /* FetcherOSXTestApp-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "FetcherOSXTestApp-Info.plist"; path = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist"; sourceTree = SOURCE_ROOT; };
+		4F6F7EAE18D6B40500CA4B4C /* FetcherOSXTestApp-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "FetcherOSXTestApp-Prefix.pch"; path = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch"; sourceTree = SOURCE_ROOT; };
+		4F6F7EB018D6B48B00CA4B4C /* FTAIOSAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FTAIOSAppDelegate.h; path = TestApps/FetcheriOSTestApp/FTAIOSAppDelegate.h; sourceTree = SOURCE_ROOT; };
+		4F6F7EB118D6B48B00CA4B4C /* FTAIOSAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FTAIOSAppDelegate.m; path = TestApps/FetcheriOSTestApp/FTAIOSAppDelegate.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EB218D6B48B00CA4B4C /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = TestApps/FetcheriOSTestApp/main.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EB518D6B4A900CA4B4C /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Default-568h@2x.png"; path = "TestApps/FetcheriOSTestApp/Default-568h@2x.png"; sourceTree = SOURCE_ROOT; };
+		4F6F7EB618D6B4A900CA4B4C /* FetcheriOSTestApp-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "FetcheriOSTestApp-Info.plist"; path = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist"; sourceTree = SOURCE_ROOT; };
+		4F6F7EB718D6B4A900CA4B4C /* FetcheriOSTestApp-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "FetcheriOSTestApp-Prefix.pch"; path = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch"; sourceTree = SOURCE_ROOT; };
+		4F6F7EBA18D6B58E00CA4B4C /* FetcheriOSTestAppTests-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "FetcheriOSTestAppTests-Info.plist"; path = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist"; sourceTree = SOURCE_ROOT; };
+		4F6F7EBC18D6B5B200CA4B4C /* GTMSessionFetcherTest-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GTMSessionFetcherTest-Info.plist"; path = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist"; sourceTree = SOURCE_ROOT; };
+		4F6F7EBF18D6B5C600CA4B4C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = UnitTests/SupportingFiles/en.lproj/InfoPlist.strings; sourceTree = SOURCE_ROOT; };
+		4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMMIMEDocumentTest.m; path = UnitTests/GTMMIMEDocumentTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMReadMonitorInputStreamTest.m; path = UnitTests/GTMReadMonitorInputStreamTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherCookieTest.m; path = UnitTests/GTMSessionFetcherCookieTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EC418D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherFetchingTest.m; path = UnitTests/GTMSessionFetcherFetchingTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EC518D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherServiceTest.m; path = UnitTests/GTMSessionFetcherServiceTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherUtilityTest.m; path = UnitTests/GTMSessionFetcherUtilityTest.m; sourceTree = SOURCE_ROOT; };
+		4F6F7ED318D6B61700CA4B4C /* gettysburgaddress.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = gettysburgaddress.txt; path = UnitTests/Data/gettysburgaddress.txt; sourceTree = SOURCE_ROOT; };
+		4F6F7ED618D6B62900CA4B4C /* GTMHTTPServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMHTTPServer.h; path = UnitTests/GTMHTTPServer.h; sourceTree = SOURCE_ROOT; };
+		4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMHTTPServer.m; path = UnitTests/GTMHTTPServer.m; sourceTree = SOURCE_ROOT; };
+		4F6F7ED818D6B62900CA4B4C /* GTMSessionFetcherTestServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherTestServer.h; path = UnitTests/GTMSessionFetcherTestServer.h; sourceTree = SOURCE_ROOT; };
+		4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherTestServer.m; path = UnitTests/GTMSessionFetcherTestServer.m; sourceTree = SOURCE_ROOT; };
+		4FA8DB7A193D13A30071BC92 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMGatherInputStreamTest.m; path = UnitTests/GTMGatherInputStreamTest.m; sourceTree = SOURCE_ROOT; };
+		4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = MainStoryboard.storyboard; path = TestApps/FetcheriOSTestApp/MainStoryboard.storyboard; sourceTree = SOURCE_ROOT; };
+		8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS7.0.sdk/System/Library/Frameworks/CoreGraphics.framework; sourceTree = DEVELOPER_DIR; };
+		8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcheriOSTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8EC5669118AAFB1200E2C97D /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
+		8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcheriOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4F34A218187CCBB50012E91E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F34A24C187CD03F0012E91E /* GTMSessionFetcher.framework in Frameworks */,
+				4FA8DB7C193D13A40071BC92 /* Security.framework in Frameworks */,
+				4F34A21C187CCBB50012E91E /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566AD1862981000D6D62C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4FA8DB7F193D13B60071BC92 /* Security.framework in Frameworks */,
+				4F5566B51862981000D6D62C /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566C51862981000D6D62C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F5566CB1862981000D6D62C /* Cocoa.framework in Frameworks */,
+				4FA8DB7B193D13A40071BC92 /* Security.framework in Frameworks */,
+				4F5566CA1862981000D6D62C /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC5668A18AAFB1200E2C97D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */,
+				4FA8DB7D193D13A40071BC92 /* Security.framework in Frameworks */,
+				8E24A1D418B5417F0035CD94 /* XCTest.framework in Frameworks */,
+				8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */,
+				8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC566A218AAFB1200E2C97D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8EC566A618AAFB1200E2C97D /* XCTest.framework in Frameworks */,
+				8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */,
+				4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */,
+				8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4F34A21D187CCBB50012E91E /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4F34A21E187CCBB50012E91E /* AppKit.framework */,
+				4F34A21F187CCBB50012E91E /* CoreData.framework */,
+				4F34A220187CCBB50012E91E /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		4F34A221187CCBB50012E91E /* FetcherOSXTestApp */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7EA518D6B3CE00CA4B4C /* FTAAppDelegate.h */,
+				4F6F7EA618D6B3CE00CA4B4C /* FTAAppDelegate.m */,
+				4F6F7EA718D6B3CE00CA4B4C /* MainMenu.xib */,
+				4F34A222187CCBB50012E91E /* Supporting Files */,
+			);
+			path = FetcherOSXTestApp;
+			sourceTree = "<group>";
+		};
+		4F34A222187CCBB50012E91E /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7EAD18D6B40500CA4B4C /* FetcherOSXTestApp-Info.plist */,
+				4F6F7EAE18D6B40500CA4B4C /* FetcherOSXTestApp-Prefix.pch */,
+				4F6F7EAA18D6B3D900CA4B4C /* main.m */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		4F5566A71862981000D6D62C = {
+			isa = PBXGroup;
+			children = (
+				4F5566BA1862981000D6D62C /* GTMSessionFetcher */,
+				4F5566CF1862981000D6D62C /* Tests */,
+				4F34A221187CCBB50012E91E /* FetcherOSXTestApp */,
+				8EC5669318AAFB1200E2C97D /* FetcheriOSTestApp */,
+				4F5566B31862981000D6D62C /* Frameworks */,
+				4F5566B21862981000D6D62C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4F5566B21862981000D6D62C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4F5566B11862981000D6D62C /* GTMSessionFetcher.framework */,
+				4F5566C81862981000D6D62C /* FetcherMacTests.xctest */,
+				4F34A21B187CCBB50012E91E /* FetcherOSXTestApp.app */,
+				8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */,
+				8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4F5566B31862981000D6D62C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */,
+				4FA8DB7A193D13A30071BC92 /* Security.framework */,
+				4F5566B71862981000D6D62C /* Foundation.framework */,
+				4F5566B81862981000D6D62C /* CoreData.framework */,
+				4F5566B91862981000D6D62C /* AppKit.framework */,
+				4F5566B41862981000D6D62C /* Cocoa.framework */,
+				4F5566C91862981000D6D62C /* XCTest.framework */,
+				8EC5669118AAFB1200E2C97D /* UIKit.framework */,
+				4F34A21D187CCBB50012E91E /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4F5566BA1862981000D6D62C /* GTMSessionFetcher */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */,
+				4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */,
+				4F6F7E7618D6B2CC00CA4B4C /* GTMMIMEDocument.h */,
+				4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */,
+				4F6F7E7818D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h */,
+				4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */,
+				4F6F7E7A18D6B2CD00CA4B4C /* GTMSessionFetcher.h */,
+				4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */,
+				4F6F7E7C18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h */,
+				4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */,
+				4F6F7E7E18D6B2CD00CA4B4C /* GTMSessionFetcherService.h */,
+				4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */,
+				4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */,
+				4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */,
+				4F5566BB1862981000D6D62C /* Project Files */,
+			);
+			path = GTMSessionFetcher;
+			sourceTree = "<group>";
+		};
+		4F5566BB1862981000D6D62C /* Project Files */ = {
+			isa = PBXGroup;
+			children = (
+				4F5566BC1862981000D6D62C /* GTMSessionFetcher-Info.plist */,
+			);
+			name = "Project Files";
+			sourceTree = "<group>";
+		};
+		4F5566CF1862981000D6D62C /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */,
+				4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */,
+				4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */,
+				4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */,
+				4F63A7AD19831242004D4315 /* GTMSessionFetcherFetchingTest.h */,
+				4F6F7EC418D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m */,
+				4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */,
+				4F6F7EC518D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m */,
+				4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */,
+				4FBD7F78186523400048382E /* Data */,
+				4F5566FE1862A17A00D6D62C /* Server */,
+				4F5566D01862981000D6D62C /* Supporting Files */,
+			);
+			name = Tests;
+			path = Sources/Tests;
+			sourceTree = SOURCE_ROOT;
+		};
+		4F5566D01862981000D6D62C /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7EBC18D6B5B200CA4B4C /* GTMSessionFetcherTest-Info.plist */,
+				4F6F7EBE18D6B5C600CA4B4C /* InfoPlist.strings */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		4F5566FE1862A17A00D6D62C /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7ED618D6B62900CA4B4C /* GTMHTTPServer.h */,
+				4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */,
+				4F6F7ED818D6B62900CA4B4C /* GTMSessionFetcherTestServer.h */,
+				4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */,
+			);
+			name = Server;
+			sourceTree = "<group>";
+		};
+		4FBD7F78186523400048382E /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7ED318D6B61700CA4B4C /* gettysburgaddress.txt */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		8EC5669318AAFB1200E2C97D /* FetcheriOSTestApp */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7EB018D6B48B00CA4B4C /* FTAIOSAppDelegate.h */,
+				4F6F7EB118D6B48B00CA4B4C /* FTAIOSAppDelegate.m */,
+				4F6F7EB218D6B48B00CA4B4C /* main.m */,
+				4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */,
+				8EC5669418AAFB1200E2C97D /* Supporting Files */,
+			);
+			path = FetcheriOSTestApp;
+			sourceTree = "<group>";
+		};
+		8EC5669418AAFB1200E2C97D /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				4F6F7EB518D6B4A900CA4B4C /* Default-568h@2x.png */,
+				4F6F7EB618D6B4A900CA4B4C /* FetcheriOSTestApp-Info.plist */,
+				4F6F7EB718D6B4A900CA4B4C /* FetcheriOSTestApp-Prefix.pch */,
+				4F6F7EBA18D6B58E00CA4B4C /* FetcheriOSTestAppTests-Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		4F5566AE1862981000D6D62C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7E8718D6B2CD00CA4B4C /* GTMMIMEDocument.h in Headers */,
+				4F6F7E9618D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h in Headers */,
+				4F6F7E8218D6B2CD00CA4B4C /* GTMGatherInputStream.h in Headers */,
+				4F6F7E9118D6B2CD00CA4B4C /* GTMSessionFetcher.h in Headers */,
+				4F6F7EA018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h in Headers */,
+				4F6F7E9B18D6B2CD00CA4B4C /* GTMSessionFetcherService.h in Headers */,
+				4F6F7E8C18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		4F34A21A187CCBB50012E91E /* FetcherOSXTestApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F34A246187CCBB60012E91E /* Build configuration list for PBXNativeTarget "FetcherOSXTestApp" */;
+			buildPhases = (
+				4F34A217187CCBB50012E91E /* Sources */,
+				4F34A218187CCBB50012E91E /* Frameworks */,
+				4F34A219187CCBB50012E91E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4F15C84618D6C02F00B691EB /* PBXTargetDependency */,
+			);
+			name = FetcherOSXTestApp;
+			productName = FetcherOSXTestApp;
+			productReference = 4F34A21B187CCBB50012E91E /* FetcherOSXTestApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4F5566B01862981000D6D62C /* GTMSessionFetcher */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F5566D91862981000D6D62C /* Build configuration list for PBXNativeTarget "GTMSessionFetcher" */;
+			buildPhases = (
+				4F5566AC1862981000D6D62C /* Sources */,
+				4F5566AD1862981000D6D62C /* Frameworks */,
+				4F5566AE1862981000D6D62C /* Headers */,
+				4F5566AF1862981000D6D62C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GTMSessionFetcher;
+			productName = GTMSessionFetcher;
+			productReference = 4F5566B11862981000D6D62C /* GTMSessionFetcher.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		4F5566C71862981000D6D62C /* FetcherMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F5566DC1862981000D6D62C /* Build configuration list for PBXNativeTarget "FetcherMacTests" */;
+			buildPhases = (
+				4F5566C41862981000D6D62C /* Sources */,
+				4F5566C51862981000D6D62C /* Frameworks */,
+				4F5566C61862981000D6D62C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FetcherMacTests;
+			productName = GTMSessionFetcherTests;
+			productReference = 4F5566C81862981000D6D62C /* FetcherMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		8EC5668C18AAFB1200E2C97D /* FetcheriOSTestApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8EC566B718AAFB1600E2C97D /* Build configuration list for PBXNativeTarget "FetcheriOSTestApp" */;
+			buildPhases = (
+				8EC5668918AAFB1200E2C97D /* Sources */,
+				8EC5668A18AAFB1200E2C97D /* Frameworks */,
+				8EC5668B18AAFB1200E2C97D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FetcheriOSTestApp;
+			productName = FetcheriOSTestApp;
+			productReference = 8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		8EC566A418AAFB1200E2C97D /* FetcheriOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8EC566B818AAFB1600E2C97D /* Build configuration list for PBXNativeTarget "FetcheriOSTests" */;
+			buildPhases = (
+				8EC566A118AAFB1200E2C97D /* Sources */,
+				8EC566A218AAFB1200E2C97D /* Frameworks */,
+				8EC566A318AAFB1200E2C97D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4FE2702E18FCCAFC00AD34BC /* PBXTargetDependency */,
+			);
+			name = FetcheriOSTests;
+			productName = FetcheriOSTestAppTests;
+			productReference = 8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4F5566A81862981000D6D62C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0510;
+				ORGANIZATIONNAME = Google;
+				TargetAttributes = {
+					4F5566C71862981000D6D62C = {
+						TestTargetID = 4F5566B01862981000D6D62C;
+					};
+					8EC5668C18AAFB1200E2C97D = {
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+						};
+					};
+					8EC566A418AAFB1200E2C97D = {
+						TestTargetID = 8EC5668C18AAFB1200E2C97D;
+					};
+				};
+			};
+			buildConfigurationList = 4F5566AB1862981000D6D62C /* Build configuration list for PBXProject "GTMSessionFetcher" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4F5566A71862981000D6D62C;
+			productRefGroup = 4F5566B21862981000D6D62C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4F5566B01862981000D6D62C /* GTMSessionFetcher */,
+				4F5566C71862981000D6D62C /* FetcherMacTests */,
+				4F34A21A187CCBB50012E91E /* FetcherOSXTestApp */,
+				8EC5668C18AAFB1200E2C97D /* FetcheriOSTestApp */,
+				8EC566A418AAFB1200E2C97D /* FetcheriOSTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4F34A219187CCBB50012E91E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7EA918D6B3CE00CA4B4C /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566AF1862981000D6D62C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566C61862981000D6D62C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7ED418D6B61700CA4B4C /* gettysburgaddress.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC5668B18AAFB1200E2C97D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */,
+				4F6F7EB818D6B4A900CA4B4C /* Default-568h@2x.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC566A318AAFB1200E2C97D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7ED518D6B61700CA4B4C /* gettysburgaddress.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4F34A217187CCBB50012E91E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7EA818D6B3CE00CA4B4C /* FTAAppDelegate.m in Sources */,
+				4F6F7EAB18D6B3D900CA4B4C /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566AC1862981000D6D62C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7E8318D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */,
+				4F6F7E9718D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */,
+				4F6F7E8818D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */,
+				4F6F7E8D18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */,
+				4F6F7E9218D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */,
+				4F6F7EA118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */,
+				4F6F7E9C18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4F5566C41862981000D6D62C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7E9318D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */,
+				4F6F7ECF18D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */,
+				4F6F7E8E18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */,
+				4F6F7E8418D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */,
+				4FE52ABC18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */,
+				4F6F7E9D18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */,
+				4F6F7EC718D6B60300CA4B4C /* GTMMIMEDocumentTest.m in Sources */,
+				4F6F7EA218D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */,
+				4F6F7EDA18D6B62900CA4B4C /* GTMHTTPServer.m in Sources */,
+				4F6F7E8918D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */,
+				4F6F7EC918D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m in Sources */,
+				4F6F7ECD18D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m in Sources */,
+				4F6F7EDC18D6B62900CA4B4C /* GTMSessionFetcherTestServer.m in Sources */,
+				4F6F7ED118D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m in Sources */,
+				4F6F7ECB18D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m in Sources */,
+				4F6F7E9818D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */,
+				4F63A7AB19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC5668918AAFB1200E2C97D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7E8F18D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */,
+				4F6F7EDF18D6BDDA00CA4B4C /* GTMHTTPServer.m in Sources */,
+				4F6F7E9E18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */,
+				4F6F7E9418D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */,
+				4F6F7EB318D6B48B00CA4B4C /* FTAIOSAppDelegate.m in Sources */,
+				4F6F7EA318D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */,
+				4F6F7E9918D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */,
+				4F6F7EB418D6B48B00CA4B4C /* main.m in Sources */,
+				4F6F7E8518D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */,
+				4F6F7EDE18D6BDD600CA4B4C /* GTMSessionFetcherTestServer.m in Sources */,
+				4F6F7E8A18D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8EC566A118AAFB1200E2C97D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F6F7E9018D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m in Sources */,
+				4F6F7E8B18D6B2CD00CA4B4C /* GTMMIMEDocument.m in Sources */,
+				4F6F7E9F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m in Sources */,
+				4F6F7E9A18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m in Sources */,
+				4FE52ABD18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */,
+				4F6F7E8618D6B2CD00CA4B4C /* GTMGatherInputStream.m in Sources */,
+				4F6F7EA418D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m in Sources */,
+				4F6F7ED218D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m in Sources */,
+				4F6F7EDB18D6B62900CA4B4C /* GTMHTTPServer.m in Sources */,
+				4F6F7ECC18D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m in Sources */,
+				4F6F7ED018D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */,
+				4F6F7E9518D6B2CD00CA4B4C /* GTMSessionFetcher.m in Sources */,
+				4F6F7EDD18D6B62900CA4B4C /* GTMSessionFetcherTestServer.m in Sources */,
+				4F6F7ECA18D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m in Sources */,
+				4F6F7ECE18D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m in Sources */,
+				4F6F7EC818D6B60300CA4B4C /* GTMMIMEDocumentTest.m in Sources */,
+				4F63A7AC19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4F15C84618D6C02F00B691EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4F5566B01862981000D6D62C /* GTMSessionFetcher */;
+			targetProxy = 4F15C84518D6C02F00B691EB /* PBXContainerItemProxy */;
+		};
+		4FE2702E18FCCAFC00AD34BC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8EC5668C18AAFB1200E2C97D /* FetcheriOSTestApp */;
+			targetProxy = 4FE2702D18FCCAFC00AD34BC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		4F6F7EBE18D6B5C600CA4B4C /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				4F6F7EBF18D6B5C600CA4B4C /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		4F34A247187CCBB60012E91E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		4F34A248187CCBB60012E91E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
+				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		4F5566D71862981000D6D62C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;
+				CLANG_ANALYZER_SECURITY_INSECUREAPI_RAND = YES;
+				CLANG_ANALYZER_SECURITY_INSECUREAPI_STRCPY = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				WARNING_CFLAGS = (
+					"-Werror",
+					"-Wextra",
+					"-Wall",
+					"-Wno-unused-parameter",
+				);
+			};
+			name = Debug;
+		};
+		4F5566D81862981000D6D62C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;
+				CLANG_ANALYZER_SECURITY_INSECUREAPI_RAND = YES;
+				CLANG_ANALYZER_SECURITY_INSECUREAPI_STRCPY = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNKNOWN_PRAGMAS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				SDKROOT = macosx;
+				WARNING_CFLAGS = (
+					"-Werror",
+					"-Wextra",
+					"-Wall",
+					"-Wno-unused-parameter",
+				);
+			};
+			name = Release;
+		};
+		4F5566DA1862981000D6D62C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				FRAMEWORK_VERSION = A;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				INFOPLIST_FILE = "GTMSessionFetcher-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = framework;
+			};
+			name = Debug;
+		};
+		4F5566DB1862981000D6D62C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				FRAMEWORK_VERSION = A;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				INFOPLIST_FILE = "GTMSessionFetcher-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				WRAPPER_EXTENSION = framework;
+			};
+			name = Release;
+		};
+		4F5566DD1862981000D6D62C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/GTMSessionFetcher.framework/Versions/A/GTMSessionFetcher";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Debug;
+		};
+		4F5566DE1862981000D6D62C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/GTMSessionFetcher.framework/Versions/A/GTMSessionFetcher";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Release;
+		};
+		8EC566B318AAFB1300E2C97D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		8EC566B418AAFB1300E2C97D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		8EC566B518AAFB1300E2C97D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/FetcheriOSTestApp.app/FetcheriOSTestApp";
+				CLANG_ENABLE_MODULES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Debug;
+		};
+		8EC566B618AAFB1300E2C97D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/FetcheriOSTestApp.app/FetcheriOSTestApp";
+				CLANG_ENABLE_MODULES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(SDKROOT)/Developer/Library/Frameworks",
+					"$(inherited)",
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+				);
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4F34A246187CCBB60012E91E /* Build configuration list for PBXNativeTarget "FetcherOSXTestApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F34A247187CCBB60012E91E /* Debug */,
+				4F34A248187CCBB60012E91E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4F5566AB1862981000D6D62C /* Build configuration list for PBXProject "GTMSessionFetcher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F5566D71862981000D6D62C /* Debug */,
+				4F5566D81862981000D6D62C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4F5566D91862981000D6D62C /* Build configuration list for PBXNativeTarget "GTMSessionFetcher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F5566DA1862981000D6D62C /* Debug */,
+				4F5566DB1862981000D6D62C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4F5566DC1862981000D6D62C /* Build configuration list for PBXNativeTarget "FetcherMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F5566DD1862981000D6D62C /* Debug */,
+				4F5566DE1862981000D6D62C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8EC566B718AAFB1600E2C97D /* Build configuration list for PBXNativeTarget "FetcheriOSTestApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8EC566B318AAFB1300E2C97D /* Debug */,
+				8EC566B418AAFB1300E2C97D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8EC566B818AAFB1600E2C97D /* Build configuration list for PBXNativeTarget "FetcheriOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8EC566B518AAFB1300E2C97D /* Debug */,
+				8EC566B618AAFB1300E2C97D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4F5566A81862981000D6D62C /* Project object */;
+}
