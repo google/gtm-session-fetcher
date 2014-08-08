@@ -44,6 +44,7 @@
 
 // Properties to be applied to each fetcher; see GTMSessionFetcher.h for descriptions
 @property(atomic, strong) NSURLSessionConfiguration *configuration;
+@property(atomic, copy) GTMSessionFetcherConfigurationBlock configurationBlock;
 @property(atomic, strong) NSHTTPCookieStorage *cookieStorage;
 @property(atomic, copy) NSString *userAgent;
 @property(atomic, strong) dispatch_queue_t callbackQueue;
@@ -72,6 +73,12 @@
 - (NSUInteger)numberOfFetchers;        // running + delayed fetchers
 - (NSUInteger)numberOfRunningFetchers;
 - (NSUInteger)numberOfDelayedFetchers;
+
+// Return a list of all running or delayed fetchers. This includes fetchers created
+// by the service which have been started and have not yet stopped.
+//
+// Returns an array of fetcher objects, or nil if none.
+- (NSArray *)issuedFetchers;
 
 // Search for running or delayed fetchers with the specified URL.
 //

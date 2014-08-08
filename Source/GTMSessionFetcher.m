@@ -119,6 +119,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   NSMutableDictionary *_properties; // more data retained for caller
   dispatch_queue_t _callbackQueue;
   dispatch_group_t _callbackGroup;
+  NSOperationQueue *_delegateQueue;
 
   id<GTMFetcherAuthorizationProtocol> _authorizer;
 
@@ -235,6 +236,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
     _callbackQueue = dispatch_get_main_queue();
     _callbackGroup = dispatch_group_create();
+    _delegateQueue = [NSOperationQueue mainQueue];
 
     _minRetryInterval = InitialMinRetryInterval();
     _maxRetryInterval = kUnsetMaxRetryInterval;
@@ -437,7 +439,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
     _session = [NSURLSession sessionWithConfiguration:_configuration
                                              delegate:self
-                                        delegateQueue:[NSOperationQueue mainQueue]];
+                                        delegateQueue:_delegateQueue];
     GTMSESSION_ASSERT_DEBUG(_session, @"Couldn't create session");
 
     // If this assertion fires, the client probably tried to use a session identifier that was
@@ -683,6 +685,16 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                                 error:(NSError *)error {
   // This method does the test simulation of callbacks once the upload
   // and download data are known.
+
+  // Simulate receipt of an initial response.
+  if (_didReceiveResponseBlock) {
+    [self invokeOnCallbackQueueAfterUserStopped:YES
+                                          block:^{
+        _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+            // For simulation, we'll assume the disposition is to continue.
+        });
+    }];
+  }
 
   // Simulate reporting send progress.
   if (_sendProgressBlock) {
@@ -1152,6 +1164,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
   _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   self.configurationBlock = nil;
+  self.didReceiveResponseBlock = nil;
   self.sendProgressBlock = nil;
   self.receivedProgressBlock = nil;
   self.downloadProgressBlock = nil;
@@ -1417,28 +1430,47 @@ didReceiveResponse:(NSURLResponse *)response
   [self setSessionTask:dataTask];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveResponse:%@",
                            [self class], self, session, dataTask, response);
+  void (^accumulateAndFinish)(NSURLSessionResponseDisposition) =
+      ^(NSURLSessionResponseDisposition dispositionValue) {
+      // This method is called when the server has determined that it
+      // has enough information to create the NSURLResponse
+      // it can be called multiple times, for example in the case of a
+      // redirect, so each time we reset the data.
+      @synchronized(self) {
+        BOOL hadPreviousData = _downloadedLength > 0;
 
-  @synchronized(self) {
-    BOOL hadPreviousData = _downloadedLength > 0;
+        [_downloadedData setLength:0];
+        _downloadedLength = 0;
 
-    // This method is called when the server has determined that it
-    // has enough information to create the NSURLResponse
-    // it can be called multiple times, for example in the case of a
-    // redirect, so each time we reset the data.
-    [_downloadedData setLength:0];
-    _downloadedLength = 0;
-
-    if (hadPreviousData) {
-      // Tell the accumulate block to discard prior data.
-      GTMSessionFetcherAccumulateDataBlock accumulateBlock = _accumulateDataBlock;
-      if (accumulateBlock) {
-        [self invokeOnCallbackQueueUnlessStopped:^{
-            accumulateBlock(nil);
-        }];
+        if (hadPreviousData && (dispositionValue != NSURLSessionResponseCancel)) {
+          // Tell the accumulate block to discard prior data.
+          GTMSessionFetcherAccumulateDataBlock accumulateBlock = _accumulateDataBlock;
+          if (accumulateBlock) {
+            [self invokeOnCallbackQueueUnlessStopped:^{
+                accumulateBlock(nil);
+            }];
+          }
+        }
       }
-    }
+      handler(dispositionValue);
+  };
 
-    handler(NSURLSessionResponseAllow);
+  GTMSessionFetcherDidReceiveResponseBlock receivedResponseBlock;
+  @synchronized(self) {
+    receivedResponseBlock = _didReceiveResponseBlock;
+  }
+
+  if (receivedResponseBlock == nil) {
+    accumulateAndFinish(NSURLSessionResponseAllow);
+  } else {
+    // We will ultimately need to call back to NSURLSession's handler with the disposition value
+    // for this delegate method even if the user has stopped the fetcher.
+    [self invokeOnCallbackQueueAfterUserStopped:YES
+                                          block:^{
+        receivedResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+            accumulateAndFinish(desiredDisposition);
+        });
+    }];
   }
 }
 
@@ -1648,8 +1680,8 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
       [self invokeOnCallbackQueueUnlessStopped:^{
           accumulateBlock(data);
       }];
-    } else {
-      // Append to the mutable data buffer.
+    } else if (!_userStoppedFetching) {
+      // Append to the mutable data buffer unless the fetch has been cancelled.
 
       // Resumed upload tasks may not yet have a data buffer.
       if (_downloadedData == nil) {
@@ -2262,6 +2294,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             receivedProgressBlock = _receivedProgressBlock,
             downloadProgressBlock = _downloadProgressBlock,
             resumeDataBlock = _resumeDataBlock,
+            didReceiveResponseBlock = _didReceiveResponseBlock,
             sendProgressBlock = _sendProgressBlock,
             willCacheURLResponseBlock = _willCacheURLResponseBlock,
             retryBlock = _retryBlock,

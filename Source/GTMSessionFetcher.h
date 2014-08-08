@@ -304,6 +304,9 @@ typedef void (^GTMSessionFetcherSystemCompletionHandler)(void);
 typedef void (^GTMSessionFetcherCompletionHandler)(NSData *data, NSError *error);
 typedef void (^GTMSessionFetcherBodyStreamProviderResponse)(NSInputStream *bodyStream);
 typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamProviderResponse response);
+typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
+typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
+                                                         GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
 typedef void (^GTMSessionFetcherAccumulateDataBlock)(NSData *buffer);
 typedef void (^GTMSessionFetcherReceivedProgressBlock)(int64_t bytesWritten,
                                                        int64_t totalBytesWritten);
@@ -315,7 +318,7 @@ typedef void (^GTMSessionFetcherSendProgressBlock)(int64_t bytesSent,
                                                    int64_t totalBytesExpectedToSend);
 typedef void (^GTMSessionFetcherWillCacheURLResponseResponse)(NSCachedURLResponse *cachedResponse);
 typedef void (^GTMSessionFetcherWillCacheURLResponseBlock)(NSCachedURLResponse *proposedResponse,
-                                                           GTMSessionFetcherWillCacheURLResponseResponse response);
+                                                           GTMSessionFetcherWillCacheURLResponseResponse responseBlock);
 typedef void (^GTMSessionFetcherRetryResponse)(BOOL shouldRetry);
 typedef void (^GTMSessionFetcherRetryBlock)(BOOL suggestedWillRetry, NSError *error,
                                             GTMSessionFetcherRetryResponse response);
@@ -581,6 +584,12 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 // be negative or positive. This priority affects only the start order of
 // fetchers that are being delayed by a fetcher service.
 @property(assign) NSInteger servicePriority;
+
+// The delegate's optional didReceiveResponse block may be used to inspect or alter
+// the session response.
+//
+// This is called on the callback queue.
+@property(copy) GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
 
 // The optional send progress block reports body bytes uploaded.
 //

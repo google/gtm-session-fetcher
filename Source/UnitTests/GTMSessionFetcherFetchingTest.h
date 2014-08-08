@@ -63,9 +63,13 @@ extern NSString *const kGTMGettysburgFileName;
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMFetcherAuthorizationProtocol>
 
+@property(assign, getter=isAsync) BOOL async;
 @property(assign, getter=isExpired) BOOL expired;
-+ (instancetype)authorizer;
-+ (instancetype)expiredAuthorizer;
+
++ (instancetype)syncAuthorizer;
++ (instancetype)asyncAuthorizer;
++ (instancetype)expiredSyncAuthorizer;
++ (instancetype)expiredAsyncAuthorizer;
 
 @end
 

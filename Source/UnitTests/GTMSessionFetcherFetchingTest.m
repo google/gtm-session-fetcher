@@ -133,6 +133,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)assertCallbacksReleasedForFetcher:(GTMSessionFetcher *)fetcher {
   XCTAssertNil(fetcher.completionHandler);
   XCTAssertNil(fetcher.configurationBlock);
+  XCTAssertNil(fetcher.didReceiveResponseBlock);
   XCTAssertNil(fetcher.accumulateDataBlock);
   XCTAssertNil(fetcher.sendProgressBlock);
   XCTAssertNil(fetcher.receivedProgressBlock);
@@ -191,6 +192,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       response(responseProposed);
   };
 
+  __block NSURLResponse *initialResponse;
+  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
+                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+      XCTAssertNil(initialResponse);
+      initialResponse = response;
+      dispositionBlock(NSURLSessionResponseAllow);
+  };
+
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
@@ -213,6 +222,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqual([cookies count], (NSUInteger)1);
       NSHTTPCookie *firstCookie = [cookies firstObject];
       XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+
+      // The initial response should be the final response;
+      XCTAssertEqualObjects(initialResponse, fetcher.response);
 
       // The response should've been cached.
       XCTAssertEqualObjects(proposedResponseToCache.response.URL, fetcher.response.URL);
@@ -552,7 +564,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                       parameters:@{ @"oauth2": @"good" }];
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:authedURLString];
-  fetcher.authorizer = [TestAuthorizer authorizer];
+  fetcher.authorizer = [TestAuthorizer syncAuthorizer];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
           [[fetcher.mutableRequest allHTTPHeaderFields] objectForKey:@"Authorization"];
@@ -564,13 +576,28 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
-  // Fetch with an expired authorizer, no retry allowed.
+  // Repeat with an async authorization.
+  //
+  fetcher = [self fetcherWithURLString:authedURLString];
+  fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      NSString *authHdr =
+          [[fetcher.mutableRequest allHTTPHeaderFields] objectForKey:@"Authorization"];
+      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+      XCTAssertEqualObjects(data, [self gettysburgAddress]);
+      XCTAssertNil(error, @"unexpected error");
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  //
+  // Fetch with an expired sync authorizer, no retry allowed.
   //
   authedURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                             parameters:@{ @"oauth2": @"good" }];
 
   fetcher = [self fetcherWithURLString:authedURLString];
-  fetcher.authorizer = [TestAuthorizer expiredAuthorizer];
+  fetcher.authorizer = [TestAuthorizer expiredSyncAuthorizer];
   fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
                          GTMSessionFetcherRetryResponse response) {
       XCTAssertEqual([error code], (NSInteger)401, @"%@", error);
@@ -586,10 +613,33 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
-  // Fetch with an expired authorizer, with automatic refresh.
+  // Fetch with an expired async authorizer, no retry allowed.
+  //
+  authedURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                            parameters:@{ @"oauth2": @"good" }];
+
+  fetcher = [self fetcherWithURLString:authedURLString];
+  fetcher.authorizer = [TestAuthorizer expiredAsyncAuthorizer];
+  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
+                         GTMSessionFetcherRetryResponse response) {
+      XCTAssertEqual([error code], (NSInteger)401, @"%@", error);
+      response(NO);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      NSString *authHdr =
+          [[fetcher.mutableRequest allHTTPHeaderFields] objectForKey:@"Authorization"];
+      XCTAssertNil(authHdr);
+      XCTAssertEqual([error code], (NSInteger)401, @"%@", error);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  //
+  // Fetch with an expired sync authorizer, with automatic refresh.
   //
   fetcher = [self fetcherWithURLString:authedURLString];
-  fetcher.authorizer = [TestAuthorizer expiredAuthorizer];
+  fetcher.authorizer = [TestAuthorizer expiredSyncAuthorizer];
   fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
                          GTMSessionFetcherRetryResponse response) {
       XCTAssertEqual([error code], (NSInteger)401, @"%@", error);
@@ -605,11 +655,32 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
 
+  //
+  // Fetch with an expired async authorizer, with automatic refresh.
+  //
+  fetcher = [self fetcherWithURLString:authedURLString];
+  fetcher.authorizer = [TestAuthorizer expiredAsyncAuthorizer];
+  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
+                         GTMSessionFetcherRetryResponse response) {
+    XCTAssertEqual([error code], (NSInteger)401, @"%@", error);
+    response(YES);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      NSString *authHdr =
+          [[fetcher.mutableRequest allHTTPHeaderFields] objectForKey:@"Authorization"];
+      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+      XCTAssertEqualObjects(data, [self gettysburgAddress]);
+      XCTAssertNil(error);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
   // Check notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 4);
-  XCTAssertEqual(fnctr.fetchStopped, 4);
-  XCTAssertEqual(fnctr.retryDelayStarted, 1);
-  XCTAssertEqual(fnctr.retryDelayStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 8);
+  XCTAssertEqual(fnctr.fetchStopped, 8);
+  XCTAssertEqual(fnctr.retryDelayStarted, 2);
+  XCTAssertEqual(fnctr.retryDelayStopped, 2);
 }
 
 - (void)testRedirectFetch {
@@ -1117,6 +1188,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                 headerFields:@{ @"Aussie" : @"Shepherd" }];
   NSError *fakedResultError = nil;
 
+  __block NSURLResponse *initialResponse;
+  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
+                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+      XCTAssertNil(initialResponse);
+      initialResponse = response;
+      dispositionBlock(NSURLSessionResponseAllow);
+  };
+
   __block int64_t bytesSentSum = 0;
   __block int64_t lastTotalBytesSent = 0;
   int64_t expectedTotalBytesWritten = (int64_t)[uploadData length];
@@ -1160,6 +1239,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
       XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+
+      XCTAssertEqualObjects(initialResponse, fetcher.response);
 
       XCTAssertEqualObjects(proposedResponseToCache.response, fetcher.response);
   }];
@@ -1384,14 +1465,24 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 @implementation TestAuthorizer
 
-@synthesize expired = hasExpired_;
-
-+ (instancetype)authorizer {
++ (instancetype)syncAuthorizer {
   return [[self alloc] init];
 }
 
-+ (instancetype)expiredAuthorizer {
-  TestAuthorizer *authorizer = [self authorizer];
++ (instancetype)asyncAuthorizer {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.async = YES;
+  return authorizer;
+}
+
++ (instancetype)expiredSyncAuthorizer {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.expired = YES;
+  return authorizer;
+}
+
++ (instancetype)expiredAsyncAuthorizer {
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
   authorizer.expired = YES;
   return authorizer;
 }
@@ -1412,7 +1503,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [invocation setArgument:&selfParam atIndex:2];
     [invocation setArgument:&request atIndex:3];
     [invocation setArgument:&error atIndex:4];
-    [invocation invoke];
+    if (self.async) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [invocation invoke];
+      });
+    } else {
+      [invocation invoke];
+    }
   }
 }
 
