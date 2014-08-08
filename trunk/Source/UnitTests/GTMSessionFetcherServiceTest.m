@@ -169,6 +169,10 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         XCTAssertEqual([service numberOfRunningFetchers], [running count], @"running off");
         XCTAssertEqual([service numberOfDelayedFetchers], [pending count], @"delayed off");
 
+        NSArray *knownToService = [running arrayByAddingObjectsFromArray:pending];
+        XCTAssertEqualObjects([NSCountedSet setWithArray:[service issuedFetchers]],
+                              [NSCountedSet setWithArray:knownToService]);
+
         NSArray *matches = [service issuedFetchersWithRequestURL:fetcherReqURL];
         NSUInteger idx = NSNotFound;
         if (matches) {
@@ -204,6 +208,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
                       @"%d issued running (pending:%u running:%u completed:%u)",
                       (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
                       (unsigned int)numberRunning, (unsigned int)numberCompleted);
+
+        NSArray *knownToService =
+            [[running arrayByAddingObjectsFromArray:pending] arrayByAddingObject:fetcher];
+        XCTAssertEqualObjects([NSCountedSet setWithArray:[service issuedFetchers]],
+                              [NSCountedSet setWithArray:knownToService]);
 
         XCTAssertEqual([service numberOfFetchers], [running count] + [pending count] + 1,
                        @"fetcher count off");

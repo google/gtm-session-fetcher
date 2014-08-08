@@ -60,6 +60,7 @@
 
 @synthesize maxRunningFetchersPerHost = _maxRunningFetchersPerHost,
             configuration = _configuration,
+            configurationBlock = _configurationBlock,
             cookieStorage = _cookieStorage,
             userAgent = _userAgent,
             callbackQueue = _callbackQueue,
@@ -100,6 +101,7 @@
   fetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
   fetcher.allowLocalhostRequest = self.allowLocalhostRequest;
   fetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
+  fetcher.configurationBlock = self.configurationBlock;
   fetcher.service = self;
   if (_cookieStorageMethod >= 0) {
     [fetcher setCookieStorageMethod:_cookieStorageMethod];
@@ -306,39 +308,44 @@
   }
 }
 
-- (NSArray *)issuedFetchersWithRequestURL:(NSURL *)requestURL {
+- (NSArray *)issuedFetchers {
   @synchronized(self) {
-    NSMutableArray *array = nil;
-    NSString *host = [requestURL host];
-    if ([host length] == 0) return nil;
+    NSMutableArray *allFetchers = [NSMutableArray array];
+    void (^accumulateFetchers)(id, id, BOOL *) = ^(NSString *host,
+                                                   NSArray *fetchersForHost,
+                                                   BOOL *stop) {
+        [allFetchers addObjectsFromArray:fetchersForHost];
+    };
+    [_runningFetchersByHost enumerateKeysAndObjectsUsingBlock:accumulateFetchers];
+    [_delayedFetchersByHost enumerateKeysAndObjectsUsingBlock:accumulateFetchers];
 
-    NSURL *absRequestURL = [requestURL absoluteURL];
+    GTMSESSION_ASSERT_DEBUG([allFetchers count] == [[NSSet setWithArray:allFetchers] count],
+                            @"Fetcher appears multiple times\n running: %@\n delayed: %@",
+                            _runningFetchersByHost, _delayedFetchersByHost);
 
-    NSArray *runningForHost = [_runningFetchersByHost objectForKey:host];
-    for (GTMSessionFetcher *fetcher in runningForHost) {
-      NSURL *fetcherURL = [[[fetcher mutableRequest] URL] absoluteURL];
-      if ([fetcherURL isEqual:absRequestURL]) {
-        if (array == nil) {
-          array = [NSMutableArray array];
-        }
-        [array addObject:fetcher];
-      }
-    }
-
-    NSArray *delayedForHost = [_delayedFetchersByHost objectForKey:host];
-    for (GTMSessionFetcher *fetcher in delayedForHost) {
-      NSURL *fetcherURL = [[[fetcher mutableRequest] URL] absoluteURL];
-      if ([fetcherURL isEqual:absRequestURL]) {
-        if (array == nil) {
-          array = [NSMutableArray array];
-        }
-        GTMSESSION_ASSERT_DEBUG(![array containsObject:fetcher],
-                                @"%@ in both running and delayed", fetcher);
-        [array addObject:fetcher];
-      }
-    }
-    return array;
+    return [allFetchers count] > 0 ? allFetchers : nil;
   }
+}
+
+- (NSArray *)issuedFetchersWithRequestURL:(NSURL *)requestURL {
+  NSString *host = [requestURL host];
+  if ([host length] == 0) return nil;
+
+  NSURL *targetURL = [requestURL absoluteURL];
+
+  NSArray *allFetchers = [self issuedFetchers];
+  NSIndexSet *indexes = [allFetchers indexesOfObjectsPassingTest:^BOOL(id fetcher,
+                                                                       NSUInteger idx,
+                                                                       BOOL *stop) {
+      NSURL *fetcherURL = [[[fetcher mutableRequest] URL] absoluteURL];
+      return [fetcherURL isEqual:targetURL];
+  }];
+
+  NSArray *result = nil;
+  if ([indexes count] > 0) {
+    result = [allFetchers objectsAtIndexes:indexes];
+  }
+  return result;
 }
 
 - (void)stopAllFetchers {
