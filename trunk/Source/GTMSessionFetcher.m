@@ -152,7 +152,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 + (void)load {
-  [self restoreFetchersForBackgroundSessions];
+  [self fetchersForBackgroundSessions];
 }
 
 + (instancetype)fetcherWithRequest:(NSURLRequest *)request {
@@ -881,11 +881,12 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   return activeBackgroundSessions;
 }
 
-+ (void)restoreFetchersForBackgroundSessions {
++ (NSArray *)fetchersForBackgroundSessions {
   NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   NSArray *backgroundSessions =
       [userDefaults arrayForKey:kGTMSessionFetcherPersistedDestinationKey];
   NSMapTable *sessionIdentifierToFetcherMap = [self sessionIdentifierToFetcherMap];
+  NSMutableArray *fetchers = [NSMutableArray array];
   for (NSString *sessionIdentifier in backgroundSessions) {
     GTMSessionFetcher *fetcher = [sessionIdentifierToFetcherMap objectForKey:sessionIdentifier];
     if (!fetcher) {
@@ -896,17 +897,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     }
     GTM_LOG_BACKGROUND_SESSION(@"%@ restoring session %@ by creating fetcher %@ %p",
                                [self class], sessionIdentifier, fetcher, fetcher);
-  }
-}
-
-+ (NSArray *)fetchersForBackgroundSessions {
-  NSMutableArray *fetchers = [NSMutableArray array];
-  NSMapTable *sessionIdentifierToFetcherMap = [self sessionIdentifierToFetcherMap];
-  for (NSString *sessionIdentifier in sessionIdentifierToFetcherMap) {
-    GTMSessionFetcher *fetcher = [sessionIdentifierToFetcherMap objectForKey:sessionIdentifier];
-    if (fetcher) {
-      [fetchers addObject:fetcher];
-    }
+    [fetchers addObject:fetcher];
   }
   return fetchers;
 }

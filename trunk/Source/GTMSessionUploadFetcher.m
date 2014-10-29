@@ -96,7 +96,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 + (void)load {
-  [self restoreUploadFetchersForBackgroundSessions];
+  [self uploadFetchersForBackgroundSessions];
 }
 
 + (instancetype)uploadFetcherWithRequest:(NSURLRequest *)request
@@ -201,19 +201,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return gUploadFetcherPointerArrayForBackgroundSessions;
 }
 
-+ (NSArray *)uploadFetchersForBackgroundSessions {
-  NSPointerArray *fetcherPointerArray = [self uploadFetcherPointerArrayForBackgroundSessions];
-  [fetcherPointerArray compact];
-  NSMutableArray *uploadFetchers = [[NSMutableArray alloc] init];
-  for (GTMSessionUploadFetcher *uploadFetcher in fetcherPointerArray) {
-    if (!uploadFetcher) {
-      continue;
-    }
-    [uploadFetchers addObject:uploadFetcher];
-  }
-  return uploadFetchers;
-}
-
 + (instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier {
   GTMSESSION_ASSERT_DEBUG(sessionIdentifier != nil, @"Invalid session identifier");
   NSArray *uploadFetchersForBackgroundSessions = [self uploadFetchersForBackgroundSessions];
@@ -225,9 +212,28 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return nil;
 }
 
-+ (void)restoreUploadFetchersForBackgroundSessions {
++ (NSArray *)uploadFetchersForBackgroundSessions {
+  // Collect the background session upload fetchers that are still in memory.
+  NSPointerArray *uploadFetcherPointerArray = [self uploadFetcherPointerArrayForBackgroundSessions];
+  [uploadFetcherPointerArray compact];
+  NSMutableSet *restoredSessionIdentifiers = [[NSMutableSet alloc] init];
+  NSMutableArray *uploadFetchers = [[NSMutableArray alloc] init];
+  for (GTMSessionUploadFetcher *uploadFetcher in uploadFetcherPointerArray) {
+    NSString *sessionIdentifier = uploadFetcher.chunkFetcher.sessionIdentifier;
+    if (sessionIdentifier) {
+      [restoredSessionIdentifiers addObject:sessionIdentifier];
+      [uploadFetchers addObject:uploadFetcher];
+    }
+  }
+
+  // The system may have other ongoing background upload sessions. Restore upload fetchers for those
+  // too.
   NSArray *fetchers = [GTMSessionFetcher fetchersForBackgroundSessions];
   for (GTMSessionFetcher *fetcher in fetchers) {
+    NSString *sessionIdentifier = fetcher.sessionIdentifier;
+    if (!sessionIdentifier || [restoredSessionIdentifiers containsObject:sessionIdentifier]) {
+      continue;
+    }
     NSDictionary *sessionIdentifierMetadata = [fetcher sessionIdentifierMetadata];
     if (sessionIdentifierMetadata == nil) {
       continue;
@@ -242,6 +248,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       [fetcher stopFetching];
       continue;
     }
+    [uploadFetchers addObject:uploadFetcher];
     uploadFetcher->_chunkFetcher = fetcher;
     uploadFetcher->_fetcherInFlight = fetcher;
     [uploadFetcher attachSendProgressBlockToChunkFetcher:fetcher];
@@ -252,6 +259,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     GTMSESSION_LOG_DEBUG(@"%@ restoring upload fetcher %@ for chunk fetcher %@",
                          [self class], uploadFetcher, fetcher);
   }
+  return uploadFetchers;
 }
 
 - (void)setUploadData:(NSData *)data {
