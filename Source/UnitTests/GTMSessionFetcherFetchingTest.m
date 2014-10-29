@@ -994,6 +994,25 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
 
+- (void)testQuickBeginStopFetching {
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  // This test exercises the workaround for Radar 18471901. See comments in GTMSessionFetcher.m
+  int const kFetcherCreationCount = 1000;
+  for (int i = 0; i < kFetcherCreationCount; ++i) {
+    GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"http://example.com/tst"];
+    fetcher.useBackgroundSession = NO;
+    fetcher.allowedInsecureSchemes = @[ @"http" ];
+    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTAssertTrue(NO, @"Download not canceled");
+    }];
+    [fetcher stopFetching];
+    XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  }
+  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount);
+  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount);
+}
+
 - (void)testCancelAndResumeFetchToFile {
   if (!_isServerRunning) return;
 

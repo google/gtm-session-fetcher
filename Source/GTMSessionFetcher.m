@@ -897,7 +897,9 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     }
     GTM_LOG_BACKGROUND_SESSION(@"%@ restoring session %@ by creating fetcher %@ %p",
                                [self class], sessionIdentifier, fetcher, fetcher);
-    [fetchers addObject:fetcher];
+    if (fetcher != nil) {
+      [fetchers addObject:fetcher];
+    }
   }
   return fetchers;
 }
@@ -1228,6 +1230,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   // the stack to unwind.
   __autoreleasing GTMSessionFetcher *holdSelf = self;
 
+  BOOL hasCanceledTask = NO;
   [holdSelf destroyRetryTimer];
 
   @synchronized(self) {
@@ -1269,10 +1272,13 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
               }];
           }];
         }
+        hasCanceledTask = YES;
       }
     }
 
-    if (_session) {
+    // If the task was canceled, wait until the URLSession:task:didCompleteWithError: to call
+    // finishTasksAndInvalidate, since calling it immediately tends to crash, see radar 18471901.
+    if (_session && !hasCanceledTask) {
 #if TARGET_OS_IPHONE
       // Don't invalidate if we've got a systemCompletionHandler, since
       // URLSessionDidFinishEventsForBackgroundURLSession: won't be called if invalidated.
@@ -1396,6 +1402,10 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
                            [self class], self, session, task, redirectResponse, redirectRequest);
 
   @synchronized(self) {
+    if (_userStoppedFetching) {
+      handler(nil);
+      return;
+    }
     if (redirectRequest && redirectResponse) {
       // Copy the original request, including the body.
       NSMutableURLRequest *newRequest = [_request mutableCopy];
