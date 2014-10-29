@@ -571,8 +571,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
       // global test block has been set, and the app is only testing a specific
       // fetcher.  The block simulation code will then resume the task.
       _testBlock = gGlobalTestBlock;
-    } else {
-      [_sessionTask resume];
     }
   }
   _isUsingTestBlock = (_testBlock != nil);
@@ -595,8 +593,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     _initialRequestDate = [[NSDate alloc] init];
   }
 
-  // Once _connection is non-nil we can send the start notification
-  //
   // We don't expect to reach here even on retry or auth until a stop notification has been sent
   // for the previous task, but we should ensure that we don't unbalance that.
   GTMSESSION_ASSERT_DEBUG(!_isStopNotificationNeeded, @"Start notification without a prior stop");
@@ -609,6 +605,13 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
   if (_testBlock) {
     [self simulateFetchForTestBlock];
+  } else {
+    // We resume the session task after posting the notification since the
+    // delegate callbacks may happen immediately if the fetch is started off
+    // the main thread or the session delegate queue is on a background thread,
+    // and we don't want to post a start notification after a premature finish
+    // of the session task.
+    [_sessionTask resume];
   }
 }
 
