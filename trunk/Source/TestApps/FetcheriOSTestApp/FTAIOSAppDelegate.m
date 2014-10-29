@@ -64,9 +64,10 @@ static NSString *const kDownloadTestURLString = @"http://";
 #import "GTMSessionFetcherTestServer.h"
 #import "GTMSessionUploadFetcher.h"
 
+// Test upload > 2GB.
 static NSString *const kUploadTestURLString = @"http://0.upload.google.com/null";  // null upload server.
-static NSUInteger const kBigUploadDataLength = 20 * 1024 * 1024;
-static NSUInteger const kBigUploadChunkSize = kBigUploadDataLength / 4;
+static NSUInteger const kBigUploadChunkSize = 500 * 1024 * 1024;
+static NSUInteger const kBigUploadChunkCount = 5;
 
 #endif  // ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING
 
@@ -321,8 +322,18 @@ static NSUInteger const kBigUploadChunkSize = kBigUploadDataLength / 4;
   // Write the big data into a temp file.
   NSString *bigFileName = @"GTMChunkedUploadTest_BigFile";
   NSString *bigFilePath = [NSTemporaryDirectory() stringByAppendingPathComponent:bigFileName];
-  NSData *bigData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBigUploadDataLength];
-  [bigData writeToFile:bigFilePath atomically:NO];
+  NSData *bigDataChunk =
+      [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBigUploadChunkSize];
+  if (![[NSFileManager defaultManager] createFileAtPath:bigFilePath
+                                               contents:bigDataChunk
+                                             attributes:nil]) {
+    return nil;
+  }
+  NSFileHandle *bigFile = [NSFileHandle fileHandleForWritingAtPath:bigFilePath];
+  [bigFile seekToEndOfFile];
+  for (NSUInteger chunkCount = 2; chunkCount <= kBigUploadChunkCount; ++chunkCount) {
+    [bigFile writeData:bigDataChunk];
+  }
   NSURL *bigFileURL = [NSURL fileURLWithPath:bigFilePath];
   return bigFileURL;
 }

@@ -386,7 +386,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _uploadDataProvider(offset, length, response);
     return;
   }
-
   if (_uploadData) {
     // NSData provided.
     NSData *resultData;
@@ -399,51 +398,79 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     response(resultData, nil);
     return;
   }
-
-  if (_uploadFileHandle) {
-    // File handle provided.
-    NSFileHandle *fileHandle = _uploadFileHandle;
-
+  if (_uploadFileURL) {
+    NSURL *uploadFileURL = _uploadFileURL;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      NSData *resultData;
-      NSError *error;
-      @try {
-        [fileHandle seekToFileOffset:(unsigned long long)offset];
-        resultData = [fileHandle readDataOfLength:(NSUInteger)length];
-      }
-      @catch (NSException *exception) {
-        GTMSESSION_ASSERT_DEBUG(NO, @"fileHandle failed to read, %@", exception);
-        error = [self uploadChunkUnavailableErrorWithDescription:[exception description]];
-      }
-      // The response always re-dispatches to the main thread, so we skip doing that here.
-      response(resultData, error);
+      [self generateChunkSubdataFromFileURL:uploadFileURL
+                                     offset:offset
+                                     length:length
+                                   response:response];
     });
     return;
   }
-
-  // File URL provided.
-  NSURL *uploadFileURL  = self.uploadFileURL;
-  int64_t fullUploadLength = [self fullUploadLength];
+  GTMSESSION_ASSERT_DEBUG(_uploadFileHandle, @"Unexpectedly missing upload data package");
+  NSFileHandle *uploadFileHandle = _uploadFileHandle;
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    NSData *resultData;
-    NSError *error;
-    NSData *mappedData =
-        [NSData dataWithContentsOfURL:uploadFileURL
-                              options:NSDataReadingMappedAlways + NSDataReadingUncached
-                                error:&error];
-    if (!mappedData) {
-      GTMSESSION_ASSERT_DEBUG(NO, @"uploadFileURL failed to read, %@", error);
-    } else {
-      if (offset > 0 || length < fullUploadLength) {
-        NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
-        resultData = [mappedData subdataWithRange:range];
-      } else {
-        resultData = mappedData;
+    [self generateChunkSubdataFromFileHandle:uploadFileHandle
+                                      offset:offset
+                                      length:length
+                                    response:response];
+  });
+}
+
+- (void)generateChunkSubdataFromFileHandle:(NSFileHandle *)fileHandle
+                                    offset:(int64_t)offset
+                                    length:(int64_t)length
+                                  response:(GTMSessionUploadFetcherDataProviderResponse)response {
+  NSData *resultData;
+  NSError *error;
+  @try {
+    [fileHandle seekToFileOffset:(unsigned long long)offset];
+    resultData = [fileHandle readDataOfLength:(NSUInteger)length];
+  }
+  @catch (NSException *exception) {
+    GTMSESSION_ASSERT_DEBUG(NO, @"uploadFileHandle failed to read, %@", exception);
+    error = [self uploadChunkUnavailableErrorWithDescription:[exception description]];
+  }
+  // The response always re-dispatches to the main thread, so we skip doing that here.
+  response(resultData, error);
+}
+
+- (void)generateChunkSubdataFromFileURL:(NSURL *)fileURL
+                                 offset:(int64_t)offset
+                                 length:(int64_t)length
+                               response:(GTMSessionUploadFetcherDataProviderResponse)response {
+  NSData *resultData;
+  NSError *error;
+  int64_t fullUploadLength = [self fullUploadLength];
+  NSData *mappedData =
+      [NSData dataWithContentsOfURL:fileURL
+                            options:NSDataReadingMappedAlways + NSDataReadingUncached
+                              error:&error];
+  if (!mappedData) {
+    // If file is just too large to create an NSData for, create an NSFileHandle instead to access.
+    if ([error.domain isEqual:NSCocoaErrorDomain] && (error.code == NSFileReadTooLargeError)) {
+      NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingFromURL:fileURL
+                                                                     error:&error];
+      if (fileHandle != nil) {
+        [self generateChunkSubdataFromFileHandle:fileHandle
+                                          offset:offset
+                                          length:length
+                                        response:response];
+        return;
       }
     }
-    // The response always re-dispatches to the main thread, so we skip doing that here.
-    response(resultData, error);
-  });
+    GTMSESSION_ASSERT_DEBUG(NO, @"uploadFileURL failed to read, %@", error);
+  } else {
+    if (offset > 0 || length < fullUploadLength) {
+      NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
+      resultData = [mappedData subdataWithRange:range];
+    } else {
+      resultData = mappedData;
+    }
+  }
+  // The response always re-dispatches to the main thread, so we skip doing that here.
+  response(resultData, error);
 }
 
 - (NSError *)uploadChunkUnavailableErrorWithDescription:(NSString *)description {
@@ -828,8 +855,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
           NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:tempName];
           NSError *writeError;
           didWriteFile = [chunkData writeToFile:tempPath
-                                   options:NSDataWritingAtomic
-                                     error:&writeError];
+                                        options:NSDataWritingAtomic
+                                          error:&writeError];
           if (didWriteFile) {
             chunkFetcher.bodyFileURL = [NSURL fileURLWithPath:tempPath];
           } else {
@@ -984,7 +1011,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     NSInteger status = [error code];
 
     // Status 4xx indicates a bad offset in the Google upload protocol.
-    if ((status >= 400 && status <= 499 && !isUploadStatusFinal) || _shouldInitiateOffsetQuery) {
+    if (_shouldInitiateOffsetQuery ||
+        ([error.domain isEqual:kGTMSessionFetcherStatusDomain] &&
+         status >= 400 && status <= 499 && !isUploadStatusFinal)) {
       _shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
@@ -992,9 +1021,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     } else {
       // Some unexpected status has occurred; handle it as we would a regular
       // object fetcher failure.
-      error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
-                                  code:status
-                              userInfo:nil];
       [self invokeFinalCallbackWithData:data
                                   error:error
                shouldInvalidateLocation:NO];
