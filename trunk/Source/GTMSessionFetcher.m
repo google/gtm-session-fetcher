@@ -696,6 +696,16 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     }];
   }
 
+  if (_willRedirectBlock) {
+    [self invokeOnCallbackQueueAfterUserStopped:YES
+                                          block:^{
+        _willRedirectBlock((NSHTTPURLResponse *)response, _request,
+                           ^(NSURLRequest *redirectRequest) {
+            // For simulation, we'll assume the app will just continue.
+        });
+    }];
+  }
+
   // Simulate reporting send progress.
   if (_sendProgressBlock) {
     [self simulateByteTransferReportWithDataLength:(int64_t)[bodyData length]
@@ -1165,6 +1175,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   self.configurationBlock = nil;
   self.didReceiveResponseBlock = nil;
+  self.willRedirectBlock = nil;
   self.sendProgressBlock = nil;
   self.receivedProgressBlock = nil;
   self.downloadProgressBlock = nil;
@@ -1374,6 +1385,7 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
   [self setSessionTask:task];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ willPerformHTTPRedirection:%@ newRequest:%@",
                            [self class], self, session, task, redirectResponse, redirectRequest);
+
   @synchronized(self) {
     if (redirectRequest && redirectResponse) {
       // Copy the original request, including the body.
@@ -1414,13 +1426,27 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
       _response = redirectResponse;
       [self logNowWithError:nil];
 
+      GTMSessionFetcherWillRedirectBlock willRedirectBlock = _willRedirectBlock;
+      if (willRedirectBlock) {
+        [self invokeOnCallbackQueueAfterUserStopped:YES
+                                              block:^{
+            _willRedirectBlock(redirectResponse, redirectRequest, ^(NSURLRequest *clientRequest) {
+                @synchronized(self) {
+                  // Update the request for future logging
+                  self.mutableRequest = [clientRequest mutableCopy];
+                }
+                handler(clientRequest);
+            });
+        }];
+        return;
+      }
+      // Continues here if the client did not provide a redirect block.
+
       // Update the request for future logging
-      NSMutableURLRequest *mutable = [redirectRequest mutableCopy];
-      self.mutableRequest = mutable;
+      self.mutableRequest = [redirectRequest mutableCopy];
     }
     handler(redirectRequest);
   }  // @synchronized(self)
-
 }
 
 - (void)URLSession:(NSURLSession *)session
@@ -2295,6 +2321,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             downloadProgressBlock = _downloadProgressBlock,
             resumeDataBlock = _resumeDataBlock,
             didReceiveResponseBlock = _didReceiveResponseBlock,
+            willRedirectBlock = _willRedirectBlock,
             sendProgressBlock = _sendProgressBlock,
             willCacheURLResponseBlock = _willCacheURLResponseBlock,
             retryBlock = _retryBlock,

@@ -307,6 +307,10 @@ typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamP
 typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
 typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
                                                          GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
+typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest *redirectedRequest);
+typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectResponse,
+                                                   NSURLRequest *redirectRequest,
+                                                   GTMSessionFetcherWillRedirectResponse response);
 typedef void (^GTMSessionFetcherAccumulateDataBlock)(NSData *buffer);
 typedef void (^GTMSessionFetcherReceivedProgressBlock)(int64_t bytesWritten,
                                                        int64_t totalBytesWritten);
@@ -590,6 +594,12 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 //
 // This is called on the callback queue.
 @property(copy) GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
+
+// The delegate's optional willRedirect block may be used to inspect or alter
+// the redirection.
+//
+// This is called on the callback queue.
+@property(copy) GTMSessionFetcherWillRedirectBlock willRedirectBlock;
 
 // The optional send progress block reports body bytes uploaded.
 //
