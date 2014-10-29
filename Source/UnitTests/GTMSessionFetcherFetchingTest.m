@@ -134,6 +134,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(fetcher.completionHandler);
   XCTAssertNil(fetcher.configurationBlock);
   XCTAssertNil(fetcher.didReceiveResponseBlock);
+  XCTAssertNil(fetcher.willRedirectBlock);
   XCTAssertNil(fetcher.accumulateDataBlock);
   XCTAssertNil(fetcher.sendProgressBlock);
   XCTAssertNil(fetcher.receivedProgressBlock);
@@ -198,6 +199,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNil(initialResponse);
       initialResponse = response;
       dispositionBlock(NSURLSessionResponseAllow);
+  };
+
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
+                                NSURLRequest *redirectRequest,
+                                GTMSessionFetcherWillRedirectResponse response) {
+      XCTFail(@"redirect not expected");
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
@@ -700,6 +707,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
+  __block BOOL didCallBlock = NO;
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
+                                NSURLRequest *redirectRequest,
+                                GTMSessionFetcherWillRedirectResponse response) {
+      XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
+                ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
+      didCallBlock = YES;
+      response(redirectRequest);
+  };
+
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
@@ -725,6 +742,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  XCTAssertTrue(didCallBlock);
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
