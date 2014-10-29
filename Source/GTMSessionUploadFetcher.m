@@ -804,8 +804,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSString *command;
   int64_t thisChunkSize = chunkSize;
 
-  BOOL isChunkTooBig = (thisChunkSize + offset >= fullUploadLength);
-  BOOL isChunkAlmostBigEnough = (fullUploadLength - offset < thisChunkSize + 2500);
+  BOOL isChunkTooBig = (thisChunkSize >= (fullUploadLength - offset));
+  BOOL isChunkAlmostBigEnough = (fullUploadLength - offset - 2500 < thisChunkSize);
   BOOL isFinalChunk = isChunkTooBig || isChunkAlmostBigEnough;
   if (isFinalChunk) {
     thisChunkSize = fullUploadLength - offset;
