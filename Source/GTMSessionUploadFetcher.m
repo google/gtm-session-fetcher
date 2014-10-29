@@ -577,9 +577,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSString *uploadLocationURLStr = [responseHeaders objectForKey:@"X-Goog-Upload-URL"];
   NSString *uploadStatus = [responseHeaders objectForKey:@"X-Goog-Upload-Status"];
 
-  // Standard granularity for Google uploads is 256K.
-  NSString *chunkGranularity = [responseHeaders objectForKey:@"X-Goog-Upload-Chunk-Granularity"];
-  _uploadGranularity = [chunkGranularity longLongValue];
+  [self retrieveUploadChunkGranularityFromResponseHeaders:responseHeaders];
 
   BOOL isPrematureFinal = [uploadStatus isEqual:@"final"];
 
@@ -721,6 +719,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     int64_t offset = [sizeReceivedHeader longLongValue];
     int64_t fullUploadLength = [self fullUploadLength];
     if (offset < fullUploadLength) {
+      [self retrieveUploadChunkGranularityFromResponseHeaders:responseHeaders];
       [self uploadNextChunkWithOffset:offset];
     } else {
       // Handle we're done
@@ -1111,6 +1110,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
         holdFetcher = nil;
     }];
   }
+}
+
+- (void)retrieveUploadChunkGranularityFromResponseHeaders:(NSDictionary *)responseHeaders {
+  // Standard granularity for Google uploads is 256K.
+  NSString *chunkGranularityHeader =
+      [responseHeaders objectForKey:@"X-Goog-Upload-Chunk-Granularity"];
+  _uploadGranularity = [chunkGranularityHeader longLongValue];
 }
 
 #pragma mark -
