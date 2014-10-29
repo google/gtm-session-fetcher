@@ -26,7 +26,7 @@
 // Tap the Home button after the progress indicator starts. This kills the app, while not stopping
 // the download. The app will either be re-launched by the system if the download finishes or you
 // can re-launch the app to re-attach to the download and continue updating the progress bar.
-#define ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING  1
+#define ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING  0
 
 // Supports the out of process chunked upload acceptance test, since unit tests are not feasible for
 // it. When enabled, this app will upload a dynamically created test file to the test upload endpoint.

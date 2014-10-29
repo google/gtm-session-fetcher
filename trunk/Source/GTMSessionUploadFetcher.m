@@ -141,7 +141,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSURL *uploadFileURL = [NSURL URLWithString:uploadFileURLString];
   NSError *checkError;
   if (![uploadFileURL checkResourceIsReachableAndReturnError:&checkError]) {
-    GTMSESSION_ASSERT_DEBUG(NO, @"Missing upload file: %@\n%@", checkError, [uploadFileURL path]);
+    GTMSESSION_LOG_DEBUG(@"Missing upload file: %@\n%@", checkError, [uploadFileURL path]);
     return nil;
   }
   NSString *uploadLocationURLString = metadata[kGTMSessionIdentifierUploadLocationURLMetadataKey];
