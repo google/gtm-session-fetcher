@@ -139,11 +139,12 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if (uploadFileURLString == nil) return nil;
 
   NSURL *uploadFileURL = [NSURL URLWithString:uploadFileURLString];
-  NSError *checkError;
-  if (![uploadFileURL checkResourceIsReachableAndReturnError:&checkError]) {
-    GTMSESSION_LOG_DEBUG(@"Missing upload file: %@\n%@", checkError, [uploadFileURL path]);
-    return nil;
-  }
+  // There used to be a call here to NSURL checkResourceIsReachableAndReturnError: to check for the
+  // existence of the file (also tried NSFileManager fileExistsAtPath:). We've determined
+  // empirically that the check can fail at startup even when the upload file does in fact exist.
+  // For now, we'll go ahead and restore the background upload fetcher. If the file doesn't exist,
+  // it will fail later.
+
   NSString *uploadLocationURLString = metadata[kGTMSessionIdentifierUploadLocationURLMetadataKey];
   NSURL *uploadLocationURL =
       uploadLocationURLString ? [NSURL URLWithString:uploadLocationURLString] : nil;
