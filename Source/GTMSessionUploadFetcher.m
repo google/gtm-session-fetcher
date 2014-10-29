@@ -1018,10 +1018,11 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if (error) {
     NSInteger status = [error code];
 
-    // Status 4xx indicates a bad offset in the Google upload protocol.
+    // Status 4xx indicates a bad offset in the Google upload protocol. However, do not retry status
+    // 404 per spec.
     if (_shouldInitiateOffsetQuery ||
         ([error.domain isEqual:kGTMSessionFetcherStatusDomain] &&
-         status >= 400 && status <= 499 && !isUploadStatusFinal)) {
+         status >= 400 && status <= 499 && status != 404 && !isUploadStatusFinal)) {
       _shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
