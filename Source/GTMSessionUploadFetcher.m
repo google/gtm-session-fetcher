@@ -37,6 +37,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 @interface GTMSessionFetcher (ProtectedMethods)
 
+- (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks;
 - (void)createSessionIdentifierWithMetadata:(NSDictionary *)metadata;
 - (GTMSessionFetcherCompletionHandler)completionHandlerWithTarget:(id)target
                                                 didFinishSelector:(SEL)finishedSelector;
@@ -482,9 +483,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     }
     return;
   }
-
-  // TODO: handle retry after errors.
-
   // We don't want to call into the client's completion block immediately
   // after the finish of the initial connection (the delegate is called only
   // when uploading finishes), so we substitute our own completion block to be
@@ -636,6 +634,15 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   _uploadDataProvider = nil;
 
   [super releaseCallbacks];
+}
+
+- (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
+  // Clear _fetcherInFlight when stopped. Moved from stopFetching, since that's a public method,
+  // where this method does the work. Fixes issue clearing value when retryBlock included.
+  if (_fetcherInFlight == self) {
+    _fetcherInFlight = nil;
+  }
+  [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
 }
 
 #pragma mark Chunk fetching methods
@@ -968,7 +975,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                error:(NSError *)error {
   BOOL hasDestroyedOldChunkFetcher = NO;
   _fetcherInFlight = nil;
-  
+
   NSDictionary *responseHeaders = [chunkFetcher responseHeaders];
   NSString *uploadStatus = [responseHeaders objectForKey:@"X-Goog-Upload-Status"];
   BOOL isUploadStatusFinal = [uploadStatus isEqual:@"final"];
@@ -1111,10 +1118,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 - (void)stopFetching {
   // Overrides the superclass
   [self destroyChunkFetcher];
-
-  if (_fetcherInFlight == self) {
-    _fetcherInFlight = nil;
-  }
 
   // If we think the server is waiting for more data, then tell it there won't be more.
   if (self.uploadLocationURL) {

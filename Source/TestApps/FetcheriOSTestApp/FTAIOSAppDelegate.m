@@ -301,7 +301,9 @@ static NSUInteger const kBigUploadChunkSize = kBigUploadDataLength / 4;
                                            uploadMIMEType:@"text/plain"
                                                 chunkSize:kBigUploadChunkSize
                                            fetcherService:nil];
+    uploadFetcher.allowedInsecureSchemes = @[ @"http" ];
     uploadFetcher.uploadFileURL = bigFileURL;
+    uploadFetcher.retryEnabled = YES;
 
     // Start the upload.
     [uploadFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
