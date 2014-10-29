@@ -272,6 +272,16 @@ extern NSString *const kGTMSessionFetcherErrorDomain;
 extern NSString *const kGTMSessionFetcherStatusDomain;
 extern NSString *const kGTMSessionFetcherStatusDataKey;  // data returned with a kGTMSessionFetcherStatusDomain error
 
+// Background session support requires access to NSUserDefaults.
+// If [NSUserDefaults standardUserDefaults] doesn't yield the correct NSUserDefaults for your usage,
+// ie for an App Extension, then implement this class/method to return the correct NSUserDefaults.
+// https://developer.apple.com/library/ios/documentation/General/Conceptual/ExtensibilityPG/ExtensionScenarios.html#//apple_ref/doc/uid/TP40014214-CH21-SW6
+@interface GTMSessionFetcherUserDefaultsFactory : NSObject
+
++ (NSUserDefaults *)fetcherUserDefaults;
+
+@end
+
 #ifdef __cplusplus
 }
 #endif

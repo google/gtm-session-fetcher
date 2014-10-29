@@ -796,6 +796,21 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   }
 }
 
++ (NSUserDefaults *)fetcherUserDefaults {
+  static NSUserDefaults *gFetcherUserDefaults = nil;
+
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    Class fetcherUserDefaultsClass = NSClassFromString(@"GTMSessionFetcherUserDefaultsFactory");
+    if (fetcherUserDefaultsClass) {
+      gFetcherUserDefaults = [fetcherUserDefaultsClass fetcherUserDefaults];
+    } else {
+      gFetcherUserDefaults = [NSUserDefaults standardUserDefaults];
+    }
+  });
+  return gFetcherUserDefaults;
+}
+
 - (void)addPersistedBackgroundSessionToDefaults {
   if (!_sessionIdentifier) {
     return;
@@ -809,7 +824,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   [newBackgroundSessions addObject:_sessionIdentifier];
   GTM_LOG_BACKGROUND_SESSION(@"Add to background sessions: %@", newBackgroundSessions);
 
-  NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   [userDefaults setObject:newBackgroundSessions
                    forKey:kGTMSessionFetcherPersistedDestinationKey];
   [userDefaults synchronize];
@@ -835,7 +850,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   [newBackgroundSessions removeObjectAtIndex:sessionIndex];
   GTM_LOG_BACKGROUND_SESSION(@"Remove from background sessions: %@", newBackgroundSessions);
 
-  NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   if ([newBackgroundSessions count] == 0) {
     [userDefaults removeObjectForKey:kGTMSessionFetcherPersistedDestinationKey];
   } else {
@@ -846,7 +861,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 + (NSArray *)activePersistedBackgroundSessions {
-  NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   NSArray *oldBackgroundSessions =
       [userDefaults arrayForKey:kGTMSessionFetcherPersistedDestinationKey];
   if ([oldBackgroundSessions count] == 0) {
@@ -867,7 +882,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 + (void)restoreFetchersForBackgroundSessions {
-  NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   NSArray *backgroundSessions =
       [userDefaults arrayForKey:kGTMSessionFetcherPersistedDestinationKey];
   NSMapTable *sessionIdentifierToFetcherMap = [self sessionIdentifierToFetcherMap];
