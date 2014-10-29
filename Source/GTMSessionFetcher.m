@@ -559,8 +559,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (needsDataAccumulator && _accumulateDataBlock == nil) {
     self.downloadedData = [NSMutableData data];
   }
-  [self addPersistedBackgroundSessionToDefaults];
-
   if (_taskDescription) {
     _sessionTask.taskDescription = _taskDescription;
   }
@@ -597,6 +595,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   // for the previous task, but we should ensure that we don't unbalance that.
   GTMSESSION_ASSERT_DEBUG(!_isStopNotificationNeeded, @"Start notification without a prior stop");
   [self sendStopNotificationIfNeeded];
+
+  [self addPersistedBackgroundSessionToDefaults];
 
   _isStopNotificationNeeded = YES;
   NSNotificationCenter *defaultNC = [NSNotificationCenter defaultCenter];
@@ -1213,6 +1213,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 // If shouldReleaseCallbacks is NO then the fetch will be retried so the callbacks
 // need to still be retained.
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
+  [self removePersistedBackgroundSessionFromDefaults];
+
   id<GTMSessionFetcherServiceProtocol> service;
 
   // If the task or the retry timer is all that's retaining the fetcher,
@@ -1298,8 +1300,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 #if GTM_BACKGROUND_TASK_FETCHING
   [self endBackgroundTask];
 #endif
-
-  [self removePersistedBackgroundSessionFromDefaults];
 }
 
 - (void)sendStopNotificationIfNeeded {
@@ -1887,6 +1887,8 @@ didCompleteWithError:(NSError *)error {
 - (void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session {
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSessionDidFinishEventsForBackgroundURLSession:%@",
                            [self class], self, session);
+  [self removePersistedBackgroundSessionFromDefaults];
+
   GTMSessionFetcherSystemCompletionHandler handler;
   @synchronized(self) {
     handler = self.systemCompletionHandler;
@@ -1902,7 +1904,6 @@ didCompleteWithError:(NSError *)error {
       [oldSession finishTasksAndInvalidate];
     }
   }
-  [self removePersistedBackgroundSessionFromDefaults];
 }
 #endif
 
@@ -1914,14 +1915,14 @@ didCompleteWithError:(NSError *)error {
 }
 
 - (void)finishWithError:(NSError *)error shouldRetry:(BOOL)shouldRetry {
+  [self removePersistedBackgroundSessionFromDefaults];
+
   BOOL shouldStopFetching = YES;
   NSData *downloadedData = nil;
 #if !STRIP_GTM_FETCH_LOGGING
   BOOL shouldDeferLogging = NO;
 #endif
   BOOL shouldBeginRetryTimer = NO;
-
-  [self removePersistedBackgroundSessionFromDefaults];
 
   @synchronized(self) {
 
