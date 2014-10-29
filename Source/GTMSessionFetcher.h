@@ -219,10 +219,10 @@
 #endif
 
 #ifndef GTMSESSION_ASSERT_DEBUG
-  #if DEBUG
+  #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
     #define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
   #else
-    #define GTMSESSION_ASSERT_DEBUG(...)
+    #define GTMSESSION_ASSERT_DEBUG(pred, ...) GTMSESSION_LOG_DEBUG_IF(!(pred), __VA_ARGS__)
   #endif
 #endif
 
