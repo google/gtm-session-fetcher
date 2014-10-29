@@ -10,7 +10,6 @@
 		4F34A21C187CCBB50012E91E /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
 		4F34A24C187CD03F0012E91E /* GTMSessionFetcher.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B11862981000D6D62C /* GTMSessionFetcher.framework */; };
 		4F5566B51862981000D6D62C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
-		4F5566CA1862981000D6D62C /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
 		4F5566CB1862981000D6D62C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B41862981000D6D62C /* Cocoa.framework */; };
 		4F63A7AB19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */; };
 		4F63A7AC19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */; };
@@ -83,11 +82,9 @@
 		4FE52ABC18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
 		4FE52ABD18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
 		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
-		8E24A1D418B5417F0035CD94 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
 		8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */; };
 		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
 		8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
-		8EC566A618AAFB1200E2C97D /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566C91862981000D6D62C /* XCTest.framework */; };
 		8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
 		8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
 /* End PBXBuildFile section */
@@ -121,7 +118,6 @@
 		4F5566B91862981000D6D62C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		4F5566BC1862981000D6D62C /* GTMSessionFetcher-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GTMSessionFetcher-Info.plist"; sourceTree = "<group>"; };
 		4F5566C81862981000D6D62C /* FetcherMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcherMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		4F5566C91862981000D6D62C /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherChunkedUploadTest.m; path = UnitTests/GTMSessionFetcherChunkedUploadTest.m; sourceTree = SOURCE_ROOT; };
 		4F63A7AD19831242004D4315 /* GTMSessionFetcherFetchingTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherFetchingTest.h; path = UnitTests/GTMSessionFetcherFetchingTest.h; sourceTree = SOURCE_ROOT; };
 		4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMGatherInputStream.h; sourceTree = SOURCE_ROOT; };
@@ -199,7 +195,6 @@
 			files = (
 				4F5566CB1862981000D6D62C /* Cocoa.framework in Frameworks */,
 				4FA8DB7B193D13A40071BC92 /* Security.framework in Frameworks */,
-				4F5566CA1862981000D6D62C /* XCTest.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,7 +204,6 @@
 			files = (
 				8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */,
 				4FA8DB7D193D13A40071BC92 /* Security.framework in Frameworks */,
-				8E24A1D418B5417F0035CD94 /* XCTest.framework in Frameworks */,
 				8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */,
 				8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */,
 			);
@@ -219,7 +213,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8EC566A618AAFB1200E2C97D /* XCTest.framework in Frameworks */,
 				8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */,
 				4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */,
 				8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */,
@@ -293,7 +286,6 @@
 				4F5566B81862981000D6D62C /* CoreData.framework */,
 				4F5566B91862981000D6D62C /* AppKit.framework */,
 				4F5566B41862981000D6D62C /* Cocoa.framework */,
-				4F5566C91862981000D6D62C /* XCTest.framework */,
 				8EC5669118AAFB1200E2C97D /* UIKit.framework */,
 				4F34A21D187CCBB50012E91E /* Other Frameworks */,
 			);

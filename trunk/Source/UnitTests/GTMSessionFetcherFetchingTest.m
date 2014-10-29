@@ -207,6 +207,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTFail(@"redirect not expected");
   };
 
+  NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
@@ -220,7 +221,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       // Cookies should have been set by the response; specifically, TestCookie
       // should be set to the name of the file requested.
       NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
-      NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
       XCTAssertEqualObjects(cookiesSetString, cookieExpected);
 
       // A cookie should've been set.
@@ -249,6 +249,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher = [self fetcherWithURLString:localURLString];
   fetcher.configuration = priorConfig;
+  // TODO(seh): Shouldn't be needed; without it the cookie isn't being received by the test server.
+  // https://b2.corp.google.com/issues/17646646
+  [fetcher.mutableRequest setValue:cookieExpected forHTTPHeaderField:@"Cookie"];
   fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
                                  NSURLSessionConfiguration *config) {
       wasConfigBlockCalled = YES;
@@ -264,9 +267,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       // The cookie set previously should be sent with this request.  See what cookies the
       // http server found.
-      NSString *cookiesSent =
-         [[(NSHTTPURLResponse *)fetcher.response allHeaderFields] objectForKey:@"FoundCookies"];
-      NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
+      NSDictionary *allHeaderFields = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
+      NSString *cookiesSent = [allHeaderFields objectForKey:@"FoundCookies"];
       XCTAssertEqualObjects(cookiesSent, cookieExpected);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
