@@ -1588,26 +1588,26 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         credential = _proxyCredential;
       }
 
-      // Here, if credential is still nil, then we *could* try to get it from
-      // NSURLCredentialStorage's defaultCredentialForProtectionSpace:.
-      // We don't, because we're assuming:
-      //
-      // - For server credentials, we only want ones supplied by the program calling http fetcher
-      // - For proxy credentials, if one were necessary and available in the keychain, it would've
-      //   been found automatically by NSURLSession and this challenge delegate method never
-      //   would've been called anyway
-
       if (credential) {
-        // try the credential
         handler(NSURLSessionAuthChallengeUseCredential, credential);
-        return;
+        // If the credential is still nil, tell the OS to use the default handling. This is needed
+        // for things that can come out of the keychain (proxies, client certificates, etc.).
+        // Note: Looking up a credential with NSURLCredentialStorage's
+        // defaultCredentialForProtectionSpace: is *not* the same invoking the handler with
+        // NSURLSessionAuthChallengePerformDefaultHandling. In the case of
+        // NSURLAuthenticationMethodClientCertificate, you can get nil back from
+        // NSURLCredentialStorage while using this code path instead works. http://b/18109006 has
+        // the details on when this was hit.
+      } else {
+        handler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
       }
-    }  // @synchronized(self)
 
-    // We don't have credentials, or we've failed auth 3 times.  The completion
-    // handler will be called with code NSURLErrorCancelled.
-    handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
-  }
+    } else {
+      // We've failed auth 3 times.  The completion handler will be called with code
+      // NSURLErrorCancelled.
+      handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+    }
+  }  // @synchronized(self)
 }
 
 - (void)invokeOnCallbackQueueUnlessStopped:(void (^)(void))block {
