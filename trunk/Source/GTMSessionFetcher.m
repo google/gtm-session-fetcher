@@ -345,8 +345,11 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     return;
   }
 
+  NSString *requestScheme = [requestURL scheme];
+  BOOL isDataRequest = [requestScheme isEqual:@"data"];
+
 #if !GTM_ALLOW_INSECURE_REQUESTS
-  if (requestURL != nil) {
+  if ((requestURL != nil) && !isDataRequest) {
     // Allow https only for requests, unless overridden by the client.
     //
     // Non-https requests may too easily be snooped, so we disallow them by default.
@@ -354,7 +357,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     // file: and data: schemes are usually safe if they are hardcoded in the client or provided
     // by a trusted source, but since it's fairly rare to need them, it's safest to make clients
     // explicitly whitelist them.
-    NSString *requestScheme = [requestURL scheme];
     BOOL isSecure = ([requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
     if (!isSecure) {
       BOOL allowRequest = NO;
@@ -397,7 +399,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
         return;
       }
     }  // !isSecure
-  }  // requestURL != nil
+  }  // (requestURL != nil) && !isDataRequest
 #endif  // GTM_ALLOW_INSECURE_REQUESTS
 
   if (_cookieStorage == nil) {
@@ -517,7 +519,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
   // We authorize after setting up the http method and body in the request
   // because OAuth 1 may need to sign the request body
-  if (mayAuthorize && _authorizer) {
+  if (mayAuthorize && _authorizer && !isDataRequest) {
     BOOL isAuthorized = [_authorizer isAuthorizedRequest:_request];
     if (!isAuthorized) {
       // Authorization needed.  This will recursively call this beginFetch:mayDelay:
@@ -540,7 +542,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   BOOL needsDataAccumulator = NO;
   if (_downloadResumeData) {
     _sessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
-  } else if (_destinationFileURL) {
+  } else if (_destinationFileURL && !isDataRequest) {
     _sessionTask = [_session downloadTaskWithRequest:_request];
   } else if (needsUploadTask) {
     if (_bodyFileURL) {
@@ -1449,7 +1451,7 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
       if (willRedirectBlock) {
         [self invokeOnCallbackQueueAfterUserStopped:YES
                                               block:^{
-            _willRedirectBlock(redirectResponse, redirectRequest, ^(NSURLRequest *clientRequest) {
+            willRedirectBlock(redirectResponse, redirectRequest, ^(NSURLRequest *clientRequest) {
                 @synchronized(self) {
                   // Update the request for future logging
                   self.mutableRequest = [clientRequest mutableCopy];
@@ -1943,14 +1945,26 @@ didCompleteWithError:(NSError *)error {
   @synchronized(self) {
 
     NSInteger status = [self statusCode];
-
+#if !STRIP_GTM_FETCH_LOGGING
+    shouldDeferLogging = _deferResponseBodyLogging;
+#endif
     if (error == nil && status >= 0 && status < 300) {
       // Success
+      NSURL *destinationURL = self.destinationFileURL;
+      if (([_downloadedData length] > 0) && (destinationURL != nil)) {
+        // Overwrite any previous file at the destination URL.
+        [[NSFileManager defaultManager] removeItemAtURL:destinationURL error:NULL];
+        if ([_downloadedData writeToURL:destinationURL options:NSDataWritingAtomic error:&error]) {
+          _downloadedData = nil;
+        } else {
+          _downloadMoveError = error;
+        }
+      }
       downloadedData = _downloadedData;
     } else {
       // Unsuccessful
 #if !STRIP_GTM_FETCH_LOGGING
-      if (!_hasLoggedError) {
+      if (!shouldDeferLogging && !_hasLoggedError) {
         [self logNowWithError:error];
         _hasLoggedError = YES;
       }
@@ -1989,9 +2003,6 @@ didCompleteWithError:(NSError *)error {
         }
       }
     }
-#if !STRIP_GTM_FETCH_LOGGING
-    shouldDeferLogging = _deferResponseBodyLogging;
-#endif
   }  // @synchronized(self)
 
   if (shouldBeginRetryTimer) {
@@ -2070,7 +2081,6 @@ didCompleteWithError:(NSError *)error {
   return NO;
 }
 
-
 // shouldRetryNowForStatus:error: responds with YES if the user has enabled retries
 // and the status or error is one that is suitable for retrying.  "Suitable"
 // means either the isRetryError:'s list contains the status or error, or the
@@ -2096,42 +2106,43 @@ didCompleteWithError:(NSError *)error {
         }
       }
     }
+    BOOL shouldDoRetry = [self isRetryEnabled];
+    if (shouldDoRetry && ![self hasRetryAfterInterval]) {
 
-    // Determine if we're doing exponential backoff retries
-    BOOL shouldDoIntervalRetry = ([self isRetryEnabled]
-                                  && [self nextRetryInterval] < [self maxRetryInterval]);
+      // Determine if we're doing exponential backoff retries
+      shouldDoRetry = [self nextRetryInterval] < [self maxRetryInterval];
 
-    if (shouldDoIntervalRetry) {
-      // If an explicit max retry interval was set, we expect repeated backoffs to take
-      // up to roughly twice that for repeated fast failures.  If the initial attempt is
-      // already more than 3 times the max retry interval, then failures have taken a long time
-      // (such as from network timeouts) so don't retry again to avoid the app becoming
-      // unexpectedly unresponsive.
-      if (_maxRetryInterval > 0) {
-        NSTimeInterval maxAllowedIntervalBeforeRetry = _maxRetryInterval * 3;
-        NSTimeInterval timeSinceInitialRequest = -[_initialRequestDate timeIntervalSinceNow];
-        if (timeSinceInitialRequest > maxAllowedIntervalBeforeRetry) {
-          shouldDoIntervalRetry = NO;
+      if (shouldDoRetry) {
+        // If an explicit max retry interval was set, we expect repeated backoffs to take
+        // up to roughly twice that for repeated fast failures.  If the initial attempt is
+        // already more than 3 times the max retry interval, then failures have taken a long time
+        // (such as from network timeouts) so don't retry again to avoid the app becoming
+        // unexpectedly unresponsive.
+        if (_maxRetryInterval > 0) {
+          NSTimeInterval maxAllowedIntervalBeforeRetry = _maxRetryInterval * 3;
+          NSTimeInterval timeSinceInitialRequest = -[_initialRequestDate timeIntervalSinceNow];
+          if (timeSinceInitialRequest > maxAllowedIntervalBeforeRetry) {
+            shouldDoRetry = NO;
+          }
         }
       }
     }
-
     BOOL willRetry = NO;
-    BOOL canRetry = shouldRetryForAuthRefresh || shouldDoIntervalRetry;
+    BOOL canRetry = shouldRetryForAuthRefresh || shouldDoRetry;
     if (canRetry) {
-      // Check if this is a retryable error
-      if (error == nil) {
-        // Make an error for the status
-        NSDictionary *userInfo = nil;
-        if ([_downloadedData length] > 0) {
-          userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
-        }
-        error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
-                                    code:status
-                                userInfo:userInfo];
+      NSDictionary *userInfo = nil;
+      if ([_downloadedData length] > 0) {
+        userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
       }
-
-      willRetry = shouldRetryForAuthRefresh || [self isRetryError:error];
+      NSError *statusError = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
+                                                 code:status
+                                             userInfo:userInfo];
+      if (error == nil) {
+        error = statusError;
+      }
+      willRetry = shouldRetryForAuthRefresh ||
+                  [self isRetryError:error] ||
+                  ((error != statusError) && [self isRetryError:statusError]);
 
       // If the user has installed a retry callback, consult that.
       GTMSessionFetcherRetryBlock retryBlock = _retryBlock;
@@ -2144,6 +2155,31 @@ didCompleteWithError:(NSError *)error {
     }
     response(willRetry);
   }
+}
+
+- (BOOL)hasRetryAfterInterval {
+  NSDictionary *responseHeaders = [self responseHeaders];
+  NSString *retryAfterValue = [responseHeaders valueForKey:@"Retry-After"];
+  return (retryAfterValue != nil);
+}
+
+- (NSTimeInterval)retryAfterInterval {
+  NSDictionary *responseHeaders = [self responseHeaders];
+  NSString *retryAfterValue = [responseHeaders valueForKey:@"Retry-After"];
+  if (retryAfterValue == nil) {
+    return 0;
+  }
+  // Retry-After formatted as HTTP-date | delta-seconds
+  // Reference: http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+  NSDateFormatter *rfc1123DateFormatter = [[NSDateFormatter alloc] init];
+  rfc1123DateFormatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US"];
+  rfc1123DateFormatter.timeZone = [NSTimeZone timeZoneWithAbbreviation:@"GMT"];
+  rfc1123DateFormatter.dateFormat = @"EEE',' dd MMM yyyy HH':'mm':'ss z";
+  NSDate *retryAfterDate = [rfc1123DateFormatter dateFromString:retryAfterValue];
+  NSTimeInterval retryAfterInterval = (retryAfterDate != nil) ?
+      [retryAfterDate timeIntervalSinceNow] : [retryAfterValue intValue];
+  retryAfterInterval = MAX(0, retryAfterInterval);
+  return retryAfterInterval;
 }
 
 - (void)beginRetryTimer {
@@ -2215,6 +2251,11 @@ didCompleteWithError:(NSError *)error {
 }
 
 - (NSTimeInterval)nextRetryInterval {
+  NSInteger statusCode = [self statusCode];
+  if ((statusCode == 503) && [self hasRetryAfterInterval]) {
+    NSTimeInterval secs = [self retryAfterInterval];
+    return secs;
+  }
   // The next wait interval is the factor (2.0) times the last interval,
   // but never less than the minimum interval.
   NSTimeInterval secs = _lastRetryInterval * _retryFactor;
@@ -2362,8 +2403,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 @synthesize redirectedFromURL = _redirectedFromURL,
             logRequestBody = _logRequestBody,
             logResponseBody = _logResponseBody,
-            hasLoggedError = _hasLoggedError,
-            deferResponseBodyLogging = _deferResponseBodyLogging;
+            hasLoggedError = _hasLoggedError;
 #endif
 
 - (int64_t)bodyLength {
@@ -2478,6 +2518,28 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 - (void)clearLoggedStreamData {
   _loggedStreamData = nil;
 }
+
+- (void)setDeferResponseBodyLogging:(BOOL)deferResponseBodyLogging {
+  @synchronized(self) {
+    if (deferResponseBodyLogging != _deferResponseBodyLogging) {
+      _deferResponseBodyLogging = deferResponseBodyLogging;
+      if (!deferResponseBodyLogging && !self.hasLoggedError) {
+        [_delegateQueue addOperationWithBlock:^{
+          @synchronized(self) {
+            [self logNowWithError:nil];
+          }
+        }];
+      }
+    }
+  }
+}
+
+- (BOOL)deferResponseBodyLogging {
+  @synchronized(self) {
+    return _deferResponseBodyLogging;
+  }
+}
+
 #else
 + (void)setLoggingEnabled:(BOOL)flag {
 }

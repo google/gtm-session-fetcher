@@ -932,6 +932,43 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
 
+- (void)testFetchDataToFile {
+  if (!_isServerRunning) return;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  // Make the destination URL for downloading.
+  NSURL *destFileURL = [self temporaryFileURLWithBaseName:NSStringFromSelector(_cmd)];
+
+  // Get the original file's contents.
+  NSString *origContents = [[NSString alloc] initWithData:[self gettysburgAddress]
+                                                 encoding:NSUTF8StringEncoding];
+  NSString *escapedContents =
+      [origContents stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+  NSString *validDataURLString = [NSString stringWithFormat:@"data:,%@", escapedContents];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:validDataURLString];
+  fetcher.destinationFileURL = destFileURL;
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTAssertNil(data);
+      XCTAssertNil(error);
+
+      NSString *fetchedContents = [NSString stringWithContentsOfURL:destFileURL
+                                                           encoding:NSUTF8StringEncoding
+                                                              error:NULL];
+      XCTAssertEqualObjects(fetchedContents, origContents);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  [self removeTemporaryFileURL:destFileURL];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
 - (void)testUnsuccessfulFetchToFile {
   if (!_isServerRunning) return;
 

@@ -401,6 +401,16 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     if (offset == 0 && length == (int64_t)[_uploadData length]) {
       resultData = _uploadData;
     } else {
+      int64_t dataLength = [_uploadData length];
+      // Ensure our range is valid.  b/18007814
+      if (offset + length > dataLength) {
+        NSString *errorMessage = [NSString stringWithFormat:
+            @"Range invalid for upload data.  offset: %lld\tlength: %lld\tdataLength: %lld",
+            offset, length, dataLength];
+        GTMSESSION_ASSERT_DEBUG(NO, @"%@", errorMessage);
+        response(nil, [self uploadChunkUnavailableErrorWithDescription:errorMessage]);
+        return;
+      }
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
       resultData = [_uploadData subdataWithRange:range];
     }
