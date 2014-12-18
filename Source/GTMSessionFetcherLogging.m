@@ -295,25 +295,6 @@ static NSString *gLoggingProcessName = nil;
   return dataStr;
 }
 
-- (void)setShouldDeferResponseBodyLogging:(BOOL)shouldDeferResponseBodyLogging {
-  @synchronized(self) {
-    if (shouldDeferResponseBodyLogging != self.deferResponseBodyLogging) {
-      self.deferResponseBodyLogging = shouldDeferResponseBodyLogging;
-      if (!shouldDeferResponseBodyLogging && !self.hasLoggedError) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self logFetchWithError:nil];
-        });
-      }
-    }
-  }
-}
-
-- (BOOL)shouldDeferResponseBodyLogging {
-  @synchronized(self) {
-    return self.deferResponseBodyLogging;
-  }
-}
-
 // stringFromStreamData creates a string given the supplied data
 //
 // If NSString can create a UTF-8 string from the data, then that is returned.
