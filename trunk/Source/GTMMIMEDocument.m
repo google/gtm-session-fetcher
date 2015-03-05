@@ -118,6 +118,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 @implementation GTMMIMEDocument {
   NSMutableArray *parts_;         // Contains an ordered set of MimeParts.
   unsigned long long length_;     // Length in bytes of the document.
+  NSString *boundary_;
   u_int32_t randomSeed_;          // For testing.
 }
 
@@ -141,12 +142,14 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 - (void)addPartWithHeaders:(NSDictionary *)headers body:(NSData *)body {
   GTMMIMEPart* part = [GTMMIMEPart partWithHeaders:headers body:body];
   [parts_ addObject:part];
+  boundary_ = nil;
 }
 
 // For unit testing only, seeds the random number generator so that we will
 // have reproducible boundary strings.
 - (void)seedRandomWith:(u_int32_t)seed {
   randomSeed_ = seed;
+  boundary_ = nil;
 }
 
 - (u_int32_t)random {
@@ -161,12 +164,15 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 // Computes the mime boundary to use.  This should only be called
 // after all the desired document parts have been added since it must compute
 // a boundary that does not exist in the document data.
-- (NSString *)uniqueBoundary {
+- (NSString *)boundary {
+  if (boundary_) {
+    return boundary_;
+  }
 
   // Use an easily-readable boundary string.
   NSString *const kBaseBoundary = @"END_OF_PART";
 
-  NSString *boundary = kBaseBoundary;
+  boundary_ = kBaseBoundary;
 
   // If the boundary isn't unique, append random numbers, up to 10 attempts;
   // if that's still not unique, use a random number sequence instead, and call it good.
@@ -175,7 +181,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   const int maxTries = 10;  // Arbitrarily chosen maximum attempts.
   for (int tries = 0; tries < maxTries; ++tries) {
 
-    NSData *data = [boundary dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *data = [boundary_ dataUsingEncoding:NSUTF8StringEncoding];
     const void *dataBytes = [data bytes];
     NSUInteger dataLen = [data length];
 
@@ -187,14 +193,18 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
     if (!didCollide) break; // We're fine, no more attempts needed.
 
     // Try again with a random number appended.
-    boundary = [NSString stringWithFormat:@"%@_%08x", kBaseBoundary, [self random]];
+    boundary_ = [NSString stringWithFormat:@"%@_%08x", kBaseBoundary, [self random]];
   }
 
   if (didCollide) {
     // Fallback... two random numbers.
-    boundary = [NSString stringWithFormat:@"%08x_tedborg_%08x", [self random], [self random]];
+    boundary_ = [NSString stringWithFormat:@"%08x_tedborg_%08x", [self random], [self random]];
   }
-  return boundary;
+  return boundary_;
+}
+
+- (void)setBoundary:(NSString *)str {
+  boundary_ = [str copy];
 }
 
 - (void)generateInputStream:(NSInputStream **)outStream
@@ -211,7 +221,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   //   --boundary--
 
   // First we set up our boundary NSData objects.
-  NSString *boundary = [self uniqueBoundary];
+  NSString *boundary = self.boundary;
 
   NSString *mainBoundary = [NSString stringWithFormat:@"\r\n--%@\r\n", boundary];
   NSString *endBoundary = [NSString stringWithFormat:@"\r\n--%@--\r\n", boundary];

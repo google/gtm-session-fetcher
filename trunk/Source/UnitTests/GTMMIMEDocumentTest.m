@@ -165,6 +165,48 @@
                       testMethod:_cmd];
 }
 
+- (void)testExplicitBoundary {
+  GTMMIMEDocument *doc = [GTMMIMEDocument MIMEDocument];
+
+  NSDictionary *h1 = @{@"hfoo": @"bar", @"hfaz" : @"baz"};
+  NSData *b1 = [@"Hi mom" dataUsingEncoding:NSUTF8StringEncoding];
+
+  NSDictionary *h2 = [NSDictionary dictionary];
+  NSData *b2 = [@"Hi dad" dataUsingEncoding:NSUTF8StringEncoding];
+
+  [doc addPartWithHeaders:h1 body:b1];
+  [doc addPartWithHeaders:h2 body:b2];
+
+  NSString *birdy = @"Look at that magic bird!";
+  doc.boundary = birdy;
+
+  // generate the boundary and the input stream
+  NSInputStream *stream = nil;
+  NSString *boundary = nil;
+  unsigned long long length = -1;
+
+  [doc generateInputStream:&stream
+                    length:&length
+                  boundary:&boundary];
+
+  NSString* expectedResultString = [NSString stringWithFormat:
+                                    @"\r\n--%@\r\n"
+                                    "hfaz: baz\r\n"
+                                    "hfoo: bar\r\n"
+                                    "\r\n"    // Newline after headers.
+                                    "Hi mom"
+                                    "\r\n--%@\r\n"
+                                    "\r\n"    // No header here, but still need the newline.
+                                    "Hi dad"
+                                    "\r\n--%@--\r\n",
+                                    birdy, birdy, birdy];
+  
+  // Now read the document from the input stream.
+  [self doReadTestForInputStream:stream
+                  expectedString:expectedResultString
+                      testMethod:_cmd];
+}
+
 - (void)testBoundaryConflict {
   GTMMIMEDocument *doc = [GTMMIMEDocument MIMEDocument];
 
@@ -191,12 +233,16 @@
   unsigned long long length = -1;
 
   [doc seedRandomWith:1];
+
+  NSString *resultBoundary = doc.boundary;
+  NSString *expectedBoundary = @"END_OF_PART_00000001";
+  XCTAssertEqualObjects(resultBoundary, expectedBoundary);
+
   [doc generateInputStream:&stream
                     length:&length
                   boundary:&boundary];
 
   // The second alternate boundary, given the random seed.
-  // boundary = @"END_OF_PART_00000001";
 
   NSString* expectedResultString = [NSString stringWithFormat:
     @"\r\n--%@\r\n"
