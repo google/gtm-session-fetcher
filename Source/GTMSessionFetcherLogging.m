@@ -65,6 +65,7 @@
 static BOOL gIsLoggingEnabled = NO;
 static BOOL gIsLoggingToFile = YES;
 static NSString *gLoggingDirectoryPath = nil;
+static NSString *gLogDirectoryForCurrentRun = nil;
 static NSString *gLoggingDateStamp = nil;
 static NSString *gLoggingProcessName = nil;
 
@@ -112,8 +113,15 @@ static NSString *gLoggingProcessName = nil;
   return gLoggingDirectoryPath;
 }
 
-+ (NSString *)logDirectory {
++ (void)setLogDirectoryForCurrentRun:(NSString *)logDirectoryForCurrentRun {
+  // Set the path for this run's logs.
+  gLogDirectoryForCurrentRun = [logDirectoryForCurrentRun copy];
+}
+
++ (NSString *)logDirectoryForCurrentRun {
   // make a directory for this run's logs, like SyncProto_logs_10-16_01-56-58PM
+  if (gLogDirectoryForCurrentRun) return gLogDirectoryForCurrentRun;
+
   NSString *parentDir = [self loggingDirectory];
   NSString *logNamePrefix = [self processNameLogPrefix];
   NSString *dateStamp = [self loggingDateStamp];
@@ -122,7 +130,7 @@ static NSString *gLoggingProcessName = nil;
 
   if (gIsLoggingToFile) {
     NSFileManager *fileMgr = [NSFileManager defaultManager];
-    // be sure that the first time this app runs, it's not writing to a preexisting folder
+    // Be sure that the first time this app runs, it's not writing to a preexisting folder
     static BOOL gShouldReuseFolder = NO;
     if (!gShouldReuseFolder) {
       gShouldReuseFolder = YES;
@@ -139,7 +147,9 @@ static NSString *gLoggingProcessName = nil;
                              attributes:nil
                                   error:NULL]) return nil;
   }
-  return logDirectory;
+  gLogDirectoryForCurrentRun = logDirectory;
+
+  return gLogDirectoryForCurrentRun;
 }
 
 + (void)setLoggingEnabled:(BOOL)isLoggingEnabled {
@@ -383,7 +393,7 @@ static NSString *gLoggingProcessName = nil;
 
 - (void)logFetchWithError:(NSError *)error {
   if (![[self class] isLoggingEnabled]) return;
-  NSString *logDirectory = [[self class] logDirectory];
+  NSString *logDirectory = [[self class] logDirectoryForCurrentRun];
   if (!logDirectory) return;
   NSString *processName = [[self class] loggingProcessName];
 
@@ -629,8 +639,9 @@ static NSString *gLoggingProcessName = nil;
       } else {
         // purple for anything other than 200 or 201
         NSString *flag = status >= 400 ? @"&nbsp;&#x2691;" : @""; // 2691 = ⚑
-        NSString *const statusFormat = @"<FONT COLOR='#FF00FF'>%ld %@</FONT>";
-        statusString = [NSString stringWithFormat:statusFormat, (long)status, flag];
+        NSString *explanation = [NSHTTPURLResponse localizedStringForStatusCode:status];
+        NSString *const statusFormat = @"<FONT COLOR='#FF00FF'>%ld %@ %@</FONT>";
+        statusString = [NSString stringWithFormat:statusFormat, (long)status, explanation, flag];
       }
     }
     // show the response URL only if it's different from the request URL

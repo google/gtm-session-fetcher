@@ -54,12 +54,6 @@ static NSString * const kGTMSessionFetcherPersistedDestinationKey =
 //
 
 #if 0
-#define GTM_LOG_SESSION_DELEGATE(...) GTMSESSION_LOG_DEBUG(__VA_ARGS__)
-#else
-#define GTM_LOG_SESSION_DELEGATE(...)
-#endif
-
-#if 0
 #define GTM_LOG_BACKGROUND_SESSION(...) GTMSESSION_LOG_DEBUG(__VA_ARGS__)
 #else
 #define GTM_LOG_BACKGROUND_SESSION(...)
@@ -95,6 +89,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 @implementation GTMSessionFetcher {
   NSMutableURLRequest *_request;
   NSURLSession *_session;
+  BOOL _shouldInvalidateSession;
   NSURLSessionConfiguration *_configuration;
   NSURLSessionTask *_sessionTask;
   NSString *_taskDescription;
@@ -277,7 +272,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 // for the duration of the fetch connection.
 
 - (void)beginFetchWithCompletionHandler:(GTMSessionFetcherCompletionHandler)handler {
-  _completionHandler = handler;
+  _completionHandler = [handler copy];
 
   // The user may have called setDelegate: earlier if they want to use other
   // delegate-style callbacks during the fetch; otherwise, the delegate is nil,
@@ -408,6 +403,12 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
   BOOL isRecreatingSession = (_sessionIdentifier != nil) && (_request == nil);
 
+  _canShareSession = !isRecreatingSession && !_useBackgroundSession;
+
+  if (!_session && _canShareSession) {
+    _session = [_service session];
+  }
+
   if (!_session) {
     // Create a session.
     if (!_configuration) {
@@ -428,6 +429,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
             [NSURLSessionConfiguration backgroundSessionConfiguration:_sessionIdentifier];
 #endif
         _useBackgroundSession = YES;
+        _canShareSession = NO;
       } else {
         _configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
       }
@@ -439,18 +441,33 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
       _configurationBlock(self, _configuration);
     }
 
+    id<NSURLSessionDelegate> delegate = [_service sessionDelegate];
+    if (!delegate || !_canShareSession) {
+      delegate = self;
+    }
     _session = [NSURLSession sessionWithConfiguration:_configuration
-                                             delegate:self
+                                             delegate:delegate
                                         delegateQueue:_delegateQueue];
     GTMSESSION_ASSERT_DEBUG(_session, @"Couldn't create session");
+
+    [_service fetcherDidCreateSession:self];
 
     // If this assertion fires, the client probably tried to use a session identifier that was
     // already used. The solution is to make the client use a unique identifier (or better yet let
     // the session fetcher assign the identifier).
-    GTMSESSION_ASSERT_DEBUG(_session.delegate == self, @"Couldn't assign delegate.");
+    GTMSESSION_ASSERT_DEBUG(_session.delegate == delegate, @"Couldn't assign delegate.");
+
+    if (_session) {
+      BOOL isUsingSharedDelegate = (delegate != self);
+      if (!isUsingSharedDelegate) {
+        _shouldInvalidateSession = YES;
+      }
+    }
   }
 
   if (isRecreatingSession) {
+    _shouldInvalidateSession = YES;
+
     // Let's make sure there are tasks still running or if not that we get a callback from a
     // completed one; otherwise, we assume the tasks failed.
     // This is the observed behavior perhaps 25% of the time within the Simulator running 7.0.3 on
@@ -484,7 +501,13 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (mayDelay && _service) {
     BOOL shouldFetchNow = [_service fetcherShouldBeginFetching:self];
     if (!shouldFetchNow) {
-      // The fetch is deferred, but will happen later
+      // The fetch is deferred, but will happen later.
+      //
+      // If this session is held by the fetcher service, clear the session now so that we don't
+      // assume it's still valid after the fetcher is restarted.
+      if (_canShareSession) {
+        _session = nil;
+      }
       return;
     }
   }
@@ -522,7 +545,15 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (mayAuthorize && _authorizer && !isDataRequest) {
     BOOL isAuthorized = [_authorizer isAuthorizedRequest:_request];
     if (!isAuthorized) {
-      // Authorization needed.  This will recursively call this beginFetch:mayDelay:
+      // Authorization needed.
+      //
+      // If this session is held by the fetcher service, clear the session now so that we don't
+      // assume it's still valid after authorization completes.
+      if (_canShareSession) {
+        _session = nil;
+      }
+
+      // Authorizing the request will recursively call this beginFetch:mayDelay:
       // or failToBeginFetchWithError:.
       [self authorizeRequest];
       return;
@@ -542,22 +573,39 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   BOOL needsDataAccumulator = NO;
   if (_downloadResumeData) {
     _sessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
+    GTMSESSION_ASSERT_DEBUG(_sessionTask,
+                            @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
+                            _session, [_downloadResumeData length]);
   } else if (_destinationFileURL && !isDataRequest) {
     _sessionTask = [_session downloadTaskWithRequest:_request];
+    GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed downloadTaskWithRequest for %@, %@",
+                            _session, _request);
   } else if (needsUploadTask) {
     if (_bodyFileURL) {
+      GTMSESSION_ASSERT_DEBUG([_bodyFileURL checkResourceIsReachableAndReturnError:NULL],
+                              @"Body file is missing: %@", [_bodyFileURL path]);
       _sessionTask = [_session uploadTaskWithRequest:_request fromFile:_bodyFileURL];
+      GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed uploadTaskWithRequest for %@, %@, file %@",
+                              _session, _request, [_bodyFileURL path]);
     } else if (_bodyStreamProvider) {
       _sessionTask = [_session uploadTaskWithStreamedRequest:_request];
+      GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed uploadTaskWithStreamedRequest for %@, %@",
+                              _session, _request);
     } else {
-      GTMSESSION_ASSERT_DEBUG(_bodyData != nil, @"upload task needs body data");
+      GTMSESSION_ASSERT_DEBUG(_bodyData != nil, @"Upload task needs body data, %@", _request);
       _sessionTask = [_session uploadTaskWithRequest:_request fromData:_bodyData];
+      GTMSESSION_ASSERT_DEBUG(_sessionTask,
+                              @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
+                              _session, _request, [_bodyData length]);
     }
     needsDataAccumulator = YES;
   } else {
     _sessionTask = [_session dataTaskWithRequest:_request];
     needsDataAccumulator = YES;
+    GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed dataTaskWithRequest for %@, %@",
+                            _session, _request);
   }
+
   if (needsDataAccumulator && _accumulateDataBlock == nil) {
     self.downloadedData = [NSMutableData data];
   }
@@ -605,6 +653,9 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   [defaultNC postNotificationName:kGTMSessionFetcherStartedNotification
                            object:self];
 
+  // The service needs to know our task if it is serving as delegate.
+  [_service fetcherDidBeginFetching:self];
+
   if (_testBlock) {
     [self simulateFetchForTestBlock];
   } else {
@@ -639,6 +690,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
               NSInteger numberOfBytesRead = [bodyStream read:buffer maxLength:sizeof(buffer)];
               if (numberOfBytesRead > 0) {
                 [streamedData appendBytes:buffer length:(NSUInteger)numberOfBytesRead];
+              } else {
+                break;
               }
             }
             [bodyStream close];
@@ -691,22 +744,23 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   // This method does the test simulation of callbacks once the upload
   // and download data are known.
 
-  // Simulate receipt of an initial response.
-  if (_didReceiveResponseBlock) {
-    [self invokeOnCallbackQueueAfterUserStopped:YES
-                                          block:^{
-        _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
-            // For simulation, we'll assume the disposition is to continue.
-        });
-    }];
-  }
-
+  // Simulate receipt of redirection.
   if (_willRedirectBlock) {
     [self invokeOnCallbackQueueAfterUserStopped:YES
                                           block:^{
         _willRedirectBlock((NSHTTPURLResponse *)response, _request,
                            ^(NSURLRequest *redirectRequest) {
             // For simulation, we'll assume the app will just continue.
+        });
+    }];
+  }
+
+  // Simulate receipt of an initial response.
+  if (_didReceiveResponseBlock) {
+    [self invokeOnCallbackQueueAfterUserStopped:YES
+                                          block:^{
+        _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+            // For simulation, we'll assume the disposition is to continue.
         });
     }];
   }
@@ -795,6 +849,12 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
         _request = [_sessionTask.originalRequest mutableCopy];
       }
     }
+  }
+}
+
+- (NSURLSessionTask *)sessionTask {
+  @synchronized(self) {
+    return _sessionTask;
   }
 }
 
@@ -932,6 +992,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     GTMSESSION_ASSERT_DEBUG(!_session, @"Unable to set session identifier after session created");
     _sessionIdentifier = [sessionIdentifier copy];
     _useBackgroundSession = YES;
+    _canShareSession = NO;
     [self restoreDefaultStateForSessionIdentifierMetadata];
   }
 }
@@ -1083,10 +1144,10 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                    userInfo:nil];
   [self invokeFetchCallbacksOnCallbackQueueWithData:nil
                                               error:error];
-  @synchronized(self) {
-    // Stopping the fetch here will indirectly call endBackgroundTask
-    [self stopFetchReleasingCallbacks:NO];
+  // Stopping the fetch here will indirectly call endBackgroundTask
+  [self stopFetchReleasingCallbacks:NO];
 
+  @synchronized(self) {
     [self releaseCallbacks];
     self.authorizer = nil;
   }
@@ -1281,12 +1342,11 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     // If the task was canceled, wait until the URLSession:task:didCompleteWithError: to call
     // finishTasksAndInvalidate, since calling it immediately tends to crash, see radar 18471901.
     if (_session && !hasCanceledTask) {
+      BOOL shouldInvalidate = _shouldInvalidateSession;
 #if TARGET_OS_IPHONE
       // Don't invalidate if we've got a systemCompletionHandler, since
       // URLSessionDidFinishEventsForBackgroundURLSession: won't be called if invalidated.
-      BOOL shouldInvalidate = !self.systemCompletionHandler;
-#else
-      BOOL shouldInvalidate = YES;
+      shouldInvalidate = shouldInvalidate && !self.systemCompletionHandler;
 #endif
       if (shouldInvalidate) {
         __autoreleasing NSURLSession *oldSession = _session;
@@ -1592,15 +1652,15 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
 
       if (credential) {
         handler(NSURLSessionAuthChallengeUseCredential, credential);
-        // If the credential is still nil, tell the OS to use the default handling. This is needed
+      } else {
+        // The credential is still nil; tell the OS to use the default handling. This is needed
         // for things that can come out of the keychain (proxies, client certificates, etc.).
+        //
         // Note: Looking up a credential with NSURLCredentialStorage's
         // defaultCredentialForProtectionSpace: is *not* the same invoking the handler with
         // NSURLSessionAuthChallengePerformDefaultHandling. In the case of
         // NSURLAuthenticationMethodClientCertificate, you can get nil back from
-        // NSURLCredentialStorage while using this code path instead works. http://b/18109006 has
-        // the details on when this was hit.
-      } else {
+        // NSURLCredentialStorage, while using this code path instead works.
         handler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
       }
 
@@ -1919,7 +1979,9 @@ didCompleteWithError:(NSError *)error {
     @synchronized(self) {
       NSURLSession *oldSession = _session;
       _session = nil;
-      [oldSession finishTasksAndInvalidate];
+      if (_shouldInvalidateSession) {
+        [oldSession finishTasksAndInvalidate];
+      }
     }
   }
 }
@@ -2090,6 +2152,8 @@ didCompleteWithError:(NSError *)error {
                           error:(NSError *)error
                        response:(GTMSessionFetcherRetryResponse)response {
   // Determine if a refreshed authorizer may avoid an authorization error
+  BOOL willRetry = NO;
+
   @synchronized(self) {
     BOOL shouldRetryForAuthRefresh = NO;
     BOOL isFirstAuthError = (_authorizer != nil
@@ -2127,7 +2191,6 @@ didCompleteWithError:(NSError *)error {
         }
       }
     }
-    BOOL willRetry = NO;
     BOOL canRetry = shouldRetryForAuthRefresh || shouldDoRetry;
     if (canRetry) {
       NSDictionary *userInfo = nil;
@@ -2153,8 +2216,8 @@ didCompleteWithError:(NSError *)error {
         return;
       }
     }
-    response(willRetry);
   }
+  response(willRetry);
 }
 
 - (BOOL)hasRetryAfterInterval {
@@ -2361,11 +2424,11 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             downloadResumeData = _downloadResumeData,
             configuration = _configuration,
             configurationBlock = _configurationBlock,
-            session = _session,
             sessionTask = _sessionTask,
             sessionUserInfo = _sessionUserInfo,
             taskDescription = _taskDescription,
             useBackgroundSession = _useBackgroundSession,
+            canShareSession = _canShareSession,
             completionHandler = _completionHandler,
             credential = _credential,
             proxyCredential = _proxyCredential,
@@ -2425,6 +2488,28 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }
 }
 
+- (NSURLSession *)session {
+  @synchronized(self) {
+    return _session;
+  }
+}
+
+- (void)setSession:(NSURLSession *)session {
+  @synchronized(self) {
+    if (_session != session) {
+      _session = session;
+
+      _shouldInvalidateSession = (session != nil);
+    }
+  }
+}
+
+- (BOOL)canShareSession {
+  @synchronized(self) {
+    return _canShareSession;
+  }
+}
+
 - (id)userData {
   @synchronized(self) {
     return _userData;
@@ -2451,6 +2536,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     }
     if (_sessionIdentifier) {
 #if TARGET_IPHONE_SIMULATOR
+#if DEBUG
       // On the simulator, the path can change to the download file, but the name shouldn't change.
       // Technically, this isn't supported in the fetcher, but it's unavoidable in the simulator,
       // since the path is typically changed by Apple on relaunches.
@@ -2458,6 +2544,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
       NSString *newFilename = [destinationFileURL lastPathComponent];
       GTMSESSION_ASSERT_DEBUG([oldFilename isEqualToString:newFilename],
           @"Destination File URL cannot be changed after session identifier has been created");
+#endif
 #else
       GTMSESSION_ASSERT_DEBUG(NO,
           @"Destination File URL cannot be changed after session identifier has been created");

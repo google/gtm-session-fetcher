@@ -174,6 +174,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   uploadFetcher.sessionUserInfo = metadata;
   uploadFetcher.useBackgroundSession = YES;
   uploadFetcher.currentOffset = currentOffset;
+  uploadFetcher.allowedInsecureSchemes = @[ @"http" ];  // Allowed on restored upload fetcher.
   return uploadFetcher;
 }
 
@@ -478,6 +479,22 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                                         response:response];
         return;
       }
+#if TARGET_IPHONE_SIMULATOR
+    // It's been observed that NSTemporaryDirectory() can differ on Simulator between app restarts,
+    // yet the contents for the new path remains unchanged, so try the latest temp path.
+    } else if ([error.domain isEqual:NSCocoaErrorDomain] &&
+               (error.code == NSFileReadNoSuchFileError)) {
+      NSString *filename = [fileURL lastPathComponent];
+      NSString *filePath = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+      NSURL *newFileURL = [NSURL fileURLWithPath:filePath];
+      if (![newFileURL isEqual:fileURL]) {
+        [self generateChunkSubdataFromFileURL:newFileURL
+                                       offset:offset
+                                       length:length
+                                     response:response];
+        return;
+      }
+#endif
     }
     GTMSESSION_ASSERT_DEBUG(NO, @"uploadFileURL failed to read, %@", error);
   } else {
@@ -608,8 +625,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if (isPrematureFinal || [uploadLocationURLStr length] == 0) {
     // We cannot continue since we do not know the location to use
     // as our upload destination.
+    NSDictionary *userInfo = nil;
+    NSData *downloadedData = self.downloadedData;
+    if (downloadedData.length > 0) {
+      userInfo = @{ kGTMSessionFetcherStatusDataKey : downloadedData };
+    }
     [self invokeFinalCallbackWithData:nil
-                                error:[self prematureFinalErrorWithUserInfo:nil]
+                                error:[self prematureFinalErrorWithUserInfo:userInfo]
              shouldInvalidateLocation:YES];
     return;
   }
@@ -655,29 +677,28 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 - (void)invokeFinalCallbackWithData:(NSData *)data
                               error:(NSError *)error
            shouldInvalidateLocation:(BOOL)shouldInvalidateLocation {
-
-  void (^handler)(NSData *, NSError *);
   @synchronized(self) {
     if (shouldInvalidateLocation) {
       self.uploadLocationURL = nil;
     }
-    handler = _delegateCompletionHandler;
+    GTMSessionFetcherCompletionHandler handler = _delegateCompletionHandler;
     if (handler) {
       [self invokeOnCallbackQueueUnlessStopped:^{
           handler(data, error);
       }];
     }
 
-    [self releaseCallbacks];
+    [self releaseUploadAndBaseCallbacks];
   }
 }
 
-- (void)releaseCallbacks {
+- (void)releaseUploadAndBaseCallbacks {
   // Should be called in @synchronized(self)
   _delegateCompletionHandler = nil;
   _uploadDataProvider = nil;
 
-  [super releaseCallbacks];
+  // Release the base class's callbacks, too, if needed.
+  [self releaseCallbacks];
 }
 
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
@@ -687,6 +708,12 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _fetcherInFlight = nil;
   }
   [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
+
+  if (shouldReleaseCallbacks) {
+    @synchronized(self) {
+      [self releaseUploadAndBaseCallbacks];
+    }
+  }
 }
 
 #pragma mark Chunk fetching methods
@@ -730,7 +757,11 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     sizeReceivedHeader = [responseHeaders objectForKey:@"X-Goog-Upload-Size-Received"];
 
     if (isPrematureFinal || sizeReceivedHeader == nil) {
-      error = [self prematureFinalErrorWithUserInfo:nil];
+      NSDictionary *userInfo = nil;
+      if (data.length > 0) {
+        userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
+      }
+      error = [self prematureFinalErrorWithUserInfo:userInfo];
     }
   }
 

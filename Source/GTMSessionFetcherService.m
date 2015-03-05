@@ -19,6 +19,11 @@
 
 #import "GTMSessionFetcherService.h"
 
+NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification
+    = @"kGTMSessionFetcherServiceSessionBecameInvalidNotification";
+NSString *const kGTMSessionFetcherServiceSessionKey
+    = @"kGTMSessionFetcherServiceSessionKey";
+
 @interface GTMSessionFetcher (ServiceMethods)
 
 - (BOOL)beginFetchMayDelay:(BOOL)mayDelay
@@ -31,14 +36,41 @@
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
 
-- (void)detachAuthorizer;
+@end
+
+// Since NSURLSession doesn't support a separate delegate per task (!), instances of this
+// class serve as a session delegate trampoline.
+//
+// This class maps a session's tasks to fetchers, and resends delegate messages to the task's
+// fetcher.
+@interface GTMSessionFetcherSessionDelegateDispatcher : NSObject<NSURLSessionDelegate>
+
+// The session for the tasks in this dispatcher's task-to-fetcher map.
+@property(atomic) NSURLSession *session;
+
+// The timer interval for invalidating a session that has no active tasks.
+@property(atomic) NSTimeInterval discardInterval;
+
+- (instancetype)initWithSessionDiscardInterval:(NSTimeInterval)discardInterval;
+
+- (void)setFetcher:(GTMSessionFetcher *)fetcher
+           forTask:(NSURLSessionTask *)task;
+- (void)removeFetcher:(GTMSessionFetcher *)fetcher;
+
+// When abandoning a delegate dispatcher, we want to avoid the session retaining
+// the delegate after tasks complete.
+- (void)abandon;
 
 @end
+
 
 @implementation GTMSessionFetcherService {
   NSMutableDictionary *_delayedFetchersByHost;
   NSMutableDictionary *_runningFetchersByHost;
   NSUInteger _maxRunningFetchersPerHost;
+
+  // When this ivar is nil, the service will not reuse sessions.
+  GTMSessionFetcherSessionDelegateDispatcher *_delegateDispatcher;
 
   dispatch_queue_t _callbackQueue;
   NSHTTPCookieStorage *_cookieStorage;
@@ -68,7 +100,8 @@
             proxyCredential = _proxyCredential,
             allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
-            allowInvalidServerCertificates = _allowInvalidServerCertificates;
+            allowInvalidServerCertificates = _allowInvalidServerCertificates,
+            unusedSessionTimeout = _unusedSessionTimeout;
 
 - (id)init {
   self = [super init];
@@ -77,12 +110,16 @@
     _runningFetchersByHost = [[NSMutableDictionary alloc] init];
     _maxRunningFetchersPerHost = 10;
     _cookieStorageMethod = -1;
+    _unusedSessionTimeout = 60.0;
+    _delegateDispatcher =
+        [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
   }
   return self;
 }
 
 - (void)dealloc {
   [self detachAuthorizer];
+  [_delegateDispatcher abandon];
 }
 
 #pragma mark Generate a new fetcher
@@ -103,8 +140,8 @@
   fetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
   fetcher.configurationBlock = self.configurationBlock;
   fetcher.service = self;
-  if (_cookieStorageMethod >= 0) {
-    [fetcher setCookieStorageMethod:_cookieStorageMethod];
+  if (self.cookieStorageMethod >= 0) {
+    [fetcher setCookieStorageMethod:self.cookieStorageMethod];
   }
 
   NSString *userAgent = self.userAgent;
@@ -129,6 +166,20 @@
 
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)requestURLString {
   return [self fetcherWithURL:[NSURL URLWithString:requestURLString]];
+}
+
+// Returns a session for the fetcher's host, or nil.
+- (NSURLSession *)session {
+  @synchronized(self) {
+    NSURLSession *session = _delegateDispatcher.session;
+    return session;
+  }
+}
+
+- (id<NSURLSessionDelegate>)sessionDelegate {
+  @synchronized(self) {
+    return _delegateDispatcher;
+  }
 }
 
 #pragma mark Queue Management
@@ -218,19 +269,85 @@
                  mayAuthorize:YES];
 }
 
+// Internal utility. Returns a fetcher's delegate if it's a dispatcher, or nil if the fetcher
+// is its own delegate and has no dispatcher.
+//
+// Do not call this inside @synchronized(self).
+- (GTMSessionFetcherSessionDelegateDispatcher *)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher {
+  NSURLSession *fetcherSession = fetcher.session;
+  if (fetcherSession) {
+    id<NSURLSessionDelegate> fetcherDelegate = fetcherSession.delegate;
+    BOOL hasDispatcher = (fetcherDelegate != nil && fetcherDelegate != fetcher);
+    if (hasDispatcher) {
+      GTMSESSION_ASSERT_DEBUG([fetcherDelegate isKindOfClass:[GTMSessionFetcherSessionDelegateDispatcher class]],
+                              @"Fetcher delegate class: %@", [fetcherDelegate class]);
+      return (GTMSessionFetcherSessionDelegateDispatcher *)fetcherDelegate;
+    }
+  }
+  return nil;
+}
+
+- (void)fetcherDidCreateSession:(GTMSessionFetcher *)fetcher {
+  if (fetcher.canShareSession) {
+    NSURLSession *fetcherSession = fetcher.session;
+    GTMSESSION_ASSERT_DEBUG(fetcherSession != nil, @"Fetcher missing its session: %@", fetcher);
+
+    GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
+        [self delegateDispatcherForFetcher:fetcher];
+    if (delegateDispatcher) {
+      GTMSESSION_ASSERT_DEBUG(delegateDispatcher.session == nil,
+                              @"Fetcher made an extra session: %@", fetcher);
+
+      // Save this fetcher's session.
+      delegateDispatcher.session = fetcherSession;
+    }
+  }
+}
+
+- (void)fetcherDidBeginFetching:(GTMSessionFetcher *)fetcher {
+  // If this fetcher has a separate delegate with a shared session, then
+  // this fetcher should be added to the delegate's map of tasks to fetchers.
+  GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
+      [self delegateDispatcherForFetcher:fetcher];
+  if (delegateDispatcher) {
+    GTMSESSION_ASSERT_DEBUG(fetcher.canShareSession,
+                            @"Inappropriate shared session: %@", fetcher);
+
+    // There should already be a session, from this or a previous fetcher.
+    //
+    // Sanity check that the fetcher's session is the delegate's shared session.
+    NSURLSession *sharedSession = delegateDispatcher.session;
+    NSURLSession *fetcherSession = fetcher.session;
+    GTMSESSION_ASSERT_DEBUG(sharedSession != nil, @"Missing delegate session: %@", fetcher);
+    GTMSESSION_ASSERT_DEBUG(fetcherSession == sharedSession, @"Inconsistent session: %@", fetcher);
+
+    if (sharedSession != nil && fetcherSession == sharedSession) {
+      NSURLSessionTask *task = fetcher.sessionTask;
+      [delegateDispatcher setFetcher:fetcher
+                             forTask:task];
+    }
+  }
+}
+
 - (void)stopFetcher:(GTMSessionFetcher *)fetcher {
   [fetcher stopFetching];
 }
 
 - (void)fetcherDidStop:(GTMSessionFetcher *)fetcher {
   // Entry point from the fetcher
-  @synchronized(self) {
-    NSString *host = fetcher.serviceHost;
-    if (!host) {
-      // fetcher has been stopped previously
-      return;
-    }
+  NSString *host = fetcher.serviceHost;
+  if (!host) {
+    // fetcher has been stopped previously
+    return;
+  }
 
+  // This removeFetcher: invocation is a fallback; typically, fetchers are removed from the task
+  // map when the task completes.
+  GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
+      [self delegateDispatcherForFetcher:fetcher];
+  [delegateDispatcher removeFetcher:fetcher];
+
+  @synchronized(self) {
     // If a test is waiting for all fetchers to stop, it needs to wait for this one
     // to invoke its callbacks on the callback queue.
     [_stoppedFetchersToWaitFor addObject:fetcher];
@@ -271,11 +388,10 @@
     if ([delayedForHost count] == 0) {
       [_delayedFetchersByHost removeObjectForKey:host];
     }
-
-    // The fetcher is no longer in the running or the delayed array,
-    // so remove its host and thread properties
-    fetcher.serviceHost = nil;
   }
+  // The fetcher is no longer in the running or the delayed array,
+  // so remove its host and thread properties
+  fetcher.serviceHost = nil;
 }
 
 - (NSUInteger)numberOfFetchers {
@@ -372,72 +488,109 @@
   }
 }
 
-#pragma mark Synchronous Wait for Unit Testing
-
-- (void)waitForCompletionOfAllFetchersWithTimeout:(NSTimeInterval)timeoutInSeconds {
-  NSDate *giveUpDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
-  _stoppedFetchersToWaitFor = [NSMutableArray array];
-
-  BOOL shouldSpinRunLoop = [NSThread isMainThread];
-  const NSTimeInterval kSpinInterval = 0.001;
-  while (([self numberOfFetchers] > 0 || [_stoppedFetchersToWaitFor count] > 0)
-         && [giveUpDate timeIntervalSinceNow] > 0) {
-    GTMSessionFetcher *stoppedFetcher = [_stoppedFetchersToWaitFor firstObject];
-    if (stoppedFetcher) {
-      [_stoppedFetchersToWaitFor removeObject:stoppedFetcher];
-      [stoppedFetcher waitForCompletionWithTimeout:10.0 * kSpinInterval];
-    }
-
-    if (shouldSpinRunLoop) {
-      NSDate *stopDate = [NSDate dateWithTimeIntervalSinceNow:kSpinInterval];
-      [[NSRunLoop currentRunLoop] runUntilDate:stopDate];
-    } else {
-      [NSThread sleepForTimeInterval:kSpinInterval];
-    }
-  }
-  _stoppedFetchersToWaitFor = nil;
-}
-
 #pragma mark Accessors
 
+- (BOOL)reuseSession {
+  @synchronized(self) {
+    return _delegateDispatcher != nil;
+  }
+}
+
+- (void)setReuseSession:(BOOL)shouldReuse {
+  @synchronized(self) {
+    BOOL wasReusing = (_delegateDispatcher != nil);
+    if (shouldReuse != wasReusing) {
+      [self abandonDispatcher];
+      if (shouldReuse) {
+        _delegateDispatcher =
+            [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
+      } else {
+        _delegateDispatcher = nil;
+      }
+    }
+  }
+}
+
+- (void)resetSession {
+  @synchronized(self) {
+    // The old dispatchers may be retained as delegates of any ongoing sessions.
+    if (_delegateDispatcher) {
+      [self abandonDispatcher];
+      _delegateDispatcher =
+          [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
+    }
+  }
+}
+
+- (NSTimeInterval)unusedSessionTimeout {
+  @synchronized(self) {
+    return _unusedSessionTimeout;
+  }
+}
+
+- (void)setUnusedSessionTimeout:(NSTimeInterval)timeout {
+  @synchronized(self) {
+    _unusedSessionTimeout = timeout;
+    _delegateDispatcher.discardInterval = timeout;
+  }
+}
+
+// This method should be called inside of @synchronized(self)
+- (void)abandonDispatcher {
+  [_delegateDispatcher abandon];
+}
+
 - (NSDictionary *)runningFetchersByHost {
-  return _runningFetchersByHost;
+  @synchronized(self) {
+    return _runningFetchersByHost;
+  }
 }
 
 - (void)setRunningFetchersByHost:(NSDictionary *)dict {
-  _runningFetchersByHost = [dict mutableCopy];
+  @synchronized(self) {
+    _runningFetchersByHost = [dict mutableCopy];
+  }
 }
 
 - (NSDictionary *)delayedFetchersByHost {
-  return _delayedFetchersByHost;
+  @synchronized(self) {
+    return _delayedFetchersByHost;
+  }
 }
 
 - (void)setDelayedFetchersByHost:(NSDictionary *)dict {
-  _delayedFetchersByHost = [dict mutableCopy];
+  @synchronized(self) {
+    _delayedFetchersByHost = [dict mutableCopy];
+  }
 }
 
 - (id<GTMFetcherAuthorizationProtocol>)authorizer {
-  return _authorizer;
+  @synchronized(self) {
+    return _authorizer;
+  }
 }
 
 - (void)setAuthorizer:(id<GTMFetcherAuthorizationProtocol>)obj {
-  if (obj != _authorizer) {
-    [self detachAuthorizer];
-  }
+  @synchronized(self) {
+    if (obj != _authorizer) {
+      [self detachAuthorizer];
+    }
 
-  _authorizer = obj;
+    _authorizer = obj;
+  }
 
   // Use the fetcher service for the authorization fetches if the auth
   // object supports fetcher services
-  if ([_authorizer respondsToSelector:@selector(setFetcherService:)]) {
+  if ([obj respondsToSelector:@selector(setFetcherService:)]) {
 #if GTM_USE_SESSION_FETCHER
-    [_authorizer setFetcherService:self];
+    [obj setFetcherService:self];
 #else
-    [_authorizer setFetcherService:(id)self];
+    [obj setFetcherService:(id)self];
 #endif
   }
 }
 
+// This should be called inside a @synchronized(self) block.
 - (void)detachAuthorizer {
   // This method is called by the fetcher service's dealloc and setAuthorizer:
   // methods; do not override.
@@ -475,14 +628,395 @@
 
 @end
 
+@implementation GTMSessionFetcherService (TestingSupport)
+
++ (instancetype)mockFetcherServiceWithFakedData:(NSData *)fakedDataOrNil
+                                     fakedError:(NSError *)fakedErrorOrNil {
+  NSHTTPURLResponse *fakedResponse =
+      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:@"http://example.invalid"]
+                                  statusCode:(fakedErrorOrNil ? 500 : 200)
+                                 HTTPVersion:@"HTTP/1.1"
+                                headerFields:nil];
+  GTMSessionFetcherService *service = [[self alloc] init];
+  service.allowedInsecureSchemes = @[ @"http" ];
+  service.testBlock = ^(GTMSessionFetcher *fetcherToTest,
+                        GTMSessionFetcherTestResponse testResponse) {
+    testResponse(fakedResponse, fakedDataOrNil, fakedErrorOrNil);
+  };
+  return service;
+}
+
+#pragma mark Synchronous Wait for Unit Testing
+
+- (BOOL)waitForCompletionOfAllFetchersWithTimeout:(NSTimeInterval)timeoutInSeconds {
+  NSDate *giveUpDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
+  _stoppedFetchersToWaitFor = [NSMutableArray array];
+
+  BOOL shouldSpinRunLoop = [NSThread isMainThread];
+  const NSTimeInterval kSpinInterval = 0.001;
+  BOOL didTimeOut = NO;
+  while (([self numberOfFetchers] > 0 || [_stoppedFetchersToWaitFor count] > 0)) {
+    didTimeOut = [giveUpDate timeIntervalSinceNow] < 0;
+    if (didTimeOut) break;
+
+    GTMSessionFetcher *stoppedFetcher = [_stoppedFetchersToWaitFor firstObject];
+    if (stoppedFetcher) {
+      [_stoppedFetchersToWaitFor removeObject:stoppedFetcher];
+      [stoppedFetcher waitForCompletionWithTimeout:10.0 * kSpinInterval];
+    }
+
+    if (shouldSpinRunLoop) {
+      NSDate *stopDate = [NSDate dateWithTimeIntervalSinceNow:kSpinInterval];
+      [[NSRunLoop currentRunLoop] runUntilDate:stopDate];
+    } else {
+      [NSThread sleepForTimeInterval:kSpinInterval];
+    }
+  }
+  _stoppedFetchersToWaitFor = nil;
+
+  return !didTimeOut;
+}
+
+@end
+
 @implementation GTMSessionFetcherService (BackwardsCompatibilityOnly)
 
 - (NSInteger)cookieStorageMethod {
-  return _cookieStorageMethod;
+  @synchronized(self) {
+    return _cookieStorageMethod;
+  }
 }
 
 - (void)setCookieStorageMethod:(NSInteger)cookieStorageMethod {
-  _cookieStorageMethod = cookieStorageMethod;
+  @synchronized(self) {
+    _cookieStorageMethod = cookieStorageMethod;
+  }
+}
+
+@end
+
+@implementation GTMSessionFetcherSessionDelegateDispatcher {
+  NSURLSession *_session;
+  // The task map maps NSURLSessionTasks to GTMSessionFetchers
+  NSMutableDictionary *_taskToFetcherMap;
+  // The discard timer will invalidate sessions after the session's last task completes.
+  NSTimer *_discardTimer;
+  NSTimeInterval _discardInterval;
+}
+
+- (instancetype)init {
+  [self doesNotRecognizeSelector:_cmd];
+  return nil;
+}
+
+- (instancetype)initWithSessionDiscardInterval:(NSTimeInterval)discardInterval {
+  self = [super init];
+  if (self) {
+    _discardInterval = discardInterval;
+  }
+  return self;
+}
+
+- (NSString *)description {
+  return [NSString stringWithFormat:@"%@ %p %@ %@",
+          [self class], self,
+          _session ?: @"<no session>",
+          [_taskToFetcherMap count] > 0 ? _taskToFetcherMap : @"<no tasks>"];
+}
+
+// This method should be called inside of a @synchronized(self) block.
+- (void)startDiscardTimer {
+  [_discardTimer invalidate];
+  _discardTimer = nil;
+  if (_discardInterval > 0) {
+    _discardTimer = [NSTimer timerWithTimeInterval:_discardInterval
+                                            target:self
+                                          selector:@selector(discardTimerFired:)
+                                          userInfo:nil
+                                           repeats:NO];
+    [_discardTimer setTolerance:(_discardInterval / 10)];
+    [[NSRunLoop mainRunLoop] addTimer:_discardTimer forMode:NSRunLoopCommonModes];
+  }
+}
+
+// This method should be called inside of a @synchronized(self) block.
+- (void)destroyDiscardTimer {
+  [_discardTimer invalidate];
+  _discardTimer = nil;
+}
+
+- (void)discardTimerFired:(NSTimer *)timer {
+  @synchronized(self) {
+    NSUInteger numberOfTasks = [_taskToFetcherMap count];
+    if (numberOfTasks == 0) {
+      [self destroySessionAndTimer];
+    }
+  }
+}
+
+- (void)abandon {
+  @synchronized(self) {
+    [self destroySessionAndTimer];
+  }
+}
+
+// This method should be called inside of a @synchronized(self) block.
+- (void)destroySessionAndTimer {
+  [self destroyDiscardTimer];
+
+  // Break any retain cycle from the session holding the delegate.
+  [_session finishTasksAndInvalidate];
+
+  // Immediately clear the session so no new task may be issued with it.
+  _session = nil;
+  _taskToFetcherMap = nil;
+}
+
+- (void)setFetcher:(GTMSessionFetcher *)fetcher forTask:(NSURLSessionTask *)task {
+  GTMSESSION_ASSERT_DEBUG(fetcher != nil, @"missing fetcher");
+
+  @synchronized(self) {
+    if (_taskToFetcherMap == nil) {
+      _taskToFetcherMap = [[NSMutableDictionary alloc] init];
+    }
+
+    if (fetcher) {
+      [_taskToFetcherMap setObject:fetcher forKey:task];
+      [self destroyDiscardTimer];
+    }
+  }
+}
+
+- (void)removeFetcher:(GTMSessionFetcher *)fetcher {
+  @synchronized(self) {
+    // Typically, a fetcher should be removed when its task invokes
+    // URLSession:task:didCompleteWithError:.
+    //
+    // When fetching with a testBlock, though, the task completed delegate
+    // method may not be invoked, requiring cleanup here.
+    NSArray *tasks = [_taskToFetcherMap allKeysForObject:fetcher];
+    GTMSESSION_ASSERT_DEBUG([tasks count] <= 1, @"fetcher task not unmapped: %@", tasks);
+    [_taskToFetcherMap removeObjectsForKeys:tasks];
+
+    if ([_taskToFetcherMap count] == 0) {
+      [self startDiscardTimer];
+    }
+  }
+}
+
+// This helper method provides synchronized access to the task map for the delegate
+// methods below.
+- (id)fetcherForTask:(NSURLSessionTask *)task {
+  @synchronized(self) {
+    return [_taskToFetcherMap objectForKey:task];
+  }
+}
+
+- (void)removeTaskFromMap:(NSURLSessionTask *)task {
+  @synchronized(self) {
+    [_taskToFetcherMap removeObjectForKey:task];
+  }
+}
+
+- (void)setSession:(NSURLSession *)session {
+  @synchronized(self) {
+    _session = session;
+  }
+}
+
+- (NSURLSession *)session {
+  @synchronized(self) {
+    return _session;
+  }
+}
+
+- (NSTimeInterval)discardInterval {
+  @synchronized(self) {
+    return _discardInterval;
+  }
+}
+
+- (void)setDiscardInterval:(NSTimeInterval)interval {
+  @synchronized(self) {
+    _discardInterval = interval;
+  }
+}
+
+// NSURLSessionDelegate protocol methods.
+
+// - (void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session;
+//
+// TODO(seh): How do we route this to an appropriate fetcher?
+
+
+- (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(NSError *)error {
+  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@",
+                           [self class], self, session, error);
+  @synchronized(self) {
+    _session = nil;
+    _taskToFetcherMap = nil;
+
+    // Our tests rely on this notification to know the session discard timer fired.
+    NSDictionary *userInfo = @{ kGTMSessionFetcherServiceSessionKey : session };
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc postNotificationName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
+                      object:self
+                    userInfo:userInfo];
+  }
+}
+
+
+#pragma mark - NSURLSessionTaskDelegate
+
+// NSURLSessionTaskDelegate protocol methods.
+//
+// We won't test here if the fetcher responds to these since we only want this
+// class to implement the same delegate methods the fetcher does (so NSURLSession's
+// tests for respondsToSelector: will have the same result whether the session
+// delegate is the fetcher or this dispatcher.)
+
+- (void)URLSession:(NSURLSession *)session
+              task:(NSURLSessionTask *)task
+willPerformHTTPRedirection:(NSHTTPURLResponse *)response
+        newRequest:(NSURLRequest *)request
+ completionHandler:(void (^)(NSURLRequest *))completionHandler {
+  id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
+  [fetcher URLSession:session
+                 task:task
+willPerformHTTPRedirection:response
+           newRequest:request
+    completionHandler:completionHandler];
+}
+
+- (void)URLSession:(NSURLSession *)session
+              task:(NSURLSessionTask *)task
+didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))handler {
+  id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
+  [fetcher URLSession:session
+                 task:task
+  didReceiveChallenge:challenge
+    completionHandler:handler];
+}
+
+- (void)URLSession:(NSURLSession *)session
+              task:(NSURLSessionTask *)task
+ needNewBodyStream:(void (^)(NSInputStream *bodyStream))handler {
+  id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
+  [fetcher URLSession:session
+                 task:task
+    needNewBodyStream:handler];
+}
+
+- (void)URLSession:(NSURLSession *)session
+              task:(NSURLSessionTask *)task
+   didSendBodyData:(int64_t)bytesSent
+    totalBytesSent:(int64_t)totalBytesSent
+totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
+  id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
+  [fetcher URLSession:session
+                 task:task
+      didSendBodyData:bytesSent
+       totalBytesSent:totalBytesSent
+totalBytesExpectedToSend:totalBytesExpectedToSend];
+}
+
+- (void)URLSession:(NSURLSession *)session
+              task:(NSURLSessionTask *)task
+didCompleteWithError:(NSError *)error {
+  id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
+
+  // This is the usual way tasks are removed from the task map.
+  [self removeTaskFromMap:task];
+
+  [fetcher URLSession:session
+                 task:task
+ didCompleteWithError:error];
+}
+
+// NSURLSessionDataDelegate protocol methods.
+
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+didReceiveResponse:(NSURLResponse *)response
+ completionHandler:(void (^)(NSURLSessionResponseDisposition))handler {
+  id<NSURLSessionDataDelegate> fetcher = [self fetcherForTask:dataTask];
+  [fetcher URLSession:session
+             dataTask:dataTask
+   didReceiveResponse:response
+    completionHandler:handler];
+}
+
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask {
+  id<NSURLSessionDataDelegate> fetcher = [self fetcherForTask:dataTask];
+  GTMSESSION_ASSERT_DEBUG(fetcher != nil, @"Missing fetcher for %@", dataTask);
+  [self removeTaskFromMap:dataTask];
+  if (fetcher) {
+    GTMSESSION_ASSERT_DEBUG([fetcher isKindOfClass:[GTMSessionFetcher class]],
+                            @"Expecting GTMSessionFetcher");
+    [self setFetcher:(GTMSessionFetcher *)fetcher forTask:downloadTask];
+  }
+
+  [fetcher URLSession:session
+             dataTask:dataTask
+didBecomeDownloadTask:downloadTask];
+}
+
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+    didReceiveData:(NSData *)data {
+  id<NSURLSessionDataDelegate> fetcher = [self fetcherForTask:dataTask];
+  [fetcher URLSession:session
+             dataTask:dataTask
+       didReceiveData:data];
+}
+
+- (void)URLSession:(NSURLSession *)session
+          dataTask:(NSURLSessionDataTask *)dataTask
+ willCacheResponse:(NSCachedURLResponse *)proposedResponse
+ completionHandler:(void (^)(NSCachedURLResponse *))handler {
+  id<NSURLSessionDataDelegate> fetcher = [self fetcherForTask:dataTask];
+  [fetcher URLSession:session
+             dataTask:dataTask
+    willCacheResponse:proposedResponse
+    completionHandler:handler];
+}
+
+// NSURLSessionDownloadDelegate protocol methods.
+
+- (void)URLSession:(NSURLSession *)session
+      downloadTask:(NSURLSessionDownloadTask *)downloadTask
+didFinishDownloadingToURL:(NSURL *)location {
+  id<NSURLSessionDownloadDelegate> fetcher = [self fetcherForTask:downloadTask];
+  [fetcher URLSession:session
+         downloadTask:downloadTask
+didFinishDownloadingToURL:location];
+}
+
+- (void)URLSession:(NSURLSession *)session
+      downloadTask:(NSURLSessionDownloadTask *)downloadTask
+      didWriteData:(int64_t)bytesWritten
+ totalBytesWritten:(int64_t)totalWritten
+totalBytesExpectedToWrite:(int64_t)totalExpected {
+  id<NSURLSessionDownloadDelegate> fetcher = [self fetcherForTask:downloadTask];
+  [fetcher URLSession:session
+         downloadTask:downloadTask
+         didWriteData:bytesWritten
+    totalBytesWritten:totalWritten
+totalBytesExpectedToWrite:totalExpected];
+}
+
+- (void)URLSession:(NSURLSession *)session
+      downloadTask:(NSURLSessionDownloadTask *)downloadTask
+ didResumeAtOffset:(int64_t)fileOffset
+expectedTotalBytes:(int64_t)expectedTotalBytes {
+  id<NSURLSessionDownloadDelegate> fetcher = [self fetcherForTask:downloadTask];
+  [fetcher URLSession:session
+         downloadTask:downloadTask
+    didResumeAtOffset:fileOffset
+   expectedTotalBytes:expectedTotalBytes];
 }
 
 @end

@@ -22,7 +22,16 @@
 @interface GTMSessionFetcherChunkedUploadTest : GTMSessionFetcherBaseTest
 @end
 
-@implementation GTMSessionFetcherChunkedUploadTest
+@implementation GTMSessionFetcherChunkedUploadTest {
+  GTMSessionFetcherService *_service;
+}
+
+- (void)setUp {
+  _service = [[GTMSessionFetcherService alloc] init];
+  _service.reuseSession = YES;
+
+  [super setUp];
+}
 
 #pragma mark - Chunked Upload Fetch Tests
 
@@ -40,7 +49,7 @@
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = smallData;
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
@@ -77,7 +86,7 @@
   fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                uploadMIMEType:@"text/plain"
                                                     chunkSize:75000
-                                               fetcherService:nil];
+                                               fetcherService:_service];
   fetcher.uploadData = nil;
   [fetcher setUploadDataLength:expectedRange.length
                       provider:^(int64_t offset, int64_t length,
@@ -124,7 +133,7 @@ static const NSUInteger kBigUploadDataLength = 199000;
 
 - (NSURLRequest *)validUploadFileRequest {
   NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-  validURLString = [validURLString stringByAppendingPathExtension:@"location"];
+  validURLString = [validURLString stringByAppendingString:@".location"];
   NSURLRequest *request = [self requestWithURLString:validURLString];
   return request;
 }
@@ -206,7 +215,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = smallData;
   fetcher.allowLocalhostRequest = YES;
 
@@ -257,7 +266,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   [fetcher setUploadDataLength:[smallData length]
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
@@ -314,7 +323,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   [fetcher setUploadDataLength:[smallData length]
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
@@ -390,7 +399,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadFileHandle = bigFileHandle;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -421,10 +430,11 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
 
   NSURLRequest *request = [self validUploadFileRequest];
+
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadFileURL = bigFileURL;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -460,7 +470,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadFileURL = bigFileURL;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -510,7 +520,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                          uploadMIMEType:@"text/plain"
                                               chunkSize:kGTMSessionUploadFetcherStandardChunkSize
-                                         fetcherService:nil];
+                                         fetcherService:_service];
   fetcher.uploadFileURL = bigFileURL;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -562,7 +572,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
                                                                          uploadMIMEType:@"text/plain"
                                                                               chunkSize:5000
-                                                                         fetcherService:nil];
+                                                                         fetcherService:_service];
   fetcher.uploadFileURL = bigFileURL;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -603,7 +613,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -634,7 +644,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   [fetcher setUploadDataLength:[bigData length]
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
@@ -671,7 +681,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -714,7 +724,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -772,7 +782,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -825,7 +835,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
-                                                                        fetcherService:nil];
+                                                                        fetcherService:_service];
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;

@@ -145,6 +145,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   if ([fetcher isKindOfClass:[GTMSessionUploadFetcher class]]) {
     XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).delegateCompletionHandler);
+    XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).uploadDataProvider);
   }
 }
 

@@ -42,6 +42,7 @@ typedef enum {
 
 // Utilities for users.
 - (NSURL *)localURLForFile:(NSString *)name;     // http://localhost:port/filename
+- (NSURL *)localv6URLForFile:(NSString *)name;   // http://[::1]:port/filename
 - (NSString *)localPathForFile:(NSString *)name; // docRoot/filename
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code;
