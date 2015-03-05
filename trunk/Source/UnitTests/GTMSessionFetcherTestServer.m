@@ -206,6 +206,12 @@ static NSString *const kEtag = @"GoodETag";
   return [NSURL URLWithString:urlString];
 }
 
+- (NSURL *)localv6URLForFile:(NSString *)name {
+  // Return an IPv6-style localhost URL, useful for testing changes in host.
+  NSString *urlString = [NSString stringWithFormat:@"http://[::1]:%d/%@", _server.port, name];
+  return [NSURL URLWithString:urlString];
+}
+
 - (NSString *)localPathForFile:(NSString *)name {
   // we exclude parameters
   NSRange range = [name rangeOfString:@"?"];

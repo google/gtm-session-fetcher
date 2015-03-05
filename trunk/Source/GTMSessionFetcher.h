@@ -98,6 +98,7 @@
 //    fetcher.completionHandler = ^(NSData *data, NSError *error) {
 //      [self downloadCompletedToFile:destinationFileURL error:error];
 //    };
+//  }
 //
 //
 // Threading and queue support:
@@ -224,6 +225,13 @@
   #else
     #define GTMSESSION_ASSERT_DEBUG(pred, ...) GTMSESSION_LOG_DEBUG_IF(!(pred), __VA_ARGS__)
   #endif
+#endif
+
+// Macro useful for examining messages from NSURLSession during debugging.
+#if 0
+#define GTM_LOG_SESSION_DELEGATE(...) GTMSESSION_LOG_DEBUG(__VA_ARGS__)
+#else
+#define GTM_LOG_SESSION_DELEGATE(...)
 #endif
 
 #ifdef __cplusplus
@@ -378,6 +386,8 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 
 // This protocol allows abstract references to the fetcher service, primarily for
 // fetchers (which may be compiled without the fetcher service class present.)
+//
+// Apps should not need to use this protocol.
 @protocol GTMSessionFetcherServiceProtocol <NSObject>
 // This protocol allows us to call into the service without requiring
 // GTMSessionFetcherService sources in this project
@@ -385,10 +395,16 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 @property(strong) dispatch_queue_t callbackQueue;
 
 - (BOOL)fetcherShouldBeginFetching:(GTMSessionFetcher *)fetcher;
+- (void)fetcherDidCreateSession:(GTMSessionFetcher *)fetcher;
+- (void)fetcherDidBeginFetching:(GTMSessionFetcher *)fetcher;
 - (void)fetcherDidStop:(GTMSessionFetcher *)fetcher;
 
 - (GTMSessionFetcher *)fetcherWithRequest:(NSURLRequest *)request;
 - (BOOL)isDelayingFetcher:(GTMSessionFetcher *)fetcher;
+
+@property(atomic, assign) BOOL reuseSession;
+- (NSURLSession *)session;
+- (id<NSURLSessionDelegate>)sessionDelegate;
 
 // Methods for compatibility with the old GTMHTTPFetcher.
 @property(readonly, strong) NSOperationQueue *delegateQueue;
@@ -490,8 +506,9 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 // created.
 @property(copy) GTMSessionFetcherConfigurationBlock configurationBlock;
 
-// A session is created for each fetch.
-@property(readonly) NSURLSession *session;
+// A session is created as needed by the fetcher.  A fetcher service object
+// may maintain sessions for multiple fetches to the same host.
+@property(strong) NSURLSession *session;
 
 // The task in flight.
 @property(readonly) NSURLSessionTask *sessionTask;
@@ -527,6 +544,9 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle);
 // Indicates if uploads should use an upload task.  This is always set for file or stream-provider
 // bodies, but may be set explicitly for NSData bodies.
 @property(assign) BOOL useUploadTask;
+
+// Indicates that the fetcher is using a session that may be shared with other fetchers.
+@property(readonly) BOOL canShareSession;
 
 // By default, the fetcher allows only secure (https) schemes unless this
 // property is set, or the GTM_ALLOW_INSECURE_REQUESTS build flag is set.

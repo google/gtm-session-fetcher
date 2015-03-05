@@ -111,10 +111,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSString *invalidFile = [kValidFileName stringByAppendingString:@"?status=400"];
   NSURL *invalidFileURL = [testServer_ localURLForFile:invalidFile];
 
-  NSString *validURLStr = [validFileURL absoluteString];
-  NSString *altValidURLStr = [validURLStr stringByReplacingOccurrencesOfString:@"localhost"
-                                                                    withString:@"[::1]"];
-  NSURL *altValidURL = [NSURL URLWithString:altValidURLStr];
+  NSURL *altValidURL = [testServer_ localv6URLForFile:invalidFile];
 
   XCTAssertEqualObjects([validFileURL host], @"localhost", @"unexpected host");
   XCTAssertEqualObjects([invalidFileURL host], @"localhost", @"unexpected host");
@@ -272,11 +269,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // Create three fetchers for each of two URLs, so there should be
   // two running and one delayed for each.
   NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
-
-  NSString *validURLStr = [validFileURL absoluteString];
-  NSString *altValidURLStr = [validURLStr stringByReplacingOccurrencesOfString:@"localhost"
-                                                                    withString:@"[::1]"];
-  NSURL *altValidURL = [NSURL URLWithString:altValidURLStr];
+  NSURL *altValidURL = [testServer_ localv6URLForFile:kValidFileName];
 
   // Add three fetches for each URL.
   NSArray *urlArray = @[
@@ -307,6 +300,108 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   XCTAssertEqual([service.runningFetchersByHost count], (NSUInteger)0, @"hosts running");
   XCTAssertEqual([service.delayedFetchersByHost count], (NSUInteger)0, @"hosts delayed");
+}
+
+- (void)testSessionReuse {
+  if (!isServerRunning_) return;
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
+
+  const NSTimeInterval kUnusedSessionTimeout = 3.0;
+  service.unusedSessionTimeout = kUnusedSessionTimeout;
+
+  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
+
+  NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
+  NSMutableSet *uniqueSessions = [NSMutableSet set];
+  NSMutableSet *uniqueTasks = [NSMutableSet set];
+  __block NSUInteger completedFetchCounter = 0;
+
+  //
+  // Create and start all the fetchers without reusing the session.
+  //
+  service.reuseSession = NO;
+  for (NSURL *fileURL in urlArray) {
+    GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
+    [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+      ++completedFetchCounter;
+      XCTAssertNotNil(fetchData);
+      XCTAssertNil(fetchError);
+    }];
+    [uniqueSessions addObject:[NSValue valueWithNonretainedObject:fetcher.session]];
+    [uniqueTasks addObject:[NSValue valueWithNonretainedObject:fetcher.sessionTask]];
+
+    XCTAssertEqual(fetcher.session.delegate, fetcher);
+  }
+  XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
+
+  // We should have one unique session per fetcher.
+  XCTAssertEqual(completedFetchCounter, [urlArray count]);
+  XCTAssertEqual([uniqueTasks count], [urlArray count]);
+  XCTAssertEqual([uniqueSessions count], [urlArray count], @"%@", uniqueSessions);
+  XCTAssertNil([service session]);
+  XCTAssertNil([service sessionDelegate]);
+
+  // Inside the delegate dispatcher, there should now be an empty map of tasks to fetchers.
+  NSDictionary *taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
+  XCTAssertNil(taskMap);
+
+  //
+  // Now reuse the session for multiple fetches.
+  //
+  [uniqueSessions removeAllObjects];
+  [uniqueTasks removeAllObjects];
+  [service resetSession];
+  completedFetchCounter = 0;
+
+  service.reuseSession = YES;
+  for (NSURL *fileURL in urlArray) {
+    GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
+    [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+      ++completedFetchCounter;
+      XCTAssertNotNil(fetchData);
+      XCTAssertNil(fetchError);
+    }];
+    [uniqueSessions addObject:[NSValue valueWithNonretainedObject:fetcher.session]];
+    [uniqueTasks addObject:[NSValue valueWithNonretainedObject:fetcher.sessionTask]];
+
+    XCTAssertEqual(fetcher.session.delegate, service.sessionDelegate);
+  }
+  XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
+
+  // We should have used two sessions total.
+  XCTAssertEqual(completedFetchCounter, [urlArray count]);
+  XCTAssertEqual([uniqueTasks count], [urlArray count]);
+  XCTAssertEqual([uniqueSessions count], (NSUInteger)1, @"%@", uniqueSessions);
+
+  // Inside the delegate dispatcher, there should be an empty map of tasks to fetchers.
+  taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
+  XCTAssertEqualObjects(taskMap, @{ });
+
+  // Because we set kUnusedSessionDiscardInterval to 3 seconds earlier, there
+  // should still be a remembered session immediately after the fetches finish.
+  NSURLSession *session = [service session];
+  XCTAssertNotNil(session);
+
+  // Wait up to 5 seconds for the sessions to become invalid.
+  XCTestExpectation *exp = [self expectationWithDescription:@"sessioninvalid"];
+
+  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+  [nc addObserverForName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
+                  object:nil
+                   queue:nil
+              usingBlock:^(NSNotification *note) {
+    NSURLSession *invalidSession = [note.userInfo objectForKey:kGTMSessionFetcherServiceSessionKey];
+    XCTAssertEqual(invalidSession, session);
+    [exp fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:5.0
+                               handler:^(NSError *error) {
+    XCTAssertNil(error);
+    // Unlike right after the fetches finish, now the session should be nil.
+    XCTAssertNil([service session]);
+  }];
 }
 
 - (void)testFetcherServiceTestBlock {
@@ -383,6 +478,44 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   XCTAssertEqual([[service.runningFetchersByHost objectForKey:host] count],
                  (NSUInteger)0);
+}
+
+- (void)testMockCreationMethod {
+  // No test server needed.
+  testServer_ = nil;
+  isServerRunning_ = NO;
+
+  // Test with data.
+  NSData *data = [@"abcdefg" dataUsingEncoding:NSUTF8StringEncoding];
+
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:data
+                                                     fakedError:nil];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"http://example.invalid"];
+
+  XCTestExpectation *expectFinishedWithData = [self expectationWithDescription:@"Called back"];
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(fetchData, data);
+    XCTAssertNil(fetchError);
+    [expectFinishedWithData fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:10 handler:nil];
+
+  // Test with error.
+  NSError *error = [NSError errorWithDomain:@"example.com" code:-321 userInfo:nil];
+  service = [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil
+                                                           fakedError:error];
+  fetcher = [service fetcherWithURLString:@"http://example.invalid"];
+
+  XCTestExpectation *expectFinishedWithError = [self expectationWithDescription:@"Called back"];
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertNil(fetchData);
+    XCTAssertEqualObjects(fetchError, error);
+    [expectFinishedWithError fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:10 handler:nil];
 }
 
 @end
