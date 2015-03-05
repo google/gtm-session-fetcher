@@ -24,10 +24,14 @@
 
 @interface GTMMIMEDocument : NSObject
 
+// Get or set the unique boundary for the parts that have been added.
+@property(nonatomic, copy) NSString *boundary;
+
 + (instancetype)MIMEDocument;
 
 // Adds a new part to this mime document with the given headers and body.
 // The headers keys and values should be NSStrings.
+// Adding a part may cause the boundary string to change.
 - (void)addPartWithHeaders:(NSDictionary *)headers
                       body:(NSData *)body;
 
