@@ -47,14 +47,17 @@
                           timeoutInterval:60*60];
   [request setHTTPMethod:@"POST"];
 
+  GTMSessionFetcherService *fetcherService = [[GTMSessionFetcherService alloc] init];
+
   GTMSessionUploadFetcher *fetcher =
       [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                          uploadMIMEType:@"text/plain"
                                               chunkSize:kUploadDataSize / 100
-                                         fetcherService:nil];
+                                         fetcherService:fetcherService];
   fetcher.uploadData = uploadData;
   fetcher.comment = NSStringFromSelector(_cmd);
   fetcher.allowLocalhostRequest = YES;
+  fetcher.allowedInsecureSchemes = @[ @"http" ];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     NSLog(@"Error: %@", error);
     NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);

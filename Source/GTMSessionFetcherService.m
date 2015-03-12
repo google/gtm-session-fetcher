@@ -51,7 +51,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 // The timer interval for invalidating a session that has no active tasks.
 @property(atomic) NSTimeInterval discardInterval;
 
-- (instancetype)initWithSessionDiscardInterval:(NSTimeInterval)discardInterval;
+
+- (instancetype)initWithParentService:(GTMSessionFetcherService *)parentService
+               sessionDiscardInterval:(NSTimeInterval)discardInterval;
 
 - (void)setFetcher:(GTMSessionFetcher *)fetcher
            forTask:(NSURLSessionTask *)task;
@@ -103,7 +105,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
             unusedSessionTimeout = _unusedSessionTimeout;
 
-- (id)init {
+- (instancetype)init {
   self = [super init];
   if (self) {
     _delayedFetchersByHost = [[NSMutableDictionary alloc] init];
@@ -112,7 +114,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     _cookieStorageMethod = -1;
     _unusedSessionTimeout = 60.0;
     _delegateDispatcher =
-        [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
+        [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
+                                                           sessionDiscardInterval:_unusedSessionTimeout];
   }
   return self;
 }
@@ -503,7 +506,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       [self abandonDispatcher];
       if (shouldReuse) {
         _delegateDispatcher =
-            [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
+            [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
+                                                               sessionDiscardInterval:_unusedSessionTimeout];
       } else {
         _delegateDispatcher = nil;
       }
@@ -513,11 +517,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (void)resetSession {
   @synchronized(self) {
-    // The old dispatchers may be retained as delegates of any ongoing sessions.
+    // The old dispatchers may be retained as delegates of any ongoing sessions by those sessions.
     if (_delegateDispatcher) {
       [self abandonDispatcher];
       _delegateDispatcher =
-          [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithSessionDiscardInterval:_unusedSessionTimeout];
+          [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
+                                                             sessionDiscardInterval:_unusedSessionTimeout];
     }
   }
 }
@@ -696,6 +701,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 @end
 
 @implementation GTMSessionFetcherSessionDelegateDispatcher {
+  __weak GTMSessionFetcherService *_parentService;
   NSURLSession *_session;
   // The task map maps NSURLSessionTasks to GTMSessionFetchers
   NSMutableDictionary *_taskToFetcherMap;
@@ -709,10 +715,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   return nil;
 }
 
-- (instancetype)initWithSessionDiscardInterval:(NSTimeInterval)discardInterval {
+- (instancetype)initWithParentService:(GTMSessionFetcherService *)parentService
+               sessionDiscardInterval:(NSTimeInterval)discardInterval {
   self = [super init];
   if (self) {
     _discardInterval = discardInterval;
+    _parentService = parentService;
   }
   return self;
 }
@@ -746,12 +754,21 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 }
 
 - (void)discardTimerFired:(NSTimer *)timer {
+  GTMSessionFetcherService *service;
   @synchronized(self) {
     NSUInteger numberOfTasks = [_taskToFetcherMap count];
     if (numberOfTasks == 0) {
-      [self destroySessionAndTimer];
+      service = _parentService;
     }
   }
+  // Ask the service to abandon us. It will create a new delegate dispatcher
+  // which will have a distinct session.
+  //
+  // Since finishing this session takes a while, it's better for the service to have a new
+  // delegate dispatcher while the tasks on this session's delegate dispatcher finish up.
+  //
+  // We want to call the service from outside of a @synchronized section.
+  [service resetSession];
 }
 
 - (void)abandon {
@@ -768,8 +785,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   [_session finishTasksAndInvalidate];
 
   // Immediately clear the session so no new task may be issued with it.
+  //
+  // The _taskToFetcherMap needs to stay valid until the outstanding tasks finish.
   _session = nil;
-  _taskToFetcherMap = nil;
 }
 
 - (void)setFetcher:(GTMSessionFetcher *)fetcher forTask:(NSURLSessionTask *)task {
@@ -852,17 +870,37 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 - (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(NSError *)error {
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@",
                            [self class], self, session, error);
+  NSDictionary *localTaskToFetcherMap;
   @synchronized(self) {
     _session = nil;
-    _taskToFetcherMap = nil;
 
-    // Our tests rely on this notification to know the session discard timer fired.
-    NSDictionary *userInfo = @{ kGTMSessionFetcherServiceSessionKey : session };
-    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-    [nc postNotificationName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
-                      object:self
-                    userInfo:userInfo];
+    localTaskToFetcherMap = [_taskToFetcherMap copy];
   }
+
+  // Any "suspended" tasks may not have received callbacks from NSURLSession when the session
+  // completes; we'll call them now.
+  [localTaskToFetcherMap enumerateKeysAndObjectsUsingBlock:^(NSURLSessionTask *task,
+                                                             GTMSessionFetcher *fetcher,
+                                                             BOOL *stop) {
+    if (fetcher.session == session) {
+        // Our delegate method URLSession:task:didCompleteWithError: will rely on
+        // _taskToFetcherMap so that should still contain this fetcher.
+        NSError *canceledError = [NSError errorWithDomain:NSURLErrorDomain
+                                                     code:NSURLErrorCancelled
+                                                 userInfo:nil];
+        [self URLSession:session task:task didCompleteWithError:canceledError];
+      } else {
+        GTMSESSION_ASSERT_DEBUG(0, @"Unexpected session in fetcher: %@ has %@ (expected %@)",
+                                fetcher, fetcher.session, session);
+      }
+  }];
+
+  // Our tests rely on this notification to know the session discard timer fired.
+  NSDictionary *userInfo = @{ kGTMSessionFetcherServiceSessionKey : session };
+  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+  [nc postNotificationName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
+                    object:_parentService
+                  userInfo:userInfo];
 }
 
 

@@ -383,7 +383,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 #if DEBUG
           GTMSESSION_ASSERT_DEBUG(NO, @"Insecure fetch request has a scheme (%@)"
                                   @" not found in fetcher allowedInsecureSchemes (%@): %@",
-                                  requestScheme, _allowedInsecureSchemes, requestURL);
+                                  requestScheme, _allowedInsecureSchemes ?: @" @[] ", requestURL);
 #else
           NSLog(@"Fetch disallowed for %@", requestURL);
 #endif
