@@ -33,7 +33,9 @@
 
 // This notification indicates a reusable session has become invalid. It is intended mainly for the
 // service's unit tests.
-// The session object is provided via the userInfo kGTMSessionFetcherServiceSessionKey key.
+//
+// The notification object is the fetcher service.
+// The invalid session is provided via the userInfo kGTMSessionFetcherServiceSessionKey key.
 extern NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification;
 extern NSString *const kGTMSessionFetcherServiceSessionKey;
 

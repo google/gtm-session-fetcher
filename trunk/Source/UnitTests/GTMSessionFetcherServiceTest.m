@@ -343,7 +343,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertNil([service session]);
   XCTAssertNil([service sessionDelegate]);
 
-  // Inside the delegate dispatcher, there should now be an empty map of tasks to fetchers.
+  // Inside the delegate dispatcher, there should now be a nil map of tasks to fetchers.
   NSDictionary *taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
   XCTAssertNil(taskMap);
 
@@ -388,20 +388,68 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTestExpectation *exp = [self expectationWithDescription:@"sessioninvalid"];
 
   NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-  [nc addObserverForName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
-                  object:nil
-                   queue:nil
-              usingBlock:^(NSNotification *note) {
+  id observer = [nc addObserverForName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
+                                object:service
+                                 queue:nil
+                            usingBlock:^(NSNotification *note) {
     NSURLSession *invalidSession = [note.userInfo objectForKey:kGTMSessionFetcherServiceSessionKey];
-    XCTAssertEqual(invalidSession, session);
+    XCTAssertEqualObjects(invalidSession, session);
     [exp fulfill];
   }];
-  [self waitForExpectationsWithTimeout:5.0
-                               handler:^(NSError *error) {
-    XCTAssertNil(error);
-    // Unlike right after the fetches finish, now the session should be nil.
-    XCTAssertNil([service session]);
-  }];
+  [self waitForExpectationsWithTimeout:5.0 handler:nil];
+
+  // Unlike right after the fetches finish, now the session should be nil.
+  XCTAssertNil(service.session);
+
+  [nc removeObserver:observer];
+}
+
+- (void)testSessionAbandonment {
+  if (!isServerRunning_) return;
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
+  service.reuseSession = YES;
+  service.maxRunningFetchersPerHost = 2;
+
+  const NSTimeInterval kUnusedSessionTimeout = 3.0;
+  service.unusedSessionTimeout = kUnusedSessionTimeout;
+
+  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
+  NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
+
+  __block int numberOfCallsBack = 0;
+  __block int numberOfErrors = 0;
+
+  for (NSURL *fileURL in urlArray) {
+    GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
+    [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+      if (fetchError != nil) {
+        ++numberOfErrors;
+      }
+
+      // If NSURLSession had a suspended task, it won't have called its delegate,
+      // so the fetcher will have manufactured a callback with a cancellation error.
+      XCTAssert((fetchData != nil && fetchError == nil)
+          || (fetchData == nil && fetchError.code == NSURLErrorCancelled),
+                @"error=%@, data=%@", fetchError, fetchData);
+
+      // On the first completion, we'll reset the session.
+      ++numberOfCallsBack;
+      if (numberOfCallsBack == 1) {
+        [service resetSession];
+
+        // Inside the delegate dispatcher, there should be a nil map of tasks to fetchers.
+        NSDictionary *taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
+        XCTAssertNil(taskMap);
+      }
+    }];
+  }
+  XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
+
+  // Here we verify that all fechers were called back, and all but one succeeded.
+  XCTAssertEqual(numberOfCallsBack, (int)[urlArray count]);
+  XCTAssertEqual(numberOfErrors, 1);
 }
 
 - (void)testFetcherServiceTestBlock {

@@ -16,6 +16,7 @@
 // Sample iOS application for using GTMSessionFetcher.
 
 #import "FTAIOSAppDelegate.h"
+#import "GTMSessionFetcherLogging.h"
 
 // Supports running a test case test within this app.
 // Update the kTestCase... constants to run the desired test.
@@ -36,6 +37,8 @@
 // and continue updating the progress bar.
 #define ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING    0
 
+#define ENABLE_POST_TESTING 0
+
 #if ENABLE_TEST_CASE_TESTING
 
 #import <XCTest/XCTest.h>
@@ -48,7 +51,7 @@ static NSString *const kTestCaseSelectorString = @"testCancelAndResumeFetchToFil
 #endif  // ENABLE_TEST_CASE_TESTING
 
 
-#import "GTMSessionFetcher.h"
+#import "GTMSessionFetcherService.h"
 
 #if ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING
 
@@ -70,6 +73,15 @@ static NSUInteger const kBigUploadChunkSize = 500 * 1024 * 1024;
 static NSUInteger const kBigUploadChunkCount = 5;
 
 #endif  // ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING
+
+
+#if ENABLE_POST_TESTING
+
+#import "GTMSessionFetcherTestServer.h"
+
+static NSUInteger const kPostDataSize = 512 * 1024;
+
+#endif  // ENABLE_POST_TESTING
 
 
 @interface FTAIOSAppRootViewController : UIViewController
@@ -99,6 +111,7 @@ static NSUInteger const kBigUploadChunkCount = 5;
 
 - (BOOL)application:(UIApplication *)application
     didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+  [GTMSessionFetcher setLoggingEnabled:YES];
   return YES;
 }
 
@@ -106,6 +119,10 @@ static NSUInteger const kBigUploadChunkCount = 5;
 #if ENABLE_TEST_CASE_TESTING
   [self invokeTestSelectorString:kTestCaseSelectorString
                    onClassString:kTestCaseClassString];
+#endif
+
+#if ENABLE_POST_TESTING
+  [self testPlainBodyPost];
 #endif
 
 #if ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING
@@ -215,6 +232,43 @@ static NSUInteger const kBigUploadChunkCount = 5;
 }
 
 #endif  // ENABLE_TEST_CASE_TESTING
+
+#if ENABLE_POST_TESTING
+
+- (void)testPlainBodyPost {
+  NSData *postData = [self ASCIIDataWithLength:kPostDataSize];
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  NSString *urlStr =
+      @"http://posttestserver.com/post.php?dump&html&dir=gtm&status_code=200&sleep=5";
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:urlStr];
+  fetcher.allowedInsecureSchemes = @[ @"http" ];
+  fetcher.bodyData = postData;
+  [fetcher.mutableRequest setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
+
+  fetcher.sendProgressBlock = ^(int64_t bytesSent,
+                                int64_t totalBytesSent,
+                                int64_t totalBytesExpectedToSend) {
+    NSLog(@"body post fetcher sent %lld/%lld", totalBytesSent, totalBytesExpectedToSend);
+  };
+
+  NSLog(@"Starting post fetch");
+  [fetcher beginFetchWithCompletionHandler:^(NSData *receivedData, NSError *error) {
+    NSString *responseStr = [[NSString alloc] initWithData:receivedData
+                                                  encoding:NSUTF8StringEncoding];
+    NSLog(@"Post fetch finished with error: %@\n%@", error, responseStr);
+  }];
+}
+
+- (NSData *)ASCIIDataWithLength:(NSUInteger)length {
+  NSMutableData *data = [NSMutableData dataWithLength:length];
+  unsigned char *bytes = [data mutableBytes];
+  for (NSUInteger idx = 0; idx < length; idx++) {
+    bytes[idx] = 'A' + (unsigned char)(idx % 26);
+  }
+  return data;
+}
+
+#endif  // ENABLE_POST_TESTING
 
 #if ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING
 
