@@ -37,9 +37,15 @@
 #import "GTMSessionFetcher.h"
 #import "GTMSessionFetcherService.h"
 
+GTM_ASSUME_NONNULL_BEGIN
+
 // Unless an application knows it needs a smaller chunk size, it should use the standard
 // chunk size, which sends the entire file as a single chunk to minimize upload overhead.
 extern int64_t const kGTMSessionUploadFetcherStandardChunkSize;
+
+// When uploading requires data buffer allocations (such as uploading from an NSData or
+// an NSFileHandle) this is the maximum buffer size that will be created by the fetcher.
+extern int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize;
 
 // Notification that the upload location URL was provided by the server.
 extern NSString *const kGTMSessionFetcherUploadLocationObtainedNotification;
@@ -50,7 +56,8 @@ extern NSString *const kGTMSessionFetcherUploadLocationObtainedNotification;
 // and released after the response block returns.
 //
 // Pass nil as the data (and optionally an NSError) for a failure.
-typedef void (^GTMSessionUploadFetcherDataProviderResponse)(NSData *data, NSError *error);
+typedef void (^GTMSessionUploadFetcherDataProviderResponse)(NSData * GTM_NULLABLE_TYPE data,
+                                                            NSError * GTM_NULLABLE_TYPE error);
 typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t length,
     GTMSessionUploadFetcherDataProviderResponse response);
 
@@ -67,15 +74,15 @@ typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t leng
 + (instancetype)uploadFetcherWithRequest:(NSURLRequest *)request
                           uploadMIMEType:(NSString *)uploadMIMEType
                                chunkSize:(int64_t)chunkSize
-                          fetcherService:(GTMSessionFetcherService *)fetcherServiceOrNil;
+                          fetcherService:(GTM_NULLABLE GTMSessionFetcherService *)fetcherServiceOrNil;
 
 + (instancetype)uploadFetcherWithLocation:(NSURL *)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
-                           fetcherService:(GTMSessionFetcherService *)fetcherServiceOrNil;
+                           fetcherService:(GTM_NULLABLE GTMSessionFetcherService *)fetcherServiceOrNil;
 
 - (void)setUploadDataLength:(int64_t)fullLength
-                   provider:(GTMSessionUploadFetcherDataProvider)block;
+                   provider:(GTM_NULLABLE GTMSessionUploadFetcherDataProvider)block;
 
 + (NSArray *)uploadFetchersForBackgroundSessions;
 + (instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier;
@@ -84,38 +91,41 @@ typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t leng
 - (void)resumeFetching;
 - (BOOL)isPaused;
 
-@property(strong) NSURL *uploadLocationURL;
-@property(strong) NSData *uploadData;
-@property(strong) NSURL *uploadFileURL;
-@property(strong) NSFileHandle *uploadFileHandle;
-@property(copy, readonly) GTMSessionUploadFetcherDataProvider uploadDataProvider;
+@property(strong, GTM_NULLABLE) NSURL *uploadLocationURL;
+@property(strong, GTM_NULLABLE) NSData *uploadData;
+@property(strong, GTM_NULLABLE) NSURL *uploadFileURL;
+@property(strong, GTM_NULLABLE) NSFileHandle *uploadFileHandle;
+@property(copy, readonly, GTM_NULLABLE) GTMSessionUploadFetcherDataProvider uploadDataProvider;
 @property(copy) NSString *uploadMIMEType;
 @property(assign) int64_t chunkSize;
 @property(assign) int64_t currentOffset;
 
 // The fetcher for the current data chunk, if any
-@property(strong) GTMSessionFetcher *chunkFetcher;
+@property(strong, GTM_NULLABLE) GTMSessionFetcher *chunkFetcher;
 
 // The active fetcher is the current chunk fetcher, or the upload fetcher itself
 // if no chunk fetcher has yet been created.
 @property(readonly) GTMSessionFetcher *activeFetcher;
 
 // The last request made by an active fetcher.  Useful for testing.
-@property(readonly) NSURLRequest *lastChunkRequest;
+@property(readonly, GTM_NULLABLE) NSURLRequest *lastChunkRequest;
 
 // The response headers from the most recently-completed fetch.
-@property(strong) NSDictionary *responseHeaders;
+@property(strong, GTM_NULLABLE) NSDictionary *responseHeaders;
 
 // The status code from the most recently-completed fetch.
 @property(assign) NSInteger statusCode;
 
 // Exposed for testing only.
-@property(readonly) GTMSessionFetcherCompletionHandler delegateCompletionHandler;
+@property(readonly, GTM_NULLABLE) dispatch_queue_t delegateCallbackQueue;
+@property(readonly, GTM_NULLABLE) GTMSessionFetcherCompletionHandler delegateCompletionHandler;
 
 @end
 
 @interface GTMSessionFetcher (GTMSessionUploadFetcherMethods)
 
-@property(readonly) GTMSessionUploadFetcher *parentUploadFetcher;
+@property(readonly, GTM_NULLABLE) GTMSessionUploadFetcher *parentUploadFetcher;
 
 @end
+
+GTM_ASSUME_NONNULL_END

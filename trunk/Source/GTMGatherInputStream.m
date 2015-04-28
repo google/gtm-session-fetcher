@@ -20,11 +20,11 @@
 #import "GTMGatherInputStream.h"
 
 @implementation GTMGatherInputStream {
-  NSArray *dataArray_;  // NSDatas that should be "gathered" and streamed.
-  NSUInteger arrayIndex_;  // Index in the array of the current NSData.
-  long long dataOffset_;  // Offset in the current NSData we are processing.
-  NSStreamStatus streamStatus_;
-  id<NSStreamDelegate> __weak delegate_;  // Stream delegate, defaults to self.
+  NSArray *_dataArray;  // NSDatas that should be "gathered" and streamed.
+  NSUInteger _arrayIndex;  // Index in the array of the current NSData.
+  long long _dataOffset;  // Offset in the current NSData we are processing.
+  NSStreamStatus _streamStatus;
+  id<NSStreamDelegate> __weak _delegate;  // Stream delegate, defaults to self.
 }
 
 + (NSInputStream *)streamWithArray:(NSArray *)dataArray {
@@ -34,8 +34,8 @@
 - (instancetype)initWithArray:(NSArray *)dataArray {
   self = [super init];
   if (self) {
-    dataArray_ = dataArray;
-    delegate_ = self;  // An NSStream's default delegate should be self.
+    _dataArray = dataArray;
+    _delegate = self;  // An NSStream's default delegate should be self.
   }
   return self;
 }
@@ -43,24 +43,24 @@
 #pragma mark - NSStream
 
 - (void)open {
-  arrayIndex_ = 0;
-  dataOffset_ = 0;
-  streamStatus_ = NSStreamStatusOpen;
+  _arrayIndex = 0;
+  _dataOffset = 0;
+  _streamStatus = NSStreamStatusOpen;
 }
 
 - (void)close {
-  streamStatus_ = NSStreamStatusClosed;
+  _streamStatus = NSStreamStatusClosed;
 }
 
 - (id<NSStreamDelegate>)delegate {
-  return delegate_;
+  return _delegate;
 }
 
 - (void)setDelegate:(id<NSStreamDelegate>)delegate {
   if (delegate == nil) {
-    delegate_ = self;
+    _delegate = self;
   } else {
-    delegate_ = delegate;
+    _delegate = delegate;
   }
 }
 
@@ -87,7 +87,7 @@
 }
 
 - (NSStreamStatus)streamStatus {
-  return streamStatus_;
+  return _streamStatus;
 }
 
 - (NSError *)streamError {
@@ -101,28 +101,28 @@
   NSUInteger bytesRemaining = len;
 
   // Read bytes from the currently-indexed array.
-  while ((bytesRemaining > 0) && (arrayIndex_ < [dataArray_ count])) {
-    NSData *data = [dataArray_ objectAtIndex:arrayIndex_];
+  while ((bytesRemaining > 0) && (_arrayIndex < [_dataArray count])) {
+    NSData *data = [_dataArray objectAtIndex:_arrayIndex];
 
     NSUInteger dataLen = [data length];
-    NSUInteger dataBytesLeft = dataLen - (NSUInteger)dataOffset_;
+    NSUInteger dataBytesLeft = dataLen - (NSUInteger)_dataOffset;
 
     NSUInteger bytesToCopy = MIN(bytesRemaining, dataBytesLeft);
-    NSRange range = NSMakeRange((NSUInteger) dataOffset_, bytesToCopy);
+    NSRange range = NSMakeRange((NSUInteger) _dataOffset, bytesToCopy);
 
     [data getBytes:(buffer + bytesRead) range:range];
 
     bytesRead += bytesToCopy;
-    dataOffset_ += bytesToCopy;
+    _dataOffset += bytesToCopy;
     bytesRemaining -= bytesToCopy;
 
-    if (dataOffset_ == (long long)dataLen) {
-      dataOffset_ = 0;
-      arrayIndex_++;
+    if (_dataOffset == (long long)dataLen) {
+      _dataOffset = 0;
+      _arrayIndex++;
     }
   }
-  if (arrayIndex_ >= [dataArray_ count]) {
-    streamStatus_ = NSStreamStatusAtEnd;
+  if (_arrayIndex >= [_dataArray count]) {
+    _streamStatus = NSStreamStatusAtEnd;
   }
   return bytesRead;
 }
@@ -139,8 +139,8 @@
 #pragma mark - NSStreamDelegate
 
 - (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
-  if (delegate_ != self) {
-    [delegate_ stream:self handleEvent:streamEvent];
+  if (_delegate != self) {
+    [_delegate stream:self handleEvent:streamEvent];
   }
 }
 
@@ -149,14 +149,14 @@
 - (long long)absoluteOffset {
   long long absoluteOffset = 0;
   NSUInteger index = 0;
-  for (NSData *data in dataArray_) {
-    if (index >= arrayIndex_) {
+  for (NSData *data in _dataArray) {
+    if (index >= _arrayIndex) {
       break;
     }
     absoluteOffset += [data length];
     ++index;
   }
-  absoluteOffset += dataOffset_;
+  absoluteOffset += _dataOffset;
   return absoluteOffset;
 }
 
@@ -164,19 +164,19 @@
   if (absoluteOffset < 0) {
     absoluteOffset = 0;
   }
-  arrayIndex_ = 0;
-  dataOffset_ = absoluteOffset;
-  for (NSData *data in dataArray_) {
+  _arrayIndex = 0;
+  _dataOffset = absoluteOffset;
+  for (NSData *data in _dataArray) {
     long long dataLen = (long long) [data length];
-    if (dataLen > dataOffset_) {
+    if (dataLen > _dataOffset) {
       break;
     }
-    arrayIndex_++;
-    dataOffset_ -= dataLen;
+    _arrayIndex++;
+    _dataOffset -= dataLen;
   }
-  if (arrayIndex_ == [dataArray_ count]) {
-    if (dataOffset_ > 0) {
-      dataOffset_ = 0;
+  if (_arrayIndex == [_dataArray count]) {
+    if (_dataOffset > 0) {
+      _dataOffset = 0;
     }
   }
 }

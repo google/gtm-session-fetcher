@@ -22,6 +22,19 @@
 
 #import <Foundation/Foundation.h>
 
+#ifndef GTM_NONNULL
+  #if defined(__has_attribute)
+    #if __has_attribute(nonnull)
+      #define GTM_NONNULL(x) __attribute__((nonnull x))
+    #else
+      #define GTM_NONNULL(x)
+    #endif
+  #else
+    #define GTM_NONNULL(x)
+  #endif
+#endif
+
+
 @interface GTMMIMEDocument : NSObject
 
 // Get or set the unique boundary for the parts that have been added.
@@ -33,7 +46,7 @@
 // The headers keys and values should be NSStrings.
 // Adding a part may cause the boundary string to change.
 - (void)addPartWithHeaders:(NSDictionary *)headers
-                      body:(NSData *)body;
+                      body:(NSData *)body GTM_NONNULL((1,2));
 
 // An inputstream that can be used to efficiently read the contents of the mime document.
 - (void)generateInputStream:(NSInputStream **)outStream

@@ -23,8 +23,8 @@
 #import "GTMSessionFetcherService.h"
 
 @interface GTMSessionFetcherServiceTest : XCTestCase {
-  GTMSessionFetcherTestServer *testServer_;
-  BOOL isServerRunning_;
+  GTMSessionFetcherTestServer *_testServer;
+  BOOL _isServerRunning;
 }
 
 @end
@@ -47,20 +47,20 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 - (void)setUp {
   NSString *docRoot = [self docRootPath];
 
-  testServer_ = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
-  isServerRunning_ = testServer_ != nil;
+  _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
+  _isServerRunning = _testServer != nil;
 
-  XCTAssertTrue(isServerRunning_,
+  XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping service tests\n");
 }
 
 - (void)tearDown {
-  testServer_ = nil;
-  isServerRunning_ = NO;
+  _testServer = nil;
+  _isServerRunning = NO;
 }
 
 - (void)testFetcherService {
-  if (!isServerRunning_) return;
+  if (!_isServerRunning) return;
 
   // Utility blocks for counting array entries for a specific host.
   NSUInteger (^URLsPerHost)(NSArray *, NSString *) = ^(NSArray *URLs, NSString *host) {
@@ -90,7 +90,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   };
 
   // We'll verify we fetched from the server the same data that is on disk.
-  NSString *gettysburgPath = [testServer_ localPathForFile:kValidFileName];
+  NSString *gettysburgPath = [_testServer localPathForFile:kValidFileName];
   NSData *gettysburgAddress = [NSData dataWithContentsOfFile:gettysburgPath];
 
   // We'll create 10 fetchers.  Only 2 should run simultaneously.
@@ -106,12 +106,12 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   // Make URLs for a valid fetch, a fetch that returns a status error,
   // and a valid fetch with a different host.
-  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
 
   NSString *invalidFile = [kValidFileName stringByAppendingString:@"?status=400"];
-  NSURL *invalidFileURL = [testServer_ localURLForFile:invalidFile];
+  NSURL *invalidFileURL = [_testServer localURLForFile:invalidFile];
 
-  NSURL *altValidURL = [testServer_ localv6URLForFile:invalidFile];
+  NSURL *altValidURL = [_testServer localv6URLForFile:invalidFile];
 
   XCTAssertEqualObjects([validFileURL host], @"localhost", @"unexpected host");
   XCTAssertEqualObjects([invalidFileURL host], @"localhost", @"unexpected host");
@@ -260,7 +260,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testStopAllFetchers {
-  if (!isServerRunning_) return;
+  if (!_isServerRunning) return;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.maxRunningFetchersPerHost = 2;
@@ -268,8 +268,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   // Create three fetchers for each of two URLs, so there should be
   // two running and one delayed for each.
-  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
-  NSURL *altValidURL = [testServer_ localv6URLForFile:kValidFileName];
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
+  NSURL *altValidURL = [_testServer localv6URLForFile:kValidFileName];
 
   // Add three fetches for each URL.
   NSArray *urlArray = @[
@@ -303,7 +303,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testSessionReuse {
-  if (!isServerRunning_) return;
+  if (!_isServerRunning) return;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowLocalhostRequest = YES;
@@ -311,7 +311,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   const NSTimeInterval kUnusedSessionTimeout = 3.0;
   service.unusedSessionTimeout = kUnusedSessionTimeout;
 
-  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
 
   NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
   NSMutableSet *uniqueSessions = [NSMutableSet set];
@@ -405,7 +405,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testSessionAbandonment {
-  if (!isServerRunning_) return;
+  if (!_isServerRunning) return;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowLocalhostRequest = YES;
@@ -415,7 +415,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   const NSTimeInterval kUnusedSessionTimeout = 3.0;
   service.unusedSessionTimeout = kUnusedSessionTimeout;
 
-  NSURL *validFileURL = [testServer_ localURLForFile:kValidFileName];
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
   NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
 
   __block int numberOfCallsBack = 0;
@@ -447,15 +447,21 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }
   XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
 
-  // Here we verify that all fechers were called back, and all but one succeeded.
+  // Here we verify that all fetchers were called back.
   XCTAssertEqual(numberOfCallsBack, (int)[urlArray count]);
-  XCTAssertEqual(numberOfErrors, 1);
+
+  // On some builds (Mac/iOS and certain machines), all are succeeding; on some,
+  // one finishes with an error, apparently a task ending up suspended when we
+  // reset the session.  This may resolve as all builds migrate to a common version of
+  // NSURLSession; if not, we should try to figure out why this is inconsistent.
+  // On the simulator, all are succeeding.
+  XCTAssertLessThanOrEqual(numberOfErrors, 1);
 }
 
 - (void)testFetcherServiceTestBlock {
   // No test server needed.
-  testServer_ = nil;
-  isServerRunning_ = NO;
+  _testServer = nil;
+  _isServerRunning = NO;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowedInsecureSchemes = @[ @"http" ];
@@ -530,8 +536,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
 - (void)testMockCreationMethod {
   // No test server needed.
-  testServer_ = nil;
-  isServerRunning_ = NO;
+  _testServer = nil;
+  _isServerRunning = NO;
 
   // Test with data.
   NSData *data = [@"abcdefg" dataUsingEncoding:NSUTF8StringEncoding];

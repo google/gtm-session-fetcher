@@ -39,7 +39,7 @@
 #ifndef GTM_NSSTREAM_DELEGATE
 @interface GTMReadMonitorInputStream : NSInputStream
 
-+ (id)inputStreamWithStream:(NSInputStream *)input;
++ (instancetype)inputStreamWithStream:(NSInputStream *)input;
 
 @property (assign) id readDelegate;
 @property (assign) SEL readSelector;

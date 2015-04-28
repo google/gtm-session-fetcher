@@ -29,12 +29,12 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
                     const unsigned char *haystack, NSUInteger haystack_len);
 
 @interface GTMMIMEPart : NSObject {
-  NSData* headerData_;  // Header content including the ending "\r\n".
-  NSData* bodyData_;    // The body data.
+  NSData *_headerData;  // Header content including the ending "\r\n".
+  NSData *_bodyData;    // The body data.
 }
 
 + (instancetype)partWithHeaders:(NSDictionary *)headers body:(NSData *)body;
-- (id)initWithHeaders:(NSDictionary *)headers body:(NSData *)body;
+- (instancetype)initWithHeaders:(NSDictionary *)headers body:(NSData *)body;
 - (BOOL)containsBytes:(const unsigned char *)bytes length:(NSUInteger)length;
 - (NSData *)header;
 - (NSData *)body;
@@ -48,8 +48,9 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 }
 
 - (instancetype)initWithHeaders:(NSDictionary *)headers body:(NSData *)body {
-  if ((self = [super init]) != nil) {
-    bodyData_ = body;
+  self = [super init];
+  if (self) {
+    _bodyData = body;
 
     // Generate the header data by coalescing the dictionary as lines of "key: value\r\n".
     NSMutableString* headerString = [NSMutableString string];
@@ -80,7 +81,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
     // Headers end with an extra blank line.
     [headerString appendString:@"\r\n"];
 
-    headerData_ = [headerString dataUsingEncoding:NSUTF8StringEncoding];
+    _headerData = [headerString dataUsingEncoding:NSUTF8StringEncoding];
   }
   return self;
 }
@@ -92,70 +93,71 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 - (BOOL)containsBytes:(const unsigned char *)bytes length:(NSUInteger)length {
 
   // This uses custom memsrch() rather than strcpy because the encoded data may contain null values.
-  return memsrch(bytes, length, [headerData_ bytes], [headerData_ length]) ||
-         memsrch(bytes, length, [bodyData_ bytes],   [bodyData_ length]);
+  return memsrch(bytes, length, [_headerData bytes], [_headerData length]) ||
+         memsrch(bytes, length, [_bodyData bytes],   [_bodyData length]);
 }
 
 - (NSData *)header {
-  return headerData_;
+  return _headerData;
 }
 
 - (NSData *)body {
-  return bodyData_;
+  return _bodyData;
 }
 
 - (NSUInteger)length {
-  return [headerData_ length] + [bodyData_ length];
+  return [_headerData length] + [_bodyData length];
 }
 
 - (NSString *)description {
   return [NSString stringWithFormat:@"%@ %p (header %tu bytes, body %tu bytes)",
-          [self class], self, [headerData_ length], [bodyData_ length]];
+          [self class], self, [_headerData length], [_bodyData length]];
 }
 
 @end
 
 @implementation GTMMIMEDocument {
-  NSMutableArray *parts_;         // Contains an ordered set of MimeParts.
-  unsigned long long length_;     // Length in bytes of the document.
-  NSString *boundary_;
-  u_int32_t randomSeed_;          // For testing.
+  NSMutableArray *_parts;         // Contains an ordered set of MimeParts.
+  unsigned long long _length;     // Length in bytes of the document.
+  NSString *_boundary;
+  u_int32_t _randomSeed;          // For testing.
 }
 
 + (instancetype)MIMEDocument {
   return [[self alloc] init];
 }
 
-- (id)init {
-  if ((self = [super init]) != nil) {
-    parts_ = [[NSMutableArray alloc] init];
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _parts = [[NSMutableArray alloc] init];
   }
   return self;
 }
 
 - (NSString *)description {
   return [NSString stringWithFormat:@"%@ %p (%tu parts)",
-          [self class], self, [parts_ count]];
+          [self class], self, [_parts count]];
 }
 
 // Adds a new part to this mime document with the given headers and body.
 - (void)addPartWithHeaders:(NSDictionary *)headers body:(NSData *)body {
   GTMMIMEPart* part = [GTMMIMEPart partWithHeaders:headers body:body];
-  [parts_ addObject:part];
-  boundary_ = nil;
+  [_parts addObject:part];
+  _boundary = nil;
 }
 
 // For unit testing only, seeds the random number generator so that we will
 // have reproducible boundary strings.
 - (void)seedRandomWith:(u_int32_t)seed {
-  randomSeed_ = seed;
-  boundary_ = nil;
+  _randomSeed = seed;
+  _boundary = nil;
 }
 
 - (u_int32_t)random {
-  if (randomSeed_) {
+  if (_randomSeed) {
     // For testing only.
-    return randomSeed_++;
+    return _randomSeed++;
   } else {
     return arc4random();
   }
@@ -165,14 +167,14 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 // after all the desired document parts have been added since it must compute
 // a boundary that does not exist in the document data.
 - (NSString *)boundary {
-  if (boundary_) {
-    return boundary_;
+  if (_boundary) {
+    return _boundary;
   }
 
   // Use an easily-readable boundary string.
   NSString *const kBaseBoundary = @"END_OF_PART";
 
-  boundary_ = kBaseBoundary;
+  _boundary = kBaseBoundary;
 
   // If the boundary isn't unique, append random numbers, up to 10 attempts;
   // if that's still not unique, use a random number sequence instead, and call it good.
@@ -181,11 +183,11 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   const int maxTries = 10;  // Arbitrarily chosen maximum attempts.
   for (int tries = 0; tries < maxTries; ++tries) {
 
-    NSData *data = [boundary_ dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *data = [_boundary dataUsingEncoding:NSUTF8StringEncoding];
     const void *dataBytes = [data bytes];
     NSUInteger dataLen = [data length];
 
-    for (GTMMIMEPart *part in parts_) {
+    for (GTMMIMEPart *part in _parts) {
       didCollide = [part containsBytes:dataBytes length:dataLen];
       if (didCollide) break;
     }
@@ -193,18 +195,18 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
     if (!didCollide) break; // We're fine, no more attempts needed.
 
     // Try again with a random number appended.
-    boundary_ = [NSString stringWithFormat:@"%@_%08x", kBaseBoundary, [self random]];
+    _boundary = [NSString stringWithFormat:@"%@_%08x", kBaseBoundary, [self random]];
   }
 
   if (didCollide) {
     // Fallback... two random numbers.
-    boundary_ = [NSString stringWithFormat:@"%08x_tedborg_%08x", [self random], [self random]];
+    _boundary = [NSString stringWithFormat:@"%08x_tedborg_%08x", [self random], [self random]];
   }
-  return boundary_;
+  return _boundary;
 }
 
 - (void)setBoundary:(NSString *)str {
-  boundary_ = [str copy];
+  _boundary = [str copy];
 }
 
 - (void)generateInputStream:(NSInputStream **)outStream
@@ -233,7 +235,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   NSMutableArray *dataArray = [NSMutableArray array];
   unsigned long long length = 0;
 
-  for (GTMMIMEPart *part in parts_) {
+  for (GTMMIMEPart *part in _parts) {
     [dataArray addObject:mainBoundaryData];
     [dataArray addObject:[part header]];
     [dataArray addObject:[part body]];

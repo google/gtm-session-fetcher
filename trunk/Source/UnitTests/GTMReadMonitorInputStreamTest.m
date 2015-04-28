@@ -22,18 +22,18 @@
 #import "GTMReadMonitorInputStream.h"
 
 @interface GTMReadMonitorInputStreamTest : XCTestCase {
-  NSMutableData *monitoredData_;
+  NSMutableData *_monitoredData;
 }
 @end
 
 @implementation GTMReadMonitorInputStreamTest
 
 - (void)setUp {
-  monitoredData_ = [[NSMutableData alloc] init];
+  _monitoredData = [[NSMutableData alloc] init];
 }
 
 - (void)tearDown {
-  monitoredData_ = nil;
+  _monitoredData = nil;
 }
 
 - (void)testGTMReadMonitorInputStream {
@@ -77,7 +77,7 @@
                        @"read data doesn't match stream data");
 
   // Verify the callback saw the same data.
-  XCTAssertEqualObjects(monitoredData_, testData,
+  XCTAssertEqualObjects(_monitoredData, testData,
                        @"callback progress doesn't match actual progress");
 }
 
@@ -85,6 +85,6 @@
 - (void)inputStream:(GTMReadMonitorInputStream *)stream
      readIntoBuffer:(uint8_t *)buffer
              length:(int64_t)length {
-  [monitoredData_ appendBytes:buffer length:(NSUInteger)length];
+  [_monitoredData appendBytes:buffer length:(NSUInteger)length];
 }
 @end
