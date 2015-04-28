@@ -342,6 +342,11 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
   NSString *requestScheme = [requestURL scheme];
   BOOL isDataRequest = [requestScheme isEqual:@"data"];
+  if (isDataRequest) {
+    // NSURLSession does not support data URLs in background sessions.
+    _sessionIdentifier = nil;
+    _useBackgroundSession = NO;
+  }
 
 #if !GTM_ALLOW_INSECURE_REQUESTS
   if ((requestURL != nil) && !isDataRequest) {
@@ -1852,7 +1857,12 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
                            [self class], self, session, downloadTask, bytesWritten,
                            totalBytesWritten, totalBytesExpectedToWrite);
   [self setSessionTask:downloadTask];
-
+  if ((totalBytesExpectedToWrite != NSURLSessionTransferSizeUnknown) &&
+      (totalBytesExpectedToWrite < totalBytesWritten)) {
+    // Have observed cases were bytesWritten == totalBytesExpectedToWrite,
+    // but totalBytesWritten > totalBytesExpectedToWrite, so setting to unkown in these cases.
+    totalBytesExpectedToWrite = NSURLSessionTransferSizeUnknown;
+  }
   // We won't hold on to download progress block during the enqueue;
   // it's ok to not send it if the upload finishes.
   [self invokeOnCallbackQueueUnlessStopped:^{

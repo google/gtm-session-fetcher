@@ -15,17 +15,24 @@
 
 #import <Foundation/Foundation.h>
 
-@interface GTMReadMonitorInputStream : NSInputStream <NSStreamDelegate> {
- @protected
-  NSInputStream *inputStream_; // Encapsulated stream that does the work.
+#ifndef GTM_NONNULL
+  #if defined(__has_attribute)
+    #if __has_attribute(nonnull)
+      #define GTM_NONNULL(x) __attribute__((nonnull x))
+    #else
+      #define GTM_NONNULL(x)
+    #endif
+  #else
+    #define GTM_NONNULL(x)
+  #endif
+#endif
 
-  NSThread *thread_;      // Thread in which this object was created.
-  NSArray *runLoopModes_; // Modes for calling callbacks, when necessary.
-}
 
-+ (id)inputStreamWithStream:(NSInputStream *)input;
+@interface GTMReadMonitorInputStream : NSInputStream <NSStreamDelegate>
 
-- (id)initWithStream:(NSInputStream *)input;
++ (instancetype)inputStreamWithStream:(NSInputStream *)input GTM_NONNULL((1));
+
+- (instancetype)initWithStream:(NSInputStream *)input GTM_NONNULL((1));
 
 // The read monitor selector is called when bytes have been read. It should have this signature:
 //

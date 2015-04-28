@@ -81,5 +81,11 @@ extern NSString *const kGTMGettysburgFileName;
 @property(nonatomic) int retryDelayStarted;
 @property(nonatomic) int retryDelayStopped;
 @property(nonatomic) int uploadLocationObtained;
+
+@property(nonatomic) NSMutableArray *uploadChunkRequestPaths; // of NSString
+@property(nonatomic) NSMutableArray *uploadChunkCommands; // of NSString
+@property(nonatomic) NSMutableArray *uploadChunkOffsets; // of NSUInteger
+@property(nonatomic) NSMutableArray *uploadChunkLengths; // of NSUInteger
+
 @end
 

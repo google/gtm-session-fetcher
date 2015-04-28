@@ -20,13 +20,16 @@
 #import "GTMReadMonitorInputStream.h"
 
 @implementation GTMReadMonitorInputStream {
-  id __weak readDelegate_;
-  SEL readSelector_;
+  NSInputStream *_inputStream; // Encapsulated stream that does the work.
+
+  NSThread *_thread;      // Thread in which this object was created.
+  NSArray *_runLoopModes; // Modes for calling callbacks, when necessary.
 }
 
-@synthesize readDelegate = readDelegate_;
-@synthesize readSelector = readSelector_;
-@synthesize runLoopModes = runLoopModes_;
+
+@synthesize readDelegate = _readDelegate;
+@synthesize readSelector = _readSelector;
+@synthesize runLoopModes = _runLoopModes;
 
 // We'll forward all unhandled messages to the NSInputStream class or to the encapsulated input
 // stream.  This is needed for all messages sent to NSInputStream which aren't handled by our
@@ -40,45 +43,46 @@
 }
 
 - (BOOL)respondsToSelector:(SEL)selector {
-  return [inputStream_ respondsToSelector:selector];
+  return [_inputStream respondsToSelector:selector];
 }
 
 - (NSMethodSignature*)methodSignatureForSelector:(SEL)selector {
-  return [inputStream_ methodSignatureForSelector:selector];
+  return [_inputStream methodSignatureForSelector:selector];
 }
 
 - (void)forwardInvocation:(NSInvocation*)invocation {
-  [invocation invokeWithTarget:inputStream_];
+  [invocation invokeWithTarget:_inputStream];
 }
 
 #pragma mark -
 
-+ (id)inputStreamWithStream:(NSInputStream *)input {
++ (instancetype)inputStreamWithStream:(NSInputStream *)input {
   return [[self alloc] initWithStream:input];
 }
 
-- (id)initWithStream:(NSInputStream *)input  {
+- (instancetype)initWithStream:(NSInputStream *)input  {
   self = [super init];
   if (self) {
-    inputStream_ = input;
-    thread_ = [NSThread currentThread];
+    _inputStream = input;
+    _thread = [NSThread currentThread];
   }
   return self;
 }
 
-- (id)init {
-  return [self initWithStream:nil];
+- (instancetype)init {
+  [self doesNotRecognizeSelector:_cmd];
+  return nil;
 }
 
 #pragma mark -
 
 - (NSInteger)read:(uint8_t *)buffer maxLength:(NSUInteger)len {
   // Read from the encapsulated stream.
-  NSInteger numRead = [inputStream_ read:buffer maxLength:len];
+  NSInteger numRead = [_inputStream read:buffer maxLength:len];
   if (numRead > 0) {
-    if (readDelegate_ && readSelector_) {
+    if (_readDelegate && _readSelector) {
       // Call the read selector with the buffer and number of bytes actually read into it.
-      BOOL isOnOriginalThread = [thread_ isEqual:[NSThread currentThread]];
+      BOOL isOnOriginalThread = [_thread isEqual:[NSThread currentThread]];
       if (isOnOriginalThread) {
         // Invoke immediately.
         NSData *data = [NSData dataWithBytesNoCopy:buffer
@@ -90,15 +94,15 @@
         // and invoke on the proper thread.
         SEL sel = @selector(invokeReadSelectorWithBuffer:);
         NSData *data = [NSData dataWithBytes:buffer length:(NSUInteger)numRead];
-        if (runLoopModes_) {
+        if (_runLoopModes) {
           [self performSelector:sel
-                       onThread:thread_
+                       onThread:_thread
                      withObject:data
                   waitUntilDone:NO
-                          modes:runLoopModes_];
+                          modes:_runLoopModes];
         } else {
           [self performSelector:sel
-                       onThread:thread_
+                       onThread:_thread
                      withObject:data
                   waitUntilDone:NO];
         }
@@ -113,10 +117,10 @@
   int64_t length = (int64_t)[data length];
 
   id argSelf = self;
-  NSMethodSignature *signature = [readDelegate_ methodSignatureForSelector:readSelector_];
+  NSMethodSignature *signature = [_readDelegate methodSignatureForSelector:_readSelector];
   NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-  [invocation setSelector:readSelector_];
-  [invocation setTarget:readDelegate_];
+  [invocation setSelector:_readSelector];
+  [invocation setTarget:_readDelegate];
   [invocation setArgument:&argSelf atIndex:2];
   [invocation setArgument:&buffer atIndex:3];
   [invocation setArgument:&length atIndex:4];
@@ -124,11 +128,11 @@
 }
 
 - (BOOL)getBuffer:(uint8_t **)buffer length:(NSUInteger *)len {
-  return [inputStream_ getBuffer:buffer length:len];
+  return [_inputStream getBuffer:buffer length:len];
 }
 
 - (BOOL)hasBytesAvailable {
-  return [inputStream_ hasBytesAvailable];
+  return [_inputStream hasBytesAvailable];
 }
 
 #pragma mark Standard messages
@@ -138,43 +142,43 @@
 // We want our encapsulated NSInputStream to handle the standard messages;
 // we don't want the superclass to handle them.
 - (void)open {
-  [inputStream_ open];
+  [_inputStream open];
 }
 
 - (void)close {
-  [inputStream_ close];
+  [_inputStream close];
 }
 
 - (id)delegate {
-  return [inputStream_ delegate];
+  return [_inputStream delegate];
 }
 
 - (void)setDelegate:(id)delegate {
-  [inputStream_ setDelegate:delegate];
+  [_inputStream setDelegate:delegate];
 }
 
 - (id)propertyForKey:(NSString *)key {
-  return [inputStream_ propertyForKey:key];
+  return [_inputStream propertyForKey:key];
 }
 
 - (BOOL)setProperty:(id)property forKey:(NSString *)key {
-  return [inputStream_ setProperty:property forKey:key];
+  return [_inputStream setProperty:property forKey:key];
 }
 
 - (void)scheduleInRunLoop:(NSRunLoop *)aRunLoop forMode:(NSString *)mode {
-  [inputStream_ scheduleInRunLoop:aRunLoop forMode:mode];
+  [_inputStream scheduleInRunLoop:aRunLoop forMode:mode];
 }
 
 - (void)removeFromRunLoop:(NSRunLoop *)aRunLoop forMode:(NSString *)mode {
-  [inputStream_ removeFromRunLoop:aRunLoop forMode:mode];
+  [_inputStream removeFromRunLoop:aRunLoop forMode:mode];
 }
 
 - (NSStreamStatus)streamStatus {
-  return [inputStream_ streamStatus];
+  return [_inputStream streamStatus];
 }
 
 - (NSError *)streamError {
-  return [inputStream_ streamError];
+  return [_inputStream streamError];
 }
 
 @end

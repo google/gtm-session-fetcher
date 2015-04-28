@@ -144,6 +144,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(fetcher.testBlock);
 
   if ([fetcher isKindOfClass:[GTMSessionUploadFetcher class]]) {
+    XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).delegateCallbackQueue);
     XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).delegateCompletionHandler);
     XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).uploadDataProvider);
   }
@@ -1622,6 +1623,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (instancetype)init {
   self = [super init];
   if (self) {
+    _uploadChunkRequestPaths = [[NSMutableArray alloc] init];
+    _uploadChunkCommands = [[NSMutableArray alloc] init];
+    _uploadChunkOffsets = [[NSMutableArray alloc] init];
+    _uploadChunkLengths = [[NSMutableArray alloc] init];
+
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self
            selector:@selector(fetchStateChanged:)
@@ -1661,6 +1667,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
     if (isUploadChunkFetcher) {
       ++_uploadChunkFetchStarted;
+
+      NSURLRequest *request = fetcher.mutableRequest;
+      NSString *command = [request valueForHTTPHeaderField:@"X-Goog-Upload-Command"];
+      NSInteger offset = [[request valueForHTTPHeaderField:@"X-Goog-Upload-Offset"] integerValue];
+      NSInteger length = [[request valueForHTTPHeaderField:@"Content-Length"] integerValue];
+      [_uploadChunkRequestPaths addObject:request.URL.path];
+      [_uploadChunkCommands addObject:command];
+      [_uploadChunkOffsets addObject:@(offset)];
+      [_uploadChunkLengths addObject:@(length)];
     }
   } else {
     ++_fetchStopped;

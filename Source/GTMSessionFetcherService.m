@@ -103,6 +103,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
+            retryEnabled = _retryEnabled,
+            retryBlock = _retryBlock,
+            maxRetryInterval = _maxRetryInterval,
+            minRetryInterval = _minRetryInterval,
+            properties = _properties,
             unusedSessionTimeout = _unusedSessionTimeout;
 
 - (instancetype)init {
@@ -142,6 +147,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   fetcher.allowLocalhostRequest = self.allowLocalhostRequest;
   fetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
   fetcher.configurationBlock = self.configurationBlock;
+  fetcher.retryEnabled = self.retryEnabled;
+  fetcher.retryBlock = self.retryBlock;
+  fetcher.maxRetryInterval = self.maxRetryInterval;
+  fetcher.minRetryInterval = self.minRetryInterval;
+  fetcher.properties = self.properties;
   fetcher.service = self;
   if (self.cookieStorageMethod >= 0) {
     [fetcher setCookieStorageMethod:self.cookieStorageMethod];
@@ -547,7 +557,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSDictionary *)runningFetchersByHost {
   @synchronized(self) {
-    return _runningFetchersByHost;
+    return [_runningFetchersByHost copy];
   }
 }
 
@@ -559,7 +569,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSDictionary *)delayedFetchersByHost {
   @synchronized(self) {
-    return _delayedFetchersByHost;
+    return [_delayedFetchersByHost copy];
   }
 }
 

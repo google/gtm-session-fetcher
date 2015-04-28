@@ -91,12 +91,8 @@
 #endif
 
 - (void)testGTMFetcherCleanedUserAgentString {
-  NSString *result = GTMFetcherCleanedUserAgentString(nil);
-  NSString *expected = nil;
-  XCTAssertEqualObjects(result, expected);
-
-  result = GTMFetcherCleanedUserAgentString(@"");
-  expected = @"";
+  NSString *result = GTMFetcherCleanedUserAgentString(@"");
+  NSString *expected = @"";
   XCTAssertEqualObjects(result, expected);
 
   result = GTMFetcherCleanedUserAgentString(@"frog in tree/[1.2.3]");
