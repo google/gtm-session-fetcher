@@ -203,29 +203,40 @@
 #import <UIKit/UIKit.h>
 #endif
 
+// Logs in debug builds.
 #ifndef GTMSESSION_LOG_DEBUG
   #if DEBUG
     #define GTMSESSION_LOG_DEBUG(...) NSLog(__VA_ARGS__)
   #else
-    #define GTMSESSION_LOG_DEBUG(...)
+    #define GTMSESSION_LOG_DEBUG(...) do { } while (0)
   #endif
 #endif
 
-#ifndef GTMSESSION_LOG_DEBUG_IF
-  #if DEBUG
-    #define GTMSESSION_LOG_DEBUG_IF(cond, ...) if (cond) { NSLog(__VA_ARGS__); }
-  #else
-    #define GTMSESSION_LOG_DEBUG_IF(cond, ...) do { } while (0)
-  #endif
-#endif
-
+// Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG is defined.)
 #ifndef GTMSESSION_ASSERT_DEBUG
   #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
     #define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
+  #elif DEBUG
+    #define GTMSESSION_ASSERT_DEBUG(pred, ...) if (!(pred)) { NSLog(__VA_ARGS__); }
   #else
-    #define GTMSESSION_ASSERT_DEBUG(pred, ...) GTMSESSION_LOG_DEBUG_IF(!(pred), __VA_ARGS__)
+    #define GTMSESSION_ASSERT_DEBUG(pred, ...) do { } while (0)
   #endif
 #endif
+
+// Asserts in debug builds, logs in release builds (or logs in debug builds if
+// GTMSESSION_ASSERT_AS_LOG is defined.)
+#ifndef GTMSESSION_ASSERT_DEBUG_OR_LOG
+  #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
+    #define GTMSESSION_ASSERT_DEBUG_OR_LOG(...) NSAssert(__VA_ARGS__)
+  #else
+    #define GTMSESSION_ASSERT_DEBUG_OR_LOG(pred, ...) if (!(pred)) { NSLog(__VA_ARGS__); }
+  #endif
+#endif
+
+// Until Xcode can autocomplete typedef'd blocks with nullable
+// annotations (broken in 6.3.x), we'll leave the annotations disabled.
+// <http://openradar.appspot.com/20723086>
+#define GTM_CAN_XCODE_AUTOCOMPLETE_WITH_NULLABLES 0
 
 // Macro useful for examining messages from NSURLSession during debugging.
 #if 0
@@ -235,7 +246,8 @@
 #endif
 
 #ifndef GTM_NULLABLE
-  #if __has_feature(nullability)  // Available starting in Xcode 6.3
+  #if GTM_CAN_XCODE_AUTOCOMPLETE_WITH_NULLABLES && \
+      __has_feature(nullability)  // Available starting in Xcode 6.3
     #define GTM_NULLABLE_TYPE __nullable
     #define GTM_NONNULL_TYPE __nonnull
     #define GTM_NULLABLE nullable
@@ -322,6 +334,7 @@ typedef NS_ENUM(NSInteger, GTMSessionFetcherErrorCode) {
   kGTMSessionFetcherErrorBackgroundExpiration = -3,
   kGTMSessionFetcherErrorBackgroundFetchFailed = -4,
   kGTMSessionFetcherErrorInsecureRequest = -5,
+  kGTMSessionFetcherErrorTaskCreationFailed = -6,
 
   // Standard http status codes.
   kGTMSessionFetcherStatusNotModified = 304,
@@ -380,13 +393,14 @@ void GTMSessionFetcherAssertValidSelector(id obj, SEL sel, ...);
 // Utility functions for applications self-identifying to servers via a
 // user-agent header
 
-// Make a proper app name without whitespace from the given string, removing
-// whitespace and other characters that may be special parsed marks of
-// the full user-agent string.
-NSString *GTMFetcherCleanedUserAgentString(NSString *str);
-
-// Make an identifier like "MacOSX/10.7.1" or "iPod_Touch/4.1 hw/iPod1_1"
-NSString *GTMFetcherSystemVersionString(void);
+// The "standard" user agent includes the application identifier, taken from the bundle,
+// followed by a space and the system version string. Pass nil to use +mainBundle as the source
+// of the bundle identifier.
+//
+// Applications may use this as a starting point for their own user agent strings, perhaps
+// with additional sections appended.  Use GTMFetcherCleanedUserAgentString() below to
+// clean up any string being added to the user agent.
+NSString *GTMFetcherStandardUserAgentString(NSBundle * GTM_NULLABLE_TYPE bundle);
 
 // Make a generic name and version for the current application, like
 // com.example.MyApp/1.2.3 relying on the bundle identifier and the
@@ -398,6 +412,16 @@ NSString *GTMFetcherSystemVersionString(void);
 // If no bundle ID or override is available, the process name preceded
 // by "proc_" is used.
 NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
+
+// Make an identifier like "MacOSX/10.7.1" or "iPod_Touch/4.1 hw/iPod1_1"
+NSString *GTMFetcherSystemVersionString(void);
+
+// Make a parseable user-agent identifier from the given string, replacing whitespace
+// and commas with underscores, and removing other characters that may interfere
+// with parsing of the full user-agent string.
+//
+// For example, @"[My App]" would become @"My_App"
+NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -428,6 +452,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
 
 @property(atomic, assign) BOOL reuseSession;
 - (GTM_NULLABLE NSURLSession *)session;
+- (GTM_NULLABLE NSURLSession *)sessionForFetcherCreation;
 - (GTM_NULLABLE id<NSURLSessionDelegate>)sessionDelegate;
 
 // Methods for compatibility with the old GTMHTTPFetcher.
@@ -795,7 +820,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
 @property(copy, GTM_NULLABLE) NSString *log;
 
 // Callbacks are run on this queue.  If none is supplied, the main queue is used.
-@property(strong, GTM_NULLABLE) dispatch_queue_t callbackQueue;
+@property(strong, GTM_NONNULL_DECL) dispatch_queue_t callbackQueue;
 
 // Spin the run loop or sleep the thread, discarding events, until the fetch has completed.
 //
@@ -830,6 +855,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
 // If logging is stripped, provide a stub for the main method
 // for controlling logging.
 + (void)setLoggingEnabled:(BOOL)flag;
++ (BOOL)isLoggingEnabled;
 
 #else
 

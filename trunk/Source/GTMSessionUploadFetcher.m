@@ -348,6 +348,19 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     [mutableRequest setHTTPMethod:@"POST"];
   }
 
+  // Ensure the user agent header identifies this to the upload server as a
+  // GTMSessionUploadFetcher client.  The /1 can be incremented in the unlikely circumstance
+  // we need to make a bug fix in the client that the server can recognize.
+  NSString *const kUserAgentStub = @"(GTMSUF/1)";
+  NSString *userAgent = [mutableRequest valueForHTTPHeaderField:@"User-Agent"];
+  if (userAgent == nil
+      || [userAgent rangeOfString:kUserAgentStub].location == NSNotFound) {
+    if (userAgent.length == 0) {
+      userAgent = GTMFetcherStandardUserAgentString(nil);
+    }
+    userAgent = [userAgent stringByAppendingFormat:@" %@", kUserAgentStub];
+    [mutableRequest setValue:userAgent forHTTPHeaderField:@"User-Agent"];
+  }
 }
 
 - (void)setLocationURL:(NSURL *)location
@@ -815,7 +828,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   _fetcherInFlight = cancelFetcher;
   [cancelFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       _fetcherInFlight = nil;
-      GTMSESSION_LOG_DEBUG_IF(error != nil, @"cancelFetcher %@", error);
+      if (error) {
+        GTMSESSION_LOG_DEBUG(@"cancelFetcher %@", error);
+      }
   }];
 }
 
@@ -1167,7 +1182,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     NSError *error;
     [[NSFileManager defaultManager] removeItemAtURL:chunkFileURL
                                               error:&error];
-    GTMSESSION_LOG_DEBUG_IF(error, @"removingItemAtURL failed: %@\n%@", error, chunkFileURL);
+    if (error) {
+      GTMSESSION_LOG_DEBUG(@"removingItemAtURL failed: %@\n%@", error, chunkFileURL);
+    }
   }
 
   _responseHeaders = _chunkFetcher.responseHeaders;

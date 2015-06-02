@@ -412,6 +412,62 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
 
+- (void)testCallbackQueue {
+  // We should improve this to test the queue of all callback blocks.
+  if (!_isServerRunning) return;
+
+  const int kBodyLength = 133;
+  NSData *bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+
+  //
+  // Default fetcher callback behavior is to call back on the main queue.
+  //
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+  fetcher.bodyData = bodyData;
+
+  XCTestExpectation *finishExpectation =
+      [self expectationWithDescription:@"testCallbackQueue main"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
+                                                data:data
+                                               error:error];
+    XCTAssertTrue([NSThread isMainThread], @"Unexpected queue %s",
+                  dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL));
+    [finishExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval
+                               handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  //
+  // Setting a specific queue should call back on that queue.
+  //
+  fetcher = [self fetcherWithURLString:localURLString];
+  fetcher.bodyData = bodyData;
+
+  dispatch_queue_t bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+  fetcher.callbackQueue = bgQueue;
+
+  finishExpectation =
+      [self expectationWithDescription:@"testCallbackQueue specific"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
+                                                data:data
+                                               error:error];
+    BOOL areSame = (strcmp(dispatch_queue_get_label(bgQueue),
+                           dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)) == 0);
+    XCTAssert(areSame, @"Unexpected queue: %s ≠ %s",
+              dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL),
+              dispatch_queue_get_label(bgQueue)
+              );
+    [finishExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval
+                               handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+}
+
 - (void)testStreamProviderFetch {
   if (!_isServerRunning) return;
 

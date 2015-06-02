@@ -58,7 +58,6 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, strong, GTM_NULLABLE) NSURLSessionConfiguration *configuration;
 @property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherConfigurationBlock configurationBlock;
 @property(atomic, strong, GTM_NULLABLE) NSHTTPCookieStorage *cookieStorage;
-@property(atomic, copy, GTM_NULLABLE) NSString *userAgent;
 @property(atomic, strong, GTM_NULLABLE) dispatch_queue_t callbackQueue;
 @property(atomic, strong, GTM_NULLABLE) NSURLCredential *credential;
 @property(atomic, strong) NSURLCredential *proxyCredential;
@@ -70,6 +69,14 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, assign) NSTimeInterval maxRetryInterval;
 @property(atomic, assign) NSTimeInterval minRetryInterval;
 @property(atomic, copy, GTM_NULLABLE) NSDictionary *properties;
+
+// A default useragent of GTMFetcherStandardUserAgentString(nil) will be given to each fetcher
+// created by this service unless the request already has a user-agent header set.
+// This default will be added starting with builds with the SDKs for OS X 10.11 and iOS 9.
+//
+// To prevent any user agent from being given to fetchers created by this service,
+// set this property to nil.
+@property(atomic, copy, GTM_NULLABLE) NSString *userAgent;
 
 
 @property(atomic, strong, GTM_NULLABLE) id<GTMFetcherAuthorizationProtocol> authorizer;
@@ -124,6 +131,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 // Methods for use by the fetcher class only.
 - (GTM_NULLABLE NSURLSession *)session;
+- (GTM_NULLABLE NSURLSession *)sessionForFetcherCreation;
 - (GTM_NULLABLE id<NSURLSessionDelegate>)sessionDelegate;
 
 // The testBlock can inspect its fetcher parameter's mutableRequest property to
