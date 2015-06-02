@@ -328,7 +328,7 @@ static NSString *gLoggingProcessName = nil;
   // Munge a buffer by replacing non-ASCII bytes with underscores, and turn that munged buffer an
   // NSString.  That gives us a string we can use with NSScanner.
   NSMutableData *mutableData = [NSMutableData dataWithData:data];
-  unsigned char *bytes = [mutableData mutableBytes];
+  unsigned char *bytes = (unsigned char *)[mutableData mutableBytes];
 
   for (unsigned int idx = 0; idx < [mutableData length]; ++idx) {
     if (bytes[idx] > 0x7F || bytes[idx] == 0) {

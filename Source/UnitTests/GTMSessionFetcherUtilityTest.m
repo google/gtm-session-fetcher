@@ -122,4 +122,29 @@
   XCTAssertEqualObjects(result, @"com.google.FetcheriOSTests/1.0");
 #endif
 }
+
+- (void)testGTMFetcherStandardVersionString {
+  // Test with test bundle.
+  NSBundle *bundle = [NSBundle bundleForClass:[self class]];
+  NSString *result = GTMFetcherStandardUserAgentString(bundle);
+
+  NSOperatingSystemVersion version = [NSProcessInfo processInfo].operatingSystemVersion;
+#if TARGET_OS_MAC && !TARGET_OS_IPHONE
+  // Mac
+  NSString *expected =
+      [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%zd.%zd.%zd",
+       version.majorVersion, version.minorVersion, version.patchVersion];
+  XCTAssertEqualObjects(result, expected);
+#else
+  // iOS
+  NSString *versionStr = [NSString stringWithFormat:@"%zd.%zd",
+                          version.majorVersion, version.minorVersion];
+  if (version.patchVersion > 0) {
+    versionStr = [versionStr stringByAppendingFormat:@".%zd", version.patchVersion];
+  }
+  // The simulator result looks like @"com.google.FetcheriOSTests/1.0 iPhone_Simulator/%@ hw/sim"
+  XCTAssert([result hasPrefix:@"com.google.FetcheriOSTests/1.0 "], @"%@", result);
+#endif
+
+}
 @end

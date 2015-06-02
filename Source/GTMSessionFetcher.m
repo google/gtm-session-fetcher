@@ -79,6 +79,8 @@ static NSTimeInterval InitialMinRetryInterval(void) {
 }
 
 static BOOL IsLocalhost(NSString *host) {
+  // We check if there's host, and then make the comparisons.
+  if (host == nil) return NO;
   return ([host caseInsensitiveCompare:@"localhost"] == NSOrderedSame
           || [host isEqual:@"::1"]
           || [host isEqual:@"127.0.0.1"]);
@@ -99,7 +101,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   NSString *_sessionIdentifierUUID;
   BOOL _useBackgroundSession;
   NSMutableData *_downloadedData;
-  NSError *_downloadMoveError;
+  NSError *_downloadFinishedError;
   NSData *_downloadResumeData;
   NSURL *_destinationFileURL;
   int64_t _downloadedLength;
@@ -357,7 +359,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     // file: and data: schemes are usually safe if they are hardcoded in the client or provided
     // by a trusted source, but since it's fairly rare to need them, it's safest to make clients
     // explicitly whitelist them.
-    BOOL isSecure = ([requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
+    BOOL isSecure =
+        requestScheme != nil && [requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame;
     if (!isSecure) {
       BOOL allowRequest = NO;
       NSString *host = [requestURL host];
@@ -377,7 +380,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
       } else {
         // Not localhost; check schemes.
         for (NSString *allowedScheme in _allowedInsecureSchemes) {
-          if ([requestScheme caseInsensitiveCompare:allowedScheme] == NSOrderedSame) {
+          if (requestScheme != nil &&
+              [requestScheme caseInsensitiveCompare:allowedScheme] == NSOrderedSame) {
             allowRequest = YES;
             break;
           }
@@ -411,7 +415,10 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   _canShareSession = !isRecreatingSession && !_useBackgroundSession;
 
   if (!_session && _canShareSession) {
-    _session = [_service session];
+    _session = [_service sessionForFetcherCreation];
+    // If _session is nil, then the service's session creation semaphore will block
+    // until this fetcher invokes fetcherDidCreateSession: below, so this *must* invoke
+    // that method, even if the session fails to be created.
   }
 
   if (!_session) {
@@ -455,6 +462,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                         delegateQueue:_delegateQueue];
     GTMSESSION_ASSERT_DEBUG(_session, @"Couldn't create session");
 
+    // Tell the service about the session created by this fetcher.  This also signals the
+    // service's semaphore to allow other fetchers to request this session.
     [_service fetcherDidCreateSession:self];
 
     // If this assertion fires, the client probably tried to use a session identifier that was
@@ -578,37 +587,47 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   BOOL needsDataAccumulator = NO;
   if (_downloadResumeData) {
     _sessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
-    GTMSESSION_ASSERT_DEBUG(_sessionTask,
-                            @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
-                            _session, [_downloadResumeData length]);
+    GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
+        @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
+        _session, [_downloadResumeData length]);
   } else if (_destinationFileURL && !isDataRequest) {
     _sessionTask = [_session downloadTaskWithRequest:_request];
-    GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed downloadTaskWithRequest for %@, %@",
-                            _session, _request);
+    GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask, @"Failed downloadTaskWithRequest for %@, %@",
+                                   _session, _request);
   } else if (needsUploadTask) {
     if (_bodyFileURL) {
-      GTMSESSION_ASSERT_DEBUG([_bodyFileURL checkResourceIsReachableAndReturnError:NULL],
-                              @"Body file is missing: %@", [_bodyFileURL path]);
+      GTMSESSION_ASSERT_DEBUG_OR_LOG([_bodyFileURL checkResourceIsReachableAndReturnError:NULL],
+                                     @"Body file is missing: %@", [_bodyFileURL path]);
       _sessionTask = [_session uploadTaskWithRequest:_request fromFile:_bodyFileURL];
-      GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed uploadTaskWithRequest for %@, %@, file %@",
-                              _session, _request, [_bodyFileURL path]);
+      GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
+                                     @"Failed uploadTaskWithRequest for %@, %@, file %@",
+                                     _session, _request, [_bodyFileURL path]);
     } else if (_bodyStreamProvider) {
       _sessionTask = [_session uploadTaskWithStreamedRequest:_request];
-      GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed uploadTaskWithStreamedRequest for %@, %@",
-                              _session, _request);
+      GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
+                                     @"Failed uploadTaskWithStreamedRequest for %@, %@",
+                                     _session, _request);
     } else {
-      GTMSESSION_ASSERT_DEBUG(_bodyData != nil, @"Upload task needs body data, %@", _request);
+      GTMSESSION_ASSERT_DEBUG_OR_LOG(_bodyData != nil,
+                                     @"Upload task needs body data, %@", _request);
       _sessionTask = [_session uploadTaskWithRequest:_request fromData:_bodyData];
-      GTMSESSION_ASSERT_DEBUG(_sessionTask,
-                              @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
-                              _session, _request, [_bodyData length]);
+      GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
+          @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
+          _session, _request, [_bodyData length]);
     }
     needsDataAccumulator = YES;
   } else {
     _sessionTask = [_session dataTaskWithRequest:_request];
     needsDataAccumulator = YES;
-    GTMSESSION_ASSERT_DEBUG(_sessionTask, @"Failed dataTaskWithRequest for %@, %@",
-                            _session, _request);
+    GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask, @"Failed dataTaskWithRequest for %@, %@",
+                                   _session, _request);
+  }
+
+  if (!_sessionTask) {
+    // We shouldn't get here; if we're here, an earlier assertion should have fired to explain
+    // which session task creation failed.
+    [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorTaskCreationFailed)];
+    return;
   }
 
   if (needsDataAccumulator && _accumulateDataBlock == nil) {
@@ -1249,7 +1268,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 - (void)releaseCallbacks {
-  self.callbackQueue = nil;
+  // After the fetcher starts, this is called in a @synchronized(self) block.
+  _callbackQueue = nil;
 
   _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   self.configurationBlock = nil;
@@ -1484,7 +1504,8 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
       NSString *originalScheme = [originalRequestURL scheme];
       NSString *redirectScheme = [redirectRequestURL scheme];
 
-      if ([originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame
+      if (originalScheme != nil
+          && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame
           && redirectScheme != nil
           && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame) {
         // Allow the change from http to https.
@@ -1890,36 +1911,31 @@ expectedTotalBytes:(int64_t)expectedTotalBytes {
 - (void)URLSession:(NSURLSession *)session
       downloadTask:(NSURLSessionDownloadTask *)downloadTask
 didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
-  // Download may have relaunched app, so update ivar, and update before getting statusCode,
-  // since statusCode relies on accessing task.
+  // Download may have relaunched app, so update _sessionTask.
   [self setSessionTask:downloadTask];
-  NSInteger code = [self statusCode];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didFinishDownloadingToURL:%@, status = %ld",
-                           [self class], self, session, downloadTask,
-                           downloadLocationURL, (long)code);
-  if (code >= 200 && code < 400) {
-    NSFileManager *fileMgr = [NSFileManager defaultManager];
-    NSDictionary *attributes = [fileMgr attributesOfItemAtPath:[downloadLocationURL path]
-                                                         error:NULL];
-    @synchronized(self) {
-      NSURL *destinationURL = self.destinationFileURL;
+  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didFinishDownloadingToURL:%@",
+                           [self class], self, session, downloadTask, downloadLocationURL);
+  NSFileManager *fileMgr = [NSFileManager defaultManager];
+  NSDictionary *attributes = [fileMgr attributesOfItemAtPath:[downloadLocationURL path]
+                                                       error:NULL];
+  @synchronized(self) {
+    NSURL *destinationURL = self.destinationFileURL;
 
-      _downloadedLength = (int64_t)[attributes fileSize];
+    _downloadedLength = (int64_t)[attributes fileSize];
 
-      // Overwrite any previous file at the destination URL.
-      [fileMgr removeItemAtURL:destinationURL error:NULL];
+    // Overwrite any previous file at the destination URL.
+    [fileMgr removeItemAtURL:destinationURL error:NULL];
 
-      NSError *error;
-      if (![fileMgr moveItemAtURL:downloadLocationURL
-                            toURL:destinationURL
-                            error:&error]) {
-        _downloadMoveError = error;
-      }
-      GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
-                                 [self class], self,
-                                 [downloadLocationURL path], [destinationURL path],
-                                 error ? error : @"");
+    NSError *error;
+    if (![fileMgr moveItemAtURL:downloadLocationURL
+                          toURL:destinationURL
+                          error:&error]) {
+      _downloadFinishedError = error;
     }
+    GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
+                               [self class], self,
+                               [downloadLocationURL path], [destinationURL path],
+                               error ? error : @"");
   }
 }
 
@@ -1937,7 +1953,7 @@ didCompleteWithError:(NSError *)error {
   BOOL succeeded = NO;
   @synchronized(self) {
     if (error == nil) {
-      error = _downloadMoveError;
+      error = _downloadFinishedError;
     }
     succeeded = (error == nil && status >= 0 && status < 300);
     if (succeeded) {
@@ -2029,7 +2045,7 @@ didCompleteWithError:(NSError *)error {
         if ([_downloadedData writeToURL:destinationURL options:NSDataWritingAtomic error:&error]) {
           _downloadedData = nil;
         } else {
-          _downloadMoveError = error;
+          _downloadFinishedError = error;
         }
       }
       downloadedData = _downloadedData;
@@ -2498,6 +2514,18 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }
 }
 
+- (dispatch_queue_t)callbackQueue {
+  @synchronized(self) {
+    return _callbackQueue;
+  }
+}
+
+- (void)setCallbackQueue:(dispatch_queue_t)queue {
+  @synchronized(self) {
+    _callbackQueue = queue;
+  }
+}
+
 - (NSURLSession *)session {
   @synchronized(self) {
     return _session;
@@ -2655,6 +2683,10 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 #else
 + (void)setLoggingEnabled:(BOOL)flag {
+}
+
++ (BOOL)isLoggingEnabled {
+  return NO;
 }
 #endif // STRIP_GTM_FETCH_LOGGING
 
@@ -3012,14 +3044,36 @@ NSString *GTMFetcherSystemVersionString(void) {
   dispatch_once(&onceToken, ^{
 #if TARGET_OS_MAC && !TARGET_OS_IPHONE
     // Mac build
-    // With Gestalt inexplicably deprecated in 10.8, we're reduced to reading
-    // the system plist file.
-    NSString *const kPath = @"/System/Library/CoreServices/SystemVersion.plist";
-    NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:kPath];
-    NSString *versString = [plist objectForKey:@"ProductVersion"];
-    if ([versString length] == 0) {
-      versString = @"10.?.?";
+    NSProcessInfo *procInfo = [NSProcessInfo processInfo];
+#if !defined(MAC_OS_X_VERSION_10_10)
+    BOOL hasOperatingSystemVersion = NO;
+#elif MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10
+    BOOL hasOperatingSystemVersion =
+        [procInfo respondsToSelector:@selector(operatingSystemVersion)];
+#else
+    BOOL hasOperatingSystemVersion = YES;
+#endif
+    NSString *versString;
+    if (hasOperatingSystemVersion) {
+#if defined(MAC_OS_X_VERSION_10_10)
+      // A reference to NSOperatingSystemVersion requires the 10.10 SDK.
+      NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
+      versString = [NSString stringWithFormat:@"%zd.%zd.%zd",
+                    version.majorVersion, version.minorVersion, version.patchVersion];
+#else
+#pragma unused(procInfo)
+#endif
+    } else {
+      // With Gestalt inexplicably deprecated in 10.8, we're reduced to reading
+      // the system plist file.
+      NSString *const kPath = @"/System/Library/CoreServices/SystemVersion.plist";
+      NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:kPath];
+      versString = [plist objectForKey:@"ProductVersion"];
+      if ([versString length] == 0) {
+        versString = @"10.?.?";
+      }
     }
+
     sSavedSystemString = [[NSString alloc] initWithFormat:@"MacOSX/%@", versString];
 #elif TARGET_OS_IPHONE
     // Compiling against the iPhone SDK
@@ -3060,8 +3114,13 @@ NSString *GTMFetcherSystemVersionString(void) {
   return sSavedSystemString;
 }
 
-// Return a generic name and version for the current application; this avoids
-// anonymous server transactions.
+NSString *GTMFetcherStandardUserAgentString(NSBundle *bundle) {
+  NSString *result = [NSString stringWithFormat:@"%@ %@",
+                      GTMFetcherApplicationIdentifier(bundle),
+                      GTMFetcherSystemVersionString()];
+  return result;
+}
+
 NSString *GTMFetcherApplicationIdentifier(NSBundle *bundle) {
   @synchronized([GTMSessionFetcher class]) {
     static NSMutableDictionary *sAppIDMap = nil;

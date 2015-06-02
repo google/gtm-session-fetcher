@@ -458,6 +458,73 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertLessThanOrEqual(numberOfErrors, 1);
 }
 
+- (void)testThreadingStress {
+  if (!_isServerRunning) return;
+
+  // We'll create and start a lot of fetchers on three different queues.
+  dispatch_queue_t mainQueue = dispatch_get_main_queue();
+  dispatch_queue_t bgParallel = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+  dispatch_queue_t bgSerial = dispatch_queue_create("com.example.bgSerial", DISPATCH_QUEUE_SERIAL);
+  NSArray *queues = @[ mainQueue, bgParallel, bgSerial ];
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
+
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
+
+  __block int completedFetchCounter = 0;
+  int const kNumberOfFetchersToCreate = 100;
+
+  // Keep track of fetch failures that are probably due to our test server
+  // failing to keep up.
+  NSMutableIndexSet *overloadIndexes = [NSMutableIndexSet indexSet];
+
+  for (int index = 0; index < kNumberOfFetchersToCreate; index++) {
+    NSString *desc = [NSString stringWithFormat:@"Fetcher %d", index];
+    XCTestExpectation *expectation = [self expectationWithDescription:desc];
+
+    dispatch_queue_t queue = queues[index % queues.count];
+    dispatch_async(queue, ^{
+      GTMSessionFetcher *fetcher = [service fetcherWithURL:validFileURL];
+      fetcher.callbackQueue = queues[(index / queues.count) % queues.count];  // epicycle of queues
+
+      [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+        @synchronized(self) {
+          ++completedFetchCounter;
+          [expectation fulfill];
+
+          if (fetchError.code == EINVAL) {
+            // Overloads of our test server are showing up as mysterious "invalid argument"
+            // POSIX domain errors. We'll check afterwards that most of the fetches succeeded.
+            [overloadIndexes addIndex:(NSUInteger)index];
+            return;
+          }
+
+          const char *expectedQueueLabel =
+              dispatch_queue_get_label(queues[(index / 3) % queues.count]);
+          const char *actualQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL);
+          XCTAssert(strcmp(actualQueueLabel, expectedQueueLabel) == 0,
+                    @"queue mismatch on index %d: %s (expected %s)",
+                    index, actualQueueLabel, expectedQueueLabel);
+
+          XCTAssertNotNil(fetchData, @"index %d", index);
+          XCTAssertNil(fetchError, @"index %d", index);
+        }
+      }];
+    });
+  }
+
+  [self waitForExpectationsWithTimeout:5 handler:nil];
+
+  XCTAssertLessThan(overloadIndexes.count, 10U);
+  if (overloadIndexes.count) {
+    NSLog(@"Server overloads: %@", overloadIndexes);
+  }
+
+  // We should have one unique session per fetcher.
+  XCTAssertEqual(completedFetchCounter, kNumberOfFetchersToCreate);
+}
+
 - (void)testFetcherServiceTestBlock {
   // No test server needed.
   _testServer = nil;

@@ -48,6 +48,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 // The session for the tasks in this dispatcher's task-to-fetcher map.
 @property(atomic) NSURLSession *session;
 
+// This semaphore can block access to the session property while another fetcher is creating
+// a session.
+@property(atomic, readonly) dispatch_semaphore_t sessionCreationSemaphore;
+
 // The timer interval for invalidating a session that has no active tasks.
 @property(atomic) NSTimeInterval discardInterval;
 
@@ -121,6 +125,14 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     _delegateDispatcher =
         [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
                                                            sessionDiscardInterval:_unusedSessionTimeout];
+
+    // Starting with the SDKs for OS X 10.11/iOS 9, the service has a default useragent.
+    // Apps can remove this and get the default system "CFNetwork" useragent by setting the
+    // fetcher service's userAgent property to nil.
+#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+    || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
+    _userAgent = GTMFetcherStandardUserAgentString(nil);
+#endif
   }
   return self;
 }
@@ -185,6 +197,41 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 - (NSURLSession *)session {
   @synchronized(self) {
     NSURLSession *session = _delegateDispatcher.session;
+    return session;
+  }
+}
+
+// Returns a session for the fetcher's host, or nil.  For shared sessions, this
+// waits on a semaphore, blocking other fetchers while the caller creates the
+// session if needed.
+- (NSURLSession *)sessionForFetcherCreation {
+  // Avoid waiting in the @synchronized section since that can deadlock.
+  dispatch_semaphore_t semaphore;
+  @synchronized(self) {
+    semaphore = _delegateDispatcher.sessionCreationSemaphore;
+    GTMSESSION_ASSERT_DEBUG(semaphore != nil || _delegateDispatcher == nil, @"Expected semaphore");
+  }
+  if (semaphore) {
+    // Wait if another fetcher is currently creating a session.
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+  } else {
+    // This fetcher is creating a non-shared session, so skip the semaphore usage.
+    return self.session;
+  }
+
+  @synchronized(self) {
+    NSURLSession *session = _delegateDispatcher.session;
+    if (session) {
+      GTMSESSION_ASSERT_DEBUG(semaphore == _delegateDispatcher.sessionCreationSemaphore,
+                              @"delegate dispatcher semaphore changed");
+      // The calling fetcher will receive a preexisting session, so
+      // we can allow other fetchers to create a session.
+      dispatch_semaphore_signal(semaphore);
+    } else {
+      // No existing session was obtained, so the calling fetcher will create the session;
+      // it *must* invoke fetcherDidCreateSession: to signal the dispatcher's semaphore after
+      // the session has been created (or fails to be created) to avoid a hang.
+    }
     return session;
   }
 }
@@ -313,6 +360,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
       // Save this fetcher's session.
       delegateDispatcher.session = fetcherSession;
+
+      // Allow other fetchers to request this session now.
+      dispatch_semaphore_signal(delegateDispatcher.sessionCreationSemaphore);
     }
   }
 }
@@ -332,12 +382,18 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     NSURLSession *sharedSession = delegateDispatcher.session;
     NSURLSession *fetcherSession = fetcher.session;
     GTMSESSION_ASSERT_DEBUG(sharedSession != nil, @"Missing delegate session: %@", fetcher);
-    GTMSESSION_ASSERT_DEBUG(fetcherSession == sharedSession, @"Inconsistent session: %@", fetcher);
+    GTMSESSION_ASSERT_DEBUG(fetcherSession == sharedSession,
+                            @"Inconsistent session: %@ %@ (shared: %@)",
+                            fetcher, fetcherSession, sharedSession);
 
     if (sharedSession != nil && fetcherSession == sharedSession) {
       NSURLSessionTask *task = fetcher.sessionTask;
-      [delegateDispatcher setFetcher:fetcher
-                             forTask:task];
+      GTMSESSION_ASSERT_DEBUG(task != nil, @"Missing session task: %@", fetcher);
+
+      if (task) {
+        [delegateDispatcher setFetcher:fetcher
+                               forTask:task];
+      }
     }
   }
 }
@@ -713,6 +769,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 @implementation GTMSessionFetcherSessionDelegateDispatcher {
   __weak GTMSessionFetcherService *_parentService;
   NSURLSession *_session;
+  dispatch_semaphore_t _sessionCreationSemaphore;
+
   // The task map maps NSURLSessionTasks to GTMSessionFetchers
   NSMutableDictionary *_taskToFetcherMap;
   // The discard timer will invalidate sessions after the session's last task completes.
@@ -731,6 +789,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   if (self) {
     _discardInterval = discardInterval;
     _parentService = parentService;
+    _sessionCreationSemaphore = dispatch_semaphore_create(1);
   }
   return self;
 }

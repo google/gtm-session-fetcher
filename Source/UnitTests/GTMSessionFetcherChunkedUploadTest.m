@@ -131,10 +131,11 @@ static const NSUInteger kBigUploadDataLength = 199000;
   return [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBigUploadDataLength];
 }
 
-- (NSURLRequest *)validUploadFileRequest {
+- (NSMutableURLRequest *)validUploadFileRequest {
   NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
   validURLString = [validURLString stringByAppendingString:@".location"];
-  NSURLRequest *request = [self requestWithURLString:validURLString];
+  NSMutableURLRequest *request = [self requestWithURLString:validURLString];
+  [request setValue:@"UploadTest" forHTTPHeaderField:@"User-Agent"];
   return request;
 }
 
@@ -223,6 +224,10 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   // use background sessions.
   fetcher.useBackgroundSession = NO;
 
+  XCTAssertEqualObjects([fetcher.mutableRequest.allHTTPHeaderFields valueForKey:@"User-Agent"],
+                        @"UploadTest (GTMSUF/1)",
+                        @"%@", fetcher.mutableRequest.allHTTPHeaderFields);
+
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -248,7 +253,11 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   NSData *smallData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:13];
-  NSURLRequest *request = [self validUploadFileRequest];
+  NSMutableURLRequest *request = [self validUploadFileRequest];
+
+  // Test the default upload user-agent when none was present in the request.
+  [request setValue:nil forHTTPHeaderField:@"User-Agent"];
+
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
@@ -265,6 +274,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   // use background sessions.
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
+
+  NSString *expectedUserAgent = [NSString stringWithFormat:@"%@ (GTMSUF/1)",
+                                 GTMFetcherStandardUserAgentString(nil)];
+  XCTAssertEqualObjects([fetcher.mutableRequest.allHTTPHeaderFields valueForKey:@"User-Agent"],
+                        expectedUserAgent,
+                        @"%@", fetcher.mutableRequest.allHTTPHeaderFields);
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
