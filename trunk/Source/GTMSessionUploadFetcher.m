@@ -397,10 +397,17 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
         // _uploadFileLength is set when the _uploadDataProvider is set.
         GTMSESSION_ASSERT_DEBUG(_uploadFileLength >= 0, @"No uploadDataProvider length set");
       } else {
-        NSString *path = [self.uploadFileURL path];
-        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:path
-                                                                               error:NULL];
-        _uploadFileLength =  (int64_t)[attrs fileSize];
+        NSNumber *filesizeNum;
+        NSError *valueError;
+        if ([self.uploadFileURL getResourceValue:&filesizeNum
+                                          forKey:NSURLFileSizeKey
+                                           error:&valueError]) {
+          _uploadFileLength = filesizeNum.longLongValue;
+        } else {
+          GTMSESSION_ASSERT_DEBUG(NO, @"Cannot get file size: %@\n  %@",
+                                  valueError, self.uploadFileURL.path);
+          _uploadFileLength = 0;
+        }
       }
     }
     return _uploadFileLength;
@@ -1100,15 +1107,21 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSDictionary *responseHeaders = [chunkFetcher responseHeaders];
   NSString *uploadStatus = [responseHeaders objectForKey:@"X-Goog-Upload-Status"];
   BOOL isUploadStatusFinal = [uploadStatus isEqual:@"final"];
+  int64_t previousContentLength =
+      [[chunkFetcher.mutableRequest valueForHTTPHeaderField:@"Content-Length"] longLongValue];
 
   if (error) {
     NSInteger status = [error code];
 
     // Status 4xx indicates a bad offset in the Google upload protocol. However, do not retry status
-    // 404 per spec.
+    // 404 per spec, nor if the upload size appears to have been zero (since the server will just
+    // keep asking us to retry.)
     if (_shouldInitiateOffsetQuery ||
         ([error.domain isEqual:kGTMSessionFetcherStatusDomain] &&
-         status >= 400 && status <= 499 && status != 404 && !isUploadStatusFinal)) {
+         status >= 400 && status <= 499 &&
+         status != 404 &&
+         !isUploadStatusFinal &&
+         previousContentLength > 0)) {
       _shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
@@ -1122,9 +1135,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     }
   } else {
     // The chunk has uploaded successfully.
-    NSInteger previousLength =
-        [[chunkFetcher.mutableRequest valueForHTTPHeaderField:@"Content-Length"] integerValue];
-    int64_t newOffset = _currentOffset + previousLength;
+    int64_t newOffset = _currentOffset + previousContentLength;
 #if DEBUG
     // Verify that if we think all of the uploading data has been sent, the server responded with
     // the "final" upload status.
@@ -1132,7 +1143,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     GTMSESSION_ASSERT_DEBUG(hasUploadAllData == isUploadStatusFinal,
                             @"uploadStatus:%@  newOffset:%zd (%lld + %zd)  fullUploadLength:%lld"
                             @" chunkFetcher:%@ responseHeaders:%@",
-                            uploadStatus, newOffset, _currentOffset, previousLength,
+                            uploadStatus, newOffset, _currentOffset, previousContentLength,
                             [self fullUploadLength],
                             chunkFetcher, responseHeaders);
 #endif
