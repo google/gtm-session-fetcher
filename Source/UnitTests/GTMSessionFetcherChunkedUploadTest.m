@@ -380,7 +380,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   // Write the huge data into a temp file.
 
   // For a huge upload, we want bigger than the sanity check size to ensure no chunks are too big.
-  NSUInteger kHugeUploadDataLength = kGTMSessionUploadFetcherMaximumDemandBufferSize + 654321;
+  NSUInteger kHugeUploadDataLength =
+      (NSUInteger)kGTMSessionUploadFetcherMaximumDemandBufferSize + 654321;
 
   NSData *data = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kHugeUploadDataLength];
   return [self fileToUploadURLWithData:data baseName:baseName];

@@ -217,6 +217,36 @@ static NSString *gLoggingProcessName = nil;
   return @"aperçu_http_log.html";
 }
 
++ (void)deleteLogDirectoriesOlderThanDate:(NSDate *)cutoffDate {
+  NSFileManager *fileMgr = [NSFileManager defaultManager];
+  NSURL *parentDir = [NSURL fileURLWithPath:[[self class] loggingDirectory]];
+  NSURL *logDirectoryForCurrentRun =
+      [NSURL fileURLWithPath:[[self class] logDirectoryForCurrentRun]];
+  NSError *error;
+  NSArray *contents = [fileMgr contentsOfDirectoryAtURL:parentDir
+                             includingPropertiesForKeys:@[ NSURLContentModificationDateKey ]
+                                                options:0
+                                                  error:&error];
+  for (NSURL *itemURL in contents) {
+    if ([itemURL isEqual:logDirectoryForCurrentRun]) continue;
+
+    NSDate *modDate;
+    if ([itemURL getResourceValue:&modDate
+                           forKey:NSURLContentModificationDateKey
+                            error:&error]) {
+      if ([modDate compare:cutoffDate] == NSOrderedAscending) {
+        if (![fileMgr removeItemAtURL:itemURL error:&error]) {
+          NSLog(@"deleteLogDirectoriesOlderThanDate failed to delete %@: %@",
+                itemURL.path, error);
+        }
+      }
+    } else {
+      NSLog(@"deleteLogDirectoriesOlderThanDate failed to get mod date of %@: %@",
+            itemURL.path, error);
+    }
+  }
+}
+
 // formattedStringFromData returns a prettyprinted string for XML or JSON input,
 // and a plain string for other input data
 - (NSString *)formattedStringFromData:(NSData *)inputData
@@ -679,21 +709,19 @@ static NSString *gLoggingProcessName = nil;
   }
   // Write the response data
   if (responseDataFileName) {
-    NSString *escapedResponseFile =
-        [responseDataFileName stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
     if (isResponseImage) {
       // Make a small inline image that links to the full image file
       [outputHTML appendFormat:@"&nbsp;&nbsp; data: %lld bytes, <code>%@</code><br>",
                                 responseDataLength, responseMIMEType];
       NSString *const fmt =
           @"<a href=\"%@\"><img src='%@' alt='image' style='border:solid thin;max-height:32'></a>\n";
-      [outputHTML appendFormat:fmt, escapedResponseFile, escapedResponseFile];
+      [outputHTML appendFormat:fmt, responseDataFileName, responseDataFileName];
     } else {
       // The response data was XML; link to the xml file
       NSString *const fmt =
           @"&nbsp;&nbsp; data: %lld bytes, <code>%@</code>&nbsp;&nbsp;&nbsp;<i><a href=\"%@\">%@</a></i>\n";
       [outputHTML appendFormat:fmt, responseDataLength, responseMIMEType,
-                               escapedResponseFile, [escapedResponseFile pathExtension]];
+                               responseDataFileName, [responseDataFileName pathExtension]];
     }
   } else {
     // The response data was not an image; just show the length and MIME type

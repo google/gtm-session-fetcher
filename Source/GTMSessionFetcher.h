@@ -265,9 +265,35 @@
   #endif  // __has_feature(nullability)
 #endif  // GTM_NULLABLE
 
+#ifndef GTM_DECLARE_GENERICS
+  #if __has_feature(objc_generics) \
+    && ((!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+      || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
+    #define GTM_DECLARE_GENERICS 1
+  #else
+    #define GTM_DECLARE_GENERICS 0
+  #endif
+#endif
+
+#ifndef GTM_NSArrayOf
+  #if GTM_DECLARE_GENERICS
+    #define GTM_NSArrayOf(value) NSArray<value>
+    #define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
+  #else
+    #define GTM_NSArrayOf(value) NSArray
+    #define GTM_NSDictionaryOf(key, value) NSDictionary
+  #endif // __has_feature(objc_generics)
+#endif  // GTM_NSArrayOf
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+  || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
+  #ifndef GTM_USE_SESSION_FETCHER
+    #define GTM_USE_SESSION_FETCHER 1
+  #endif
 #endif
 
 #if !defined(GTMBridgeFetcher)
@@ -423,6 +449,19 @@ NSString *GTMFetcherSystemVersionString(void);
 // For example, @"[My App]" would become @"My_App"
 NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 
+// Grab the data from an input stream. Since streams cannot be assumed to be rewindable,
+// this may be destructive; the caller can try to rewind the stream (by setting the
+// NSStreamFileCurrentOffsetKey property) or can just use the NSData to make a new
+// NSInputStream. This function is intended to facilitate testing rather than be used in
+// production.
+//
+// This function operates synchronously on the current thread. Depending on how the
+// input stream is implemented, it may be appropriate to dispatch to a different
+// queue before calling this function.
+//
+// Failure is indicated by a returned data value of nil.
+NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
@@ -529,7 +568,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 
 // Returns an array of currently active fetchers for background sessions,
 // both restarted and newly created ones.
-+ (NSArray *)fetchersForBackgroundSessions;
++ (GTM_NSArrayOf(GTMSessionFetcher *) *)fetchersForBackgroundSessions;
 
 // Designated initializer.
 - (instancetype)initWithRequest:(GTM_NULLABLE NSURLRequest *)request
@@ -568,7 +607,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // Additional user-supplied data to encode into the session identifier. Since session identifier
 // length limits are unspecified, this should be kept small. Key names beginning with an underscore
 // are reserved for use by the fetcher.
-@property(strong, GTM_NULLABLE) NSDictionary *sessionUserInfo;
+@property(strong, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *sessionUserInfo;
 
 // The human-readable description to be assigned to the task.
 @property(copy, GTM_NULLABLE) NSString *taskDescription;
@@ -576,7 +615,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // The fetcher encodes information used to resume a session in the session identifier.
 // This method, intended for internal use returns the encoded information.  The sessionUserInfo
 // dictionary is stored as identifier metadata.
-- (GTM_NULLABLE NSDictionary *)sessionIdentifierMetadata;
+- (GTM_NULLABLE GTM_NSDictionaryOf(NSString *, NSString *) *)sessionIdentifierMetadata;
 
 #if TARGET_OS_IPHONE
 // The app should pass to this method the completion handler passed in the app delegate method
@@ -607,12 +646,18 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // This should be left as nil for release builds to avoid creating the opportunity for
 // leaking private user behavior and data.  If a server is providing insecure URLs
 // for fetching by the client app, report the problem as server security & privacy bug.
-@property(copy, GTM_NULLABLE) NSArray *allowedInsecureSchemes;
+//
+// For builds with the iOS 9/OS X 10.11 and later SDKs, this property is required only when
+// the app specifies NSAppTransportSecurity/NSAllowsArbitraryLoads in the main bundle's Info.plist.
+@property(copy, GTM_NULLABLE) GTM_NSArrayOf(NSString *) *allowedInsecureSchemes;
 
 // By default, the fetcher prohibits localhost requests unless this property is set,
 // or the GTM_ALLOW_INSECURE_REQUESTS build flag is set.
 //
 // For localhost requests, the URL scheme is not checked  when this property is set.
+//
+// For builds with the iOS 9/OS X 10.11 and later SDKs, this property is required only when
+// the app specifies NSAppTransportSecurity/NSAllowsArbitraryLoads in the main bundle's Info.plist.
 @property(assign) BOOL allowLocalhostRequest;
 
 // By default, the fetcher requires valid server certs.  This may be bypassed
@@ -661,11 +706,13 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // The host, if any, used to classify this fetcher in the fetcher service.
 @property(copy, GTM_NULLABLE) NSString *serviceHost;
 
-// The priority, if any, used for starting fetchers in the fetcher service
+// The priority, if any, used for starting fetchers in the fetcher service.
 //
 // Lower values are higher priority; the default is 0, and values may
 // be negative or positive. This priority affects only the start order of
-// fetchers that are being delayed by a fetcher service.
+// fetchers that are being delayed by a fetcher service when the running fetchers
+// exceeds the service's maxRunningFetchersPerHost.  A priority of NSIntegerMin will
+// exempt this fetcher from delay.
 @property(assign) NSInteger servicePriority;
 
 // The delegate's optional didReceiveResponse block may be used to inspect or alter
@@ -784,7 +831,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 @property(readonly) NSInteger statusCode;
 
 // Return the http headers from the response.
-@property(strong, readonly, GTM_NULLABLE) NSDictionary *responseHeaders;
+@property(strong, readonly, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *responseHeaders;
 
 // The response, once it's been received.
 @property(strong, readonly, GTM_NULLABLE) NSURLResponse *response;
@@ -804,12 +851,12 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 @property(strong, GTM_NULLABLE) id userData;
 
 // Stored property values are retained solely for the convenience of the client.
-@property(copy, GTM_NULLABLE) NSDictionary *properties;
+@property(copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
 
 - (void)setProperty:(GTM_NULLABLE id)obj forKey:(NSString *)key;  // Pass nil for obj to remove the property.
 - (id)propertyForKey:(NSString *)key;
 
-- (void)addPropertiesFromDictionary:(NSDictionary *)dict;
+- (void)addPropertiesFromDictionary:(GTM_NSDictionaryOf(NSString *, id) *)dict;
 
 // Comments are useful for logging, so are strongly recommended for each fetcher.
 @property(copy, GTM_NULLABLE) NSString *comment;
@@ -844,12 +891,15 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 //
 // The test code can pass nil for all response parameters to indicate that the fetch
 // should proceed.
+//
+// Applications can exclude test block support by setting GTM_DISABLE_FETCHER_TEST_BLOCK.
 @property(copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
 
 + (void)setGlobalTestBlock:(GTM_NULLABLE GTMSessionFetcherTestBlock)block;
 
 // Exposed for testing.
 + (GTMSessionCookieStorage *)staticCookieStorage;
++ (BOOL)appAllowsInsecureRequests;
 
 #if STRIP_GTM_FETCH_LOGGING
 // If logging is stripped, provide a stub for the main method
@@ -900,7 +950,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 
 // Add the array off cookies to the storage, replacing duplicates.
 // Also removes expired cookies from the storage.
-- (void)setCookies:(GTM_NULLABLE NSArray *)cookies;
+- (void)setCookies:(GTM_NULLABLE GTM_NSArrayOf(NSHTTPCookie *) *)cookies;
 
 - (void)removeAllCookies;
 

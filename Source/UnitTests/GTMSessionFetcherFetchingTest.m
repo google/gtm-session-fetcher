@@ -380,6 +380,30 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
 
+- (void)testInvalidBodyFile {
+  if (!_isServerRunning) return;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  //
+  // Fetch with a bad bodyFileURL
+  //
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+  fetcher.bodyFileURL = [NSURL fileURLWithPath:@"/bad/path/here.txt"];
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, NSFileReadNoSuchFileError);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 0);
+  XCTAssertEqual(fnctr.fetchStopped, 0);
+}
+
 - (void)testDataBodyFetch {
   if (!_isServerRunning) return;
 
@@ -1196,6 +1220,66 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchStopped, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testInsecureRequests {
+  if (![GTMSessionFetcher appAllowsInsecureRequests]) return;
+
+  // file:///Users/.../Resources/gettysburgaddress.txt
+  NSString *fileURLString =
+      [[NSURL fileURLWithPath:[_testServer localPathForFile:kGTMGettysburgFileName]] absoluteString];
+
+  // http://localhost:59757/gettysburgaddress.txt
+  NSString *localhostURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+
+
+  struct TestRecord {
+    __unsafe_unretained NSString *urlString;
+    NSUInteger flags;
+    NSInteger errorCode;
+  };
+
+  const NSInteger kInsecureError = kGTMSessionFetcherErrorInsecureRequest;
+  const NSUInteger kAllowLocalhostFlag = 1UL << 0;
+  const NSUInteger kAllowHTTPSchemeFlag = 1UL << 1;
+  const NSUInteger kAllowFileSchemeFlag = 1UL << 2;
+
+  struct TestRecord records[] = {
+    { @"http://example.com/",  0,                    kInsecureError },
+    { @"https://example.com/", 0,                    0 },
+    { @"http://example.com/",  kAllowHTTPSchemeFlag, 0 },
+    { @"https://example.com/", kAllowHTTPSchemeFlag, 0 },
+    { localhostURLString,      0,                    kInsecureError },
+    { localhostURLString,      kAllowLocalhostFlag,  0 },
+    { fileURLString,           0,                    kInsecureError },
+    { fileURLString,           kAllowHTTPSchemeFlag, kInsecureError },
+    { fileURLString,           kAllowFileSchemeFlag, 0 },  // file URL allowed by scheme
+    { fileURLString,           kAllowLocalhostFlag,  0 },  // file URL allowed as localhost
+    { NULL, 0, 0 },
+  };
+
+  for (int i = 0; records[i].urlString; i++) {
+    NSString *urlString = records[i].urlString;
+    GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:urlString];
+    if (records[i].flags & kAllowHTTPSchemeFlag) {
+      fetcher.allowedInsecureSchemes = @[ @"http" ];
+    };
+    if (records[i].flags & kAllowFileSchemeFlag) {
+      fetcher.allowedInsecureSchemes = @[ @"file" ];
+    };
+    if (records[i].flags & kAllowLocalhostFlag) {
+      fetcher.allowLocalhostRequest = YES;
+    }
+    NSInteger expectedErrorCode = records[i].errorCode;
+    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      if (expectedErrorCode == 0) {
+        XCTAssertNil(error, @"index %i -- %@", i, urlString);
+      } else {
+        XCTAssertEqual(error.code, expectedErrorCode, @"index %i -- %@ -- %@", i, urlString, error);
+      }
+    }];
+    XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  }
 }
 
 #pragma mark - TestBlock Tests

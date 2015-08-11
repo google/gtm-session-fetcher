@@ -147,4 +147,60 @@
 #endif
 
 }
+
+- (void)testGTMDataFromInputStream {
+  NSError *streamError;
+  NSInputStream *inputStream;
+  NSData *inputData, *result;
+
+  // Test empty stream.
+  inputData = [NSData data];
+  inputStream = [NSInputStream inputStreamWithData:inputData];
+  result = GTMDataFromInputStream(inputStream, &streamError);
+  XCTAssertEqualObjects(result, inputData);
+  XCTAssertNotEqual(result, inputData);  // Pointer comparison.
+  XCTAssertNil(streamError);
+
+  // Test small stream.
+  inputData = [@"a" dataUsingEncoding:NSUTF8StringEncoding];
+  inputStream = [NSInputStream inputStreamWithData:inputData];
+  result = GTMDataFromInputStream(inputStream, &streamError);
+  XCTAssertEqualObjects(result, inputData);
+  XCTAssertNotEqual(result, inputData);  // Pointer comparison.
+  XCTAssertNil(streamError);
+
+  // Test big stream.
+  inputData = [NSMutableData dataWithLength:50000];
+  inputStream = [NSInputStream inputStreamWithData:inputData];
+  result = GTMDataFromInputStream(inputStream, &streamError);
+  XCTAssertEqualObjects(result, inputData);
+  XCTAssertNotEqual(result, inputData);  // Pointer comparison.
+  XCTAssertNil(streamError);
+
+  // Test file stream.
+  inputData = [NSMutableData dataWithLength:50000];
+  NSURL *tempDirURL = [NSURL fileURLWithPath:NSTemporaryDirectory()];
+  NSURL *tempFileURL = [tempDirURL URLByAppendingPathComponent:NSStringFromSelector(_cmd)
+                                                   isDirectory:NO];
+  NSError *fileError;
+  XCTAssertTrue([inputData writeToURL:tempFileURL
+                              options:NSDataWritingAtomic
+                                error:&fileError], @"%@", fileError);
+
+  inputStream = [NSInputStream inputStreamWithFileAtPath:[tempFileURL path]];
+  result = GTMDataFromInputStream(inputStream, &streamError);
+  XCTAssertEqualObjects(result, inputData);
+  XCTAssertNotEqual(result, inputData);
+  XCTAssertNil(streamError);
+
+  XCTAssertTrue([[NSFileManager defaultManager] removeItemAtURL:tempFileURL
+                                                          error:&fileError], @"%@", fileError);
+
+  // Test invalid stream.
+  inputStream = [NSInputStream inputStreamWithFileAtPath:@"/////"];
+  XCTAssertNotNil(inputStream);
+  result = GTMDataFromInputStream(inputStream, &streamError);
+  XCTAssertNil(result);
+  XCTAssertNotNil(streamError);
+}
 @end

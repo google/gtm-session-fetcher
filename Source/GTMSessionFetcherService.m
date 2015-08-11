@@ -310,10 +310,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     // the fetcher in the wrong array
     fetcher.serviceHost = host;
 
-    if (fetcher.useBackgroundSession
-        || _maxRunningFetchersPerHost == 0
-        || _maxRunningFetchersPerHost >
-           [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]) {
+    BOOL shouldRunNow = (fetcher.useBackgroundSession
+                         || _maxRunningFetchersPerHost == 0
+                         || _maxRunningFetchersPerHost >
+                         [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]);
+    if (shouldRunNow) {
       [self addRunningFetcher:fetcher forHost:host];
       return YES;
     } else {
@@ -703,6 +704,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 + (instancetype)mockFetcherServiceWithFakedData:(NSData *)fakedDataOrNil
                                      fakedError:(NSError *)fakedErrorOrNil {
+#if !GTM_DISABLE_FETCHER_TEST_BLOCK
   NSHTTPURLResponse *fakedResponse =
       [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:@"http://example.invalid"]
                                   statusCode:(fakedErrorOrNil ? 500 : 200)
@@ -715,6 +717,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     testResponse(fakedResponse, fakedDataOrNil, fakedErrorOrNil);
   };
   return service;
+#else
+  GTMSESSION_ASSERT_DEBUG(0, @"Test blocks disabled");
+  return nil;
+#endif  // GTM_DISABLE_FETCHER_TEST_BLOCK
 }
 
 #pragma mark Synchronous Wait for Unit Testing

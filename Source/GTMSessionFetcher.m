@@ -47,8 +47,15 @@ static const NSTimeInterval kUnsetMaxRetryInterval = -1.0;
 static const NSTimeInterval kDefaultMaxDownloadRetryInterval = 60.0;
 static const NSTimeInterval kDefaultMaxUploadRetryInterval = 60.0 * 10.;
 
+#ifdef GTMSESSION_PERSISTED_DESTINATION_KEY
+// Projects using unique class names should also define a unique persisted destination key.
+static NSString * const kGTMSessionFetcherPersistedDestinationKey =
+    GTMSESSION_PERSISTED_DESTINATION_KEY;
+#else
 static NSString * const kGTMSessionFetcherPersistedDestinationKey =
     @"com.google.GTMSessionFetcher.downloads";
+#endif
+
 //
 // GTMSessionFetcher
 //
@@ -57,6 +64,13 @@ static NSString * const kGTMSessionFetcherPersistedDestinationKey =
 #define GTM_LOG_BACKGROUND_SESSION(...) GTMSESSION_LOG_DEBUG(__VA_ARGS__)
 #else
 #define GTM_LOG_BACKGROUND_SESSION(...)
+#endif
+
+#ifndef GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY
+  #if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+      || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
+    #define GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY 1
+  #endif
 #endif
 
 @interface GTMSessionFetcher ()
@@ -196,6 +210,34 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   });
   return gSessionIdentifierToFetcherMap;
 }
+
+#if !GTM_ALLOW_INSECURE_REQUESTS
++ (BOOL)appAllowsInsecureRequests {
+  // If the main bundle Info.plist key NSAppTransportSecurity is present, and it specifies
+  // NSAllowsArbitraryLoads, then we need to explicitly enforce secure schemes.
+#if GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY
+  static BOOL allowsInsecureRequests;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    NSBundle *mainBundle = [NSBundle mainBundle];
+    NSDictionary *appTransportSecurity =
+        [mainBundle objectForInfoDictionaryKey:@"NSAppTransportSecurity"];
+    allowsInsecureRequests =
+        [[appTransportSecurity objectForKey:@"NSAllowsArbitraryLoads"] boolValue];
+  });
+  return allowsInsecureRequests;
+#else
+  // For builds targeting iOS 8 or 10.10 and earlier, we want to require fetcher
+  // security checks.
+  return YES;
+#endif  // GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY
+}
+#else  // GTM_ALLOW_INSECURE_REQUESTS
++ (BOOL)appAllowsInsecureRequests {
+  return YES;
+}
+#endif  // !GTM_ALLOW_INSECURE_REQUESTS
+
 
 - (instancetype)init {
   return [self initWithRequest:nil configuration:nil];
@@ -342,6 +384,16 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     return;
   }
 
+  if (_bodyFileURL) {
+    NSError *fileCheckError;
+    if (![_bodyFileURL checkResourceIsReachableAndReturnError:&fileCheckError]) {
+      GTMSESSION_ASSERT_DEBUG_OR_LOG(0, @"Body file is unreachable: %@\n  %@",
+                                     [_bodyFileURL path], fileCheckError);
+      [self failToBeginFetchWithError:fileCheckError];
+      return;
+    }
+  }
+
   NSString *requestScheme = [requestURL scheme];
   BOOL isDataRequest = [requestScheme isEqual:@"data"];
   if (isDataRequest) {
@@ -350,8 +402,15 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     _useBackgroundSession = NO;
   }
 
-#if !GTM_ALLOW_INSECURE_REQUESTS
-  if ((requestURL != nil) && !isDataRequest) {
+#if GTM_ALLOW_INSECURE_REQUESTS
+  BOOL shouldCheckSecurity = NO;
+#else
+  BOOL shouldCheckSecurity = (requestURL != nil
+                              && !isDataRequest
+                              && [[self class] appAllowsInsecureRequests]);
+#endif
+
+  if (shouldCheckSecurity) {
     // Allow https only for requests, unless overridden by the client.
     //
     // Non-https requests may too easily be snooped, so we disallow them by default.
@@ -364,47 +423,42 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     if (!isSecure) {
       BOOL allowRequest = NO;
       NSString *host = [requestURL host];
-      if (IsLocalhost(host)) {
-        if (_allowLocalhostRequest) {
+
+      // Check schemes first.  A file scheme request may be allowed here, or as a localhost request.
+      for (NSString *allowedScheme in _allowedInsecureSchemes) {
+        if (requestScheme != nil &&
+            [requestScheme caseInsensitiveCompare:allowedScheme] == NSOrderedSame) {
           allowRequest = YES;
-        } else {
-          // To fetch from localhost, the fetcher must specifically have the allowLocalhostRequest
-          // property set.
-#if DEBUG
-          GTMSESSION_ASSERT_DEBUG(NO, @"Fetch request for localhost but fetcher"
-                                  @" allowLocalhostRequest is not set: %@", requestURL);
-#else
-          NSLog(@"Localhost fetch disallowed for %@", requestURL);
-#endif
-        }
-      } else {
-        // Not localhost; check schemes.
-        for (NSString *allowedScheme in _allowedInsecureSchemes) {
-          if (requestScheme != nil &&
-              [requestScheme caseInsensitiveCompare:allowedScheme] == NSOrderedSame) {
-            allowRequest = YES;
-            break;
-          }
-        }
-        if (!allowRequest) {
-          // To make a request other than https:, the client must specify an array for the
-          // allowedInsecureSchemes property.
-#if DEBUG
-          GTMSESSION_ASSERT_DEBUG(NO, @"Insecure fetch request has a scheme (%@)"
-                                  @" not found in fetcher allowedInsecureSchemes (%@): %@",
-                                  requestScheme, _allowedInsecureSchemes ?: @" @[] ", requestURL);
-#else
-          NSLog(@"Fetch disallowed for %@", requestURL);
-#endif
+          break;
         }
       }
       if (!allowRequest) {
+        // Check for localhost requests.  Security checks only occur for non-https requests, so
+        // this check won't happen for an https request to localhost.
+        BOOL isLocalhostRequest = (host.length == 0 && [requestURL isFileURL]) || IsLocalhost(host);
+        if (isLocalhostRequest) {
+          if (_allowLocalhostRequest) {
+            allowRequest = YES;
+          } else {
+            GTMSESSION_ASSERT_DEBUG(NO, @"Fetch request for localhost but fetcher"
+                                        @" allowLocalhostRequest is not set: %@", requestURL);
+          }
+        } else {
+          GTMSESSION_ASSERT_DEBUG(NO, @"Insecure fetch request has a scheme (%@)"
+                                      @" not found in fetcher allowedInsecureSchemes (%@): %@",
+                                  requestScheme, _allowedInsecureSchemes ?: @" @[] ", requestURL);
+        }
+      }
+
+      if (!allowRequest) {
+#if !DEBUG
+        NSLog(@"Fetch disallowed for %@", requestURL);
+#endif
         [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorInsecureRequest)];
         return;
       }
     }  // !isSecure
   }  // (requestURL != nil) && !isDataRequest
-#endif  // GTM_ALLOW_INSECURE_REQUESTS
 
   if (_cookieStorage == nil) {
     _cookieStorage = [[self class] staticCookieStorage];
@@ -436,16 +490,40 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
         // iOS 8/10.10 builds require the new backgroundSessionConfiguration method name.
         _configuration =
             [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:_sessionIdentifier];
+#elif (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10) \
+    || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0)
+        // Do a runtime check to avoid a deprecation warning about using
+        // +backgroundSessionConfiguration: on iOS 8.
+        if ([NSURLSessionConfiguration respondsToSelector:@selector(backgroundSessionConfigurationWithIdentifier:)]) {
+          // Running on iOS 8+/OS X 10.10+.
+          _configuration =
+              [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:_sessionIdentifier];
+        } else {
+          // Running on iOS 7/OS X 10.9.
+          _configuration =
+              [NSURLSessionConfiguration backgroundSessionConfiguration:_sessionIdentifier];
+        }
 #else
+        // Building with an SDK earlier than iOS 8/OS X 10.10.
         _configuration =
             [NSURLSessionConfiguration backgroundSessionConfiguration:_sessionIdentifier];
 #endif
         _useBackgroundSession = YES;
         _canShareSession = NO;
+
+#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
+    || TARGET_OS_IPHONE
+        // Background session transfers for both large and small files appear to be more reliable
+        // when the discretionary config settting is enabled. Apps may override this in the
+        // configuration block.
+        _configuration.discretionary = YES;
+#endif
       } else {
         _configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
       }
+#if !GTM_ALLOW_INSECURE_REQUESTS
       _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
+#endif
     }
     _configuration.HTTPCookieStorage = _cookieStorage;
 
@@ -512,6 +590,9 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   self.downloadedData = nil;
   _downloadedLength = 0;
 
+  if (_servicePriority == NSIntegerMin) {
+    mayDelay = NO;
+  }
   if (mayDelay && _service) {
     BOOL shouldFetchNow = [_service fetcherShouldBeginFetching:self];
     if (!shouldFetchNow) {
@@ -596,8 +677,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                    _session, _request);
   } else if (needsUploadTask) {
     if (_bodyFileURL) {
-      GTMSESSION_ASSERT_DEBUG_OR_LOG([_bodyFileURL checkResourceIsReachableAndReturnError:NULL],
-                                     @"Body file is missing: %@", [_bodyFileURL path]);
       _sessionTask = [_session uploadTaskWithRequest:_request fromFile:_bodyFileURL];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
                                      @"Failed uploadTaskWithRequest for %@, %@, file %@",
@@ -636,6 +715,10 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (_taskDescription) {
     _sessionTask.taskDescription = _taskDescription;
   }
+#if GTM_DISABLE_FETCHER_TEST_BLOCK
+  GTMSESSION_ASSERT_DEBUG(_testBlock == nil && gGlobalTestBlock == nil, @"test blocks disabled");
+  _testBlock = nil;
+#else
   if (!_testBlock) {
     if (gGlobalTestBlock) {
       // Note that the test block may pass nil for all of its response parameters,
@@ -646,6 +729,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     }
   }
   _isUsingTestBlock = (_testBlock != nil);
+#endif  // GTM_DISABLE_FETCHER_TEST_BLOCK
 
 #if GTM_BACKGROUND_TASK_FETCHING
   // Background tasks seem to interfere with out-of-process uploads and downloads.
@@ -653,10 +737,17 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
     UIApplication *app = [UIApplication sharedApplication];
-    _backgroundTaskIdentifer = [app beginBackgroundTaskWithExpirationHandler:^{
+#if DEBUG
+    NSString *bgTaskName = [NSString stringWithFormat:@"%@-%@",
+                            NSStringFromClass([self class]), _request.URL.host];
+#else
+    NSString *bgTaskName = @"GTMSessionFetcher";
+#endif
+    _backgroundTaskIdentifer = [app beginBackgroundTaskWithName:bgTaskName
+                                              expirationHandler:^{
       // Background task expiration callback - this block is always invoked by
       // UIApplication on the main thread.
-      [self backgroundFetchExpired];
+      [self backgroundTaskExpired];
     }];
   }
 #endif
@@ -681,7 +772,9 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   [_service fetcherDidBeginFetching:self];
 
   if (_testBlock) {
+#if !GTM_DISABLE_FETCHER_TEST_BLOCK
     [self simulateFetchForTestBlock];
+#endif
   } else {
     // We resume the session task after posting the notification since the
     // delegate callbacks may happen immediately if the fetch is started off
@@ -692,7 +785,38 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   }
 }
 
+NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
+  NSMutableData *data = [NSMutableData data];
+
+  [inputStream open];
+  NSInteger numberOfBytesRead = 0;
+  while ([inputStream hasBytesAvailable]) {
+    uint8_t buffer[512];
+    numberOfBytesRead = [inputStream read:buffer maxLength:sizeof(buffer)];
+    if (numberOfBytesRead > 0) {
+      [data appendBytes:buffer length:(NSUInteger)numberOfBytesRead];
+    } else {
+      break;
+    }
+  }
+  [inputStream close];
+  NSError *streamError = inputStream.streamError;
+
+  if (streamError) {
+    data = nil;
+  }
+  if (outError) {
+    *outError = streamError;
+  }
+  return data;
+}
+
+#if !GTM_DISABLE_FETCHER_TEST_BLOCK
+
 - (void)simulateFetchForTestBlock {
+  // This is invoked on the same thread as the beginFetch method was.
+  //
+  // Callbacks will all occur on the callback queue.
   _testBlock(self, ^(NSURLResponse *response, NSData *responseData, NSError *error) {
       // Callback from test block.
       if (response == nil && responseData == nil && error == nil) {
@@ -704,28 +828,25 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
       }
 
       if (_bodyStreamProvider) {
-        // Read from the input stream into an NSData buffer.
-        [self invokeOnCallbackQueueUnlessStopped:^{
-          _bodyStreamProvider(^(NSInputStream *bodyStream){
-            NSMutableData *streamedData = [NSMutableData data];
-            [bodyStream open];
-            while ([bodyStream hasBytesAvailable]) {
-              uint8_t buffer[512];
-              NSInteger numberOfBytesRead = [bodyStream read:buffer maxLength:sizeof(buffer)];
-              if (numberOfBytesRead > 0) {
-                [streamedData appendBytes:buffer length:(NSUInteger)numberOfBytesRead];
-              } else {
-                break;
-              }
-            }
-            [bodyStream close];
-            NSError *streamError = [bodyStream streamError];
-            [self simulateDataCallbacksForTestBlockWithBodyData:streamedData
-                                                       response:response
-                                                   responseData:responseData
-                                                          error:streamError];
-          });
-        }];
+        _bodyStreamProvider(^(NSInputStream *bodyStream){
+          // Read from the input stream into an NSData buffer.  We'll drain the stream
+          // explicitly on a background queue.
+          [self invokeOnCallbackQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)
+                     afterUserStopped:NO
+                                block:^{
+            NSError *streamError;
+            NSData *streamedData = GTMDataFromInputStream(bodyStream, &streamError);
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+              // Continue callbacks on the main thread, since serial behavior
+              // is more reliable for tests.
+              [self simulateDataCallbacksForTestBlockWithBodyData:streamedData
+                                                         response:response
+                                                     responseData:responseData
+                                                            error:(error ?: streamError)];
+            });
+          }];
+        });
       } else {
         // No input stream; use the supplied data or file URL.
         if (_bodyFileURL) {
@@ -795,6 +916,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                              block:^(int64_t bytesSent,
                                                      int64_t totalBytesSent,
                                                      int64_t totalBytesExpectedToSend) {
+        // This is invoked on the callback queue unless stopped.
         _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
     }];
   }
@@ -806,6 +928,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                                block:^(int64_t bytesDownloaded,
                                                        int64_t totalBytesDownloaded,
                                                        int64_t totalBytesExpectedToDownload) {
+        // This is invoked on the callback queue unless stopped.
         _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded, totalBytesExpectedToDownload);
       }];
     }
@@ -821,9 +944,11 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   } else {
     // Simulate download to NSData progress.
     if (_accumulateDataBlock) {
-      [self invokeOnCallbackQueueUnlessStopped:^{
-        _accumulateDataBlock(responseData);
-      }];
+      if (responseData) {
+        [self invokeOnCallbackQueueUnlessStopped:^{
+          _accumulateDataBlock(responseData);
+        }];
+      }
     } else {
       _downloadedData = [responseData mutableCopy];
     }
@@ -833,6 +958,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                                block:^(int64_t bytesReceived,
                                                        int64_t totalBytesReceived,
                                                        int64_t totalBytesExpectedToReceive) {
+        // This is invoked on the callback queue unless stopped.
          _receivedProgressBlock(bytesReceived, totalBytesReceived);
        }];
     }
@@ -860,6 +986,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     }];
   });
 }
+
+#endif  // !GTM_DISABLE_FETCHER_TEST_BLOCK
 
 - (void)setSessionTask:(NSURLSessionTask *)sessionTask {
   @synchronized(self) {
@@ -1161,7 +1289,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 
-- (void)backgroundFetchExpired {
+- (void)backgroundTaskExpired {
   // On background expiration, we stop the fetch and invoke the callbacks
   NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                        code:kGTMSessionFetcherErrorBackgroundExpiration
@@ -1440,7 +1568,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   NSDate *giveUpDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
 
   BOOL shouldSpinRunLoop = ([NSThread isMainThread] &&
-                            _callbackQueue == dispatch_get_main_queue());
+                            (!_callbackQueue || _callbackQueue == dispatch_get_main_queue()));
   BOOL expired = NO;
 
   // Loop until the callbacks have been called and released, and until
@@ -1469,6 +1597,9 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 + (void)setGlobalTestBlock:(GTMSessionFetcherTestBlock)block {
+#if GTM_DISABLE_FETCHER_TEST_BLOCK
+  GTMSESSION_ASSERT_DEBUG(block == nil, @"test blocks disabled");
+#endif
   gGlobalTestBlock = [block copy];
 }
 
@@ -2573,18 +2704,18 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
       return;
     }
     if (_sessionIdentifier) {
-#if TARGET_IPHONE_SIMULATOR
+      // This is something we don't expect to happen in production.
+      // However if it ever happen, leave a system log.
+      NSLog(@"%@: Destination File URL changed from (%@) to (%@) after session identifier has "
+            @"been created.",
+            [self class], _destinationFileURL, destinationFileURL);
 #if DEBUG
-      // On the simulator, the path can change to the download file, but the name shouldn't change.
-      // Technically, this isn't supported in the fetcher, but it's unavoidable in the simulator,
-      // since the path is typically changed by Apple on relaunches.
+      // On both the simulator and devices, the path can change to the download file, but the name
+      // shouldn't change. Technically, this isn't supported in the fetcher, but the change of
+      // URL is expected to happen only across development runs through Xcode.
       NSString *oldFilename = [_destinationFileURL lastPathComponent];
       NSString *newFilename = [destinationFileURL lastPathComponent];
       GTMSESSION_ASSERT_DEBUG([oldFilename isEqualToString:newFilename],
-          @"Destination File URL cannot be changed after session identifier has been created");
-#endif
-#else
-      GTMSESSION_ASSERT_DEBUG(NO,
           @"Destination File URL cannot be changed after session identifier has been created");
 #endif
     }
@@ -2874,6 +3005,21 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     }
   }
   return foundCookies;
+}
+
+// Override methods from the NSHTTPCookieStorage (NSURLSessionTaskAdditions) category.
+- (void)storeCookies:(NSArray *)cookies forTask:(NSURLSessionTask *)task {
+  NSURLRequest *currentRequest = task.currentRequest;
+  [self setCookies:cookies forURL:currentRequest.URL mainDocumentURL:nil];
+}
+
+- (void)getCookiesForTask:(NSURLSessionTask *)task
+        completionHandler:(void (^)(NSArray *))completionHandler {
+  if (completionHandler) {
+    NSURLRequest *currentRequest = task.currentRequest;
+    NSArray *cookies = [self cookiesForURL:currentRequest.URL];
+    completionHandler(cookies);
+  }
 }
 
 // Return a cookie from the array with the same name, domain, and path as the

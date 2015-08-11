@@ -45,8 +45,8 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 // Queues of delayed and running fetchers. Each dictionary contains arrays
 // of GTMSessionFetcher *fetchers, keyed by NSString *host
-@property(atomic, strong, readonly, GTM_NULLABLE) NSDictionary *delayedFetchersByHost;
-@property(atomic, strong, readonly, GTM_NULLABLE) NSDictionary *runningFetchersByHost;
+@property(atomic, strong, readonly, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSArray *) *delayedFetchersByHost;
+@property(atomic, strong, readonly, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSArray *) *runningFetchersByHost;
 
 // A max value of 0 means no fetchers should be delayed.
 // The default limit is 10 simultaneous fetchers targeting each host.
@@ -61,14 +61,14 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, strong, GTM_NULLABLE) dispatch_queue_t callbackQueue;
 @property(atomic, strong, GTM_NULLABLE) NSURLCredential *credential;
 @property(atomic, strong) NSURLCredential *proxyCredential;
-@property(atomic, copy, GTM_NULLABLE) NSArray *allowedInsecureSchemes;
+@property(atomic, copy, GTM_NULLABLE) GTM_NSArrayOf(NSString *) *allowedInsecureSchemes;
 @property(atomic, assign) BOOL allowLocalhostRequest;
 @property(atomic, assign) BOOL allowInvalidServerCertificates;
 @property(atomic, assign, getter=isRetryEnabled) BOOL retryEnabled;
 @property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherRetryBlock retryBlock;
 @property(atomic, assign) NSTimeInterval maxRetryInterval;
 @property(atomic, assign) NSTimeInterval minRetryInterval;
-@property(atomic, copy, GTM_NULLABLE) NSDictionary *properties;
+@property(atomic, copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
 
 // A default useragent of GTMFetcherStandardUserAgentString(nil) will be given to each fetcher
 // created by this service unless the request already has a user-agent header set.
@@ -120,12 +120,12 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 // by the service which have been started and have not yet stopped.
 //
 // Returns an array of fetcher objects, or nil if none.
-- (GTM_NULLABLE NSArray *)issuedFetchers;
+- (GTM_NULLABLE GTM_NSArrayOf(GTMSessionFetcher *) *)issuedFetchers;
 
 // Search for running or delayed fetchers with the specified URL.
 //
 // Returns an array of fetcher objects found, or nil if none found.
-- (GTM_NULLABLE NSArray *)issuedFetchersWithRequestURL:(NSURL *)requestURL;
+- (GTM_NULLABLE GTM_NSArrayOf(GTMSessionFetcher *) *)issuedFetchersWithRequestURL:(NSURL *)requestURL;
 
 - (void)stopAllFetchers;
 
@@ -155,8 +155,8 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 + (instancetype)mockFetcherServiceWithFakedData:(GTM_NULLABLE NSData *)fakedDataOrNil
                                      fakedError:(GTM_NULLABLE NSError *)fakedErrorOrNil;
 
-// Spin the run loop, discarding events, until all running and delayed fetchers
-// have completed
+// Spin the run loop and discard events (or, if not on the main thread, just sleep the thread)
+// until all running and delayed fetchers have completed.
 //
 // This is only for use in testing or in tools without a user interface.
 //

@@ -871,6 +871,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
+					"GTMSESSION_ASSERT_AS_LOG=1",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
@@ -890,6 +891,7 @@
 					"$(inherited)",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = "GTMSESSION_ASSERT_AS_LOG=1";
 				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TEST_HOST = "$(BUNDLE_LOADER)";
@@ -961,6 +963,7 @@
 				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
+					"GTMSESSION_ASSERT_AS_LOG=1",
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
@@ -985,6 +988,7 @@
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = "GTMSESSION_ASSERT_AS_LOG=1";
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
