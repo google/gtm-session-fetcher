@@ -3,8 +3,8 @@
 **Project site** <https://github.com/google/gtm-session-fetcher><br>
 **Discussion group** <http://groups.google.com/group/google-toolbox-for-mac>
 
-GTMSessionFetcher makes it easy for Cocoa applications to perform http
-operations. The fetcher is implemented as a wrapper on NSURLSession, so its
+`GTMSessionFetcher` makes it easy for Cocoa applications to perform http
+operations. The fetcher is implemented as a wrapper on `NSURLSession`, so its
 behavior is asynchronous and uses operating-system settings on iOS and Mac OS X.
 
 Features include:
@@ -17,5 +17,5 @@ Features include:
 - Easy, convenient logging of http requests and responses
 - Supports plug-in authentication such as with gtm-oauth2
 - Easily testable; self-mocking
-- Automatic rate limiting when created by the GTMSessionFetcherService factory class
+- Automatic rate limiting when created by the `GTMSessionFetcherService` factory class
 - Fully independent of other projects
