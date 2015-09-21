@@ -267,8 +267,8 @@ static NSString *const kEtag = @"GoodETag";
   _lastHTTPAuthenticationType = kGTMHTTPAuthenticationTypeInvalid;
 
   NSURL *requestURL = [request URL];
-  NSString *path = [requestURL path];
-  NSString *pathExtension = [path pathExtension];
+  NSString *requestPath = [requestURL path];
+  NSString *requestPathExtension = [requestPath pathExtension];
   NSString *query = [requestURL query];
   NSData *requestBodyData = [request body];
   NSString *requestMethod = request.method;
@@ -293,6 +293,8 @@ static NSString *const kEtag = @"GoodETag";
   NSString *uploadGranularityRequest = requestHeaders[@"GTM-Upload-Granularity-Request"];
   NSString *uploadBytesReceivedRequest = [[self class] valueForParameter:@"bytesReceived"
                                                                    query:query];
+  NSString *uploadQueryStatus = [[self class] valueForParameter:@"queryStatus"
+                                                          query:query];
 
   NSString *statusStr = [[self class] valueForParameter:@"status" query:query];
   if (statusStr) {
@@ -304,7 +306,7 @@ static NSString *const kEtag = @"GoodETag";
   }
 
   // Chunked (resumable) upload testing: initial location request.
-  if ([pathExtension isEqual:@"location"]) {
+  if ([requestPathExtension isEqual:@"location"]) {
     // This is a request for the upload location URI.
     _uploadBytesReceived = 0;
 
@@ -334,7 +336,7 @@ static NSString *const kEtag = @"GoodETag";
 
     // Return a location header containing the request path with
     // the ".location" suffix changed to ".upload".
-    NSString *pathWithoutLoc = [path stringByDeletingPathExtension];
+    NSString *pathWithoutLoc = [requestPath stringByDeletingPathExtension];
     NSString *fullLocation = [NSString stringWithFormat:@"http://%@%@.upload",
                               host, pathWithoutLoc];
 
@@ -347,7 +349,7 @@ static NSString *const kEtag = @"GoodETag";
 
     return sendResponse(200, nil, nil);
   }
-  if ([pathExtension isEqual:@"upload"]) {
+  if ([requestPathExtension isEqual:@"upload"]) {
     // Chunked (resumable) upload testing
     BOOL isQueryingOffset = [xUploadCommand isEqual:@"query"];
     BOOL isCancelingUpload = [xUploadCommand isEqual:@"cancel"];
@@ -362,13 +364,25 @@ static NSString *const kEtag = @"GoodETag";
 
     if (isQueryingOffset) {
       // This is a query for where to resume.
-      if ([uploadBytesReceivedRequest length] > 0) {
+      NSData *queryResponseData;
+      if (uploadBytesReceivedRequest.length > 0) {
         _uploadBytesReceived = [uploadBytesReceivedRequest longLongValue];
       }
 
-      responseHeaders[@"X-Goog-Upload-Status"] = @"active";
-      responseHeaders[@"X-Goog-Upload-Size-Received"] = [@(_uploadBytesReceived) stringValue];
-      return sendResponse(200, nil, nil);
+      if ([uploadQueryStatus isEqual:@"final"]) {
+        // Pretend that the upload finished successfully.
+        //
+        // The upload server does not send Size-Received with the status "final" query response.
+        NSString *pathWithoutLoc = [requestPath stringByDeletingPathExtension];
+        queryResponseData = [self documentDataAtPath:pathWithoutLoc];
+      } else if (uploadQueryStatus.length == 0) {
+        // Normally, we'll treat queries as being for uploads that are active.
+        responseHeaders[@"X-Goog-Upload-Size-Received"] = [@(_uploadBytesReceived) stringValue];
+        uploadQueryStatus = @"active";
+      }
+
+      responseHeaders[@"X-Goog-Upload-Status"] = uploadQueryStatus;
+      return sendResponse(200, queryResponseData, @"text/plain");
     }
 
     if (isCancelingUpload) {
@@ -410,7 +424,7 @@ static NSString *const kEtag = @"GoodETag";
       //
       // Remove the ".upload" at the end and fall through to return the requested resource
       // at the original path.
-      path = [path stringByDeletingPathExtension];
+      requestPath = [requestPath stringByDeletingPathExtension];
       responseHeaders[@"X-Goog-Upload-Status"] = @"final";
     }
   }
@@ -471,20 +485,19 @@ static NSString *const kEtag = @"GoodETag";
     return sendResponse(200, nil, nil);
   }
 
-  if ([pathExtension isEqual:@"rpc"]) {
+  if ([requestPathExtension isEqual:@"rpc"]) {
     // JSON-RPC tests
     //
     // the fetch file name is like Foo.rpc; there should be local files
     // with the expected JSON request body, and the response body
     //
     // replace the .rpc suffix with .request.txt and .response.txt
-    NSString *withoutRpcExtn = [path stringByDeletingPathExtension];
+    NSString *withoutRpcExtn = [requestPath stringByDeletingPathExtension];
     NSString *requestName = [withoutRpcExtn stringByAppendingPathExtension:@"request.txt"];
     NSString *responseName = [withoutRpcExtn stringByAppendingPathExtension:@"response.txt"];
 
     // read the expected request body from disk
-    NSString *requestPath = [_docRoot stringByAppendingPathComponent:requestName];
-    NSData *requestData = [NSData dataWithContentsOfFile:requestPath];
+    NSData *requestData = [self documentDataAtPath:requestName];
     if (!requestData) {
       // we need a query request file for rpc tests
       NSLog(@"Cannot find query request file \"%@\"", requestPath);
@@ -498,9 +511,9 @@ static NSString *const kEtag = @"GoodETag";
         //
         // for rpc, the response file ought to be here;
         // 404s shouldn't happen
-        NSString *responsePath = [_docRoot stringByAppendingPathComponent:responseName];
+        NSString *responsePath = [self localPathForFile:responseName];
         if ([[NSFileManager defaultManager] fileExistsAtPath:responsePath]) {
-          path = responseName;
+          requestPath = responseName;
         } else {
           NSLog(@"Cannot find query response file \"%@\"", responsePath);
         }
@@ -508,7 +521,7 @@ static NSString *const kEtag = @"GoodETag";
         // the actual request did not match the expected request
         //
         // note that the requests may be dictionaries or arrays
-        NSLog(@"Mismatched request body for \"%@\"", path);
+        NSLog(@"Mismatched request body for \"%@\"", requestPath);
         NSLog(@"\n--------\nExpected request:\n%@", expectedJSON);
         NSLog(@"\n--------\nActual request:\n%@", requestJSON);
       }
@@ -551,7 +564,7 @@ static NSString *const kEtag = @"GoodETag";
   if ([cookies length] > 0) {
     responseHeaders[@"FoundCookies"] = cookies;
   }
-  NSString *cookieToSet = [NSString stringWithFormat:@"TestCookie=%@", [path lastPathComponent]];
+  NSString *cookieToSet = [NSString stringWithFormat:@"TestCookie=%@", [requestPath lastPathComponent]];
   responseHeaders[@"Set-Cookie"] = cookieToSet;
 
   // Cookies expected to be set and checked in tests before a redirect.
@@ -562,8 +575,7 @@ static NSString *const kEtag = @"GoodETag";
   }
 
   // Read and return the document from the path, or status 404 for not found
-  NSString *docPath = [_docRoot stringByAppendingPathComponent:path];
-  NSData *data = [NSData dataWithContentsOfFile:docPath];
+  NSData *data = [self documentDataAtPath:requestPath];
   int resultStatus = data ? 200 : 404;
 
   if ([requestMethod isEqual:@"GET"]) {
@@ -575,6 +587,18 @@ static NSString *const kEtag = @"GoodETag";
 }
 
 #pragma mark - Private
+
+- (NSData *)documentDataAtPath:(NSString *)requestPath {
+  NSError *readError;
+  NSString *docPath = [self localPathForFile:requestPath];
+  NSData *data = [NSData dataWithContentsOfFile:docPath
+                                        options:0
+                                          error:&readError];
+  if (!data) {
+    NSLog(@"Failed to read %@: %@", requestPath, readError);
+  }
+  return data;
+}
 
 + (NSString *)valueForParameter:(NSString *)paramName query:(NSString *)query {
   if (!query) return nil;

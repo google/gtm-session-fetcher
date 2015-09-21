@@ -144,7 +144,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
   NSURL *folderURL = [logsFolderURLs_ objectAtIndex:indexPath.row];
   NSString *htmlName = [GTMSessionFetcher htmlFileName];
-  NSURL *htmlURL = [folderURL URLByAppendingPathComponent:htmlName];
+  NSURL *htmlURL = [folderURL URLByAppendingPathComponent:htmlName isDirectory:NO];
 
   // Show the webview controller.
   NSString *title = [self shortenedNameForURL:folderURL];

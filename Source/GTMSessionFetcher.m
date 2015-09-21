@@ -109,6 +109,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   NSURLSessionConfiguration *_configuration;
   NSURLSessionTask *_sessionTask;
   NSString *_taskDescription;
+  float _taskPriority;
   NSURLResponse *_response;
   NSString *_sessionIdentifier;
   BOOL _didCreateSessionIdentifier;
@@ -124,12 +125,12 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   BOOL _isStopNotificationNeeded;   // set when start notification has been sent
   BOOL _isUsingTestBlock;  // set when a test block was provided (remains set when the block is released)
 #if GTM_BACKGROUND_TASK_FETCHING
-  UIBackgroundTaskIdentifier _backgroundTaskIdentifer;
+  UIBackgroundTaskIdentifier _backgroundTaskIdentifer;  // set when fetch begins; accessed only on main thread
 #endif
   id _userData;                     // retained, if set by caller
   NSMutableDictionary *_properties; // more data retained for caller
   dispatch_queue_t _callbackQueue;
-  dispatch_group_t _callbackGroup;
+  dispatch_group_t _callbackGroup;  // read-only after creation
   NSOperationQueue *_delegateQueue;
 
   id<GTMFetcherAuthorizationProtocol> _authorizer;
@@ -280,6 +281,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     _minRetryInterval = InitialMinRetryInterval();
     _maxRetryInterval = kUnsetMaxRetryInterval;
 
+    _taskPriority = -1.0f;  // Valid values if set are 0.0...1.0.
+
 #if !STRIP_GTM_FETCH_LOGGING
     // Encourage developers to set the comment property or use
     // setCommentWithFormat: by providing a default string.
@@ -373,20 +376,22 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
       return;
     }
     GTMSESSION_ASSERT_DEBUG(NO, @"Fetch object %@ being reused; this should never happen", self);
-    [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorDownloadFailed)];
+    [self failToBeginFetchWithError:beginFailureError(GTMSessionFetcherErrorDownloadFailed)];
     return;
   }
 
   NSURL *requestURL = [_request URL];
   if (requestURL == nil && !_downloadResumeData && !_sessionIdentifier) {
     GTMSESSION_ASSERT_DEBUG(NO, @"Beginning a fetch requires a request with a URL");
-    [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorDownloadFailed)];
+    [self failToBeginFetchWithError:beginFailureError(GTMSessionFetcherErrorDownloadFailed)];
     return;
   }
 
   if (_bodyFileURL) {
     NSError *fileCheckError;
     if (![_bodyFileURL checkResourceIsReachableAndReturnError:&fileCheckError]) {
+      // This assert fires when the file being uploaded no longer exists once
+      // the fetcher is ready to start the upload.
       GTMSESSION_ASSERT_DEBUG_OR_LOG(0, @"Body file is unreachable: %@\n  %@",
                                      [_bodyFileURL path], fileCheckError);
       [self failToBeginFetchWithError:fileCheckError];
@@ -454,7 +459,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 #if !DEBUG
         NSLog(@"Fetch disallowed for %@", requestURL);
 #endif
-        [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorInsecureRequest)];
+        [self failToBeginFetchWithError:beginFailureError(GTMSessionFetcherErrorInsecureRequest)];
         return;
       }
     }  // !isSecure
@@ -510,14 +515,6 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 #endif
         _useBackgroundSession = YES;
         _canShareSession = NO;
-
-#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
-    || TARGET_OS_IPHONE
-        // Background session transfers for both large and small files appear to be more reliable
-        // when the discretionary config settting is enabled. Apps may override this in the
-        // configuration block.
-        _configuration.discretionary = YES;
-#endif
       } else {
         _configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
       }
@@ -577,7 +574,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
             [self removePersistedBackgroundSessionFromDefaults];
             NSError *sessionError =
                 [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                    code:kGTMSessionFetcherErrorBackgroundFetchFailed
+                                    code:GTMSessionFetcherErrorBackgroundFetchFailed
                                 userInfo:nil];
             [self failToBeginFetchWithError:sessionError];
           }
@@ -705,7 +702,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (!_sessionTask) {
     // We shouldn't get here; if we're here, an earlier assertion should have fired to explain
     // which session task creation failed.
-    [self failToBeginFetchWithError:beginFailureError(kGTMSessionFetcherErrorTaskCreationFailed)];
+    [self failToBeginFetchWithError:beginFailureError(GTMSessionFetcherErrorTaskCreationFailed)];
     return;
   }
 
@@ -715,6 +712,18 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   if (_taskDescription) {
     _sessionTask.taskDescription = _taskDescription;
   }
+  if (_taskPriority >= 0) {
+#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
+    || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0)
+    BOOL hasTaskPriority = YES;
+#else
+    BOOL hasTaskPriority = [_sessionTask respondsToSelector:@selector(setPriority:)];
+#endif
+    if (hasTaskPriority) {
+      _sessionTask.priority = _taskPriority;
+    }
+  }
+
 #if GTM_DISABLE_FETCHER_TEST_BLOCK
   GTMSESSION_ASSERT_DEBUG(_testBlock == nil && gGlobalTestBlock == nil, @"test blocks disabled");
   _testBlock = nil;
@@ -747,7 +756,11 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                               expirationHandler:^{
       // Background task expiration callback - this block is always invoked by
       // UIApplication on the main thread.
-      [self backgroundTaskExpired];
+      if (_backgroundTaskIdentifer != UIBackgroundTaskInvalid) {
+        [[UIApplication sharedApplication] endBackgroundTask:_backgroundTaskIdentifer];
+
+        _backgroundTaskIdentifer = UIBackgroundTaskInvalid;
+      }
     }];
   }
 #endif
@@ -1264,7 +1277,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
 - (void)failToBeginFetchWithError:(NSError *)error {
   if (error == nil) {
     error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                code:kGTMSessionFetcherErrorDownloadFailed
+                                code:GTMSessionFetcherErrorDownloadFailed
                             userInfo:nil];
   }
 
@@ -1289,32 +1302,20 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
 
 #if GTM_BACKGROUND_TASK_FETCHING
 
-- (void)backgroundTaskExpired {
-  // On background expiration, we stop the fetch and invoke the callbacks
-  NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                       code:kGTMSessionFetcherErrorBackgroundExpiration
-                                   userInfo:nil];
-  [self invokeFetchCallbacksOnCallbackQueueWithData:nil
-                                              error:error];
-  // Stopping the fetch here will indirectly call endBackgroundTask
-  [self stopFetchReleasingCallbacks:NO];
-
-  @synchronized(self) {
-    [self releaseCallbacks];
-    self.authorizer = nil;
-  }
-}
-
 - (void)endBackgroundTask {
-  @synchronized(self) {
-    // Whenever the connection stops or background execution expires,
-    // we need to tell UIApplication we're done
+  // Whenever the connection stops or background execution expires,
+  // we need to tell UIApplication we're done.
+  //
+  // We'll wait on _callbackGroup to ensure that any callbacks in flight have executed,
+  // and that we access _backgroundTaskIdentifer on the main thread, as happens when the
+  // task has expired.
+  dispatch_group_notify(_callbackGroup, dispatch_get_main_queue(), ^{
     if (_backgroundTaskIdentifer != UIBackgroundTaskInvalid) {
       [[UIApplication sharedApplication] endBackgroundTask:_backgroundTaskIdentifer];
 
       _backgroundTaskIdentifer = UIBackgroundTaskInvalid;
     }
-  }
+  });
 }
 
 #endif // GTM_BACKGROUND_TASK_FETCHING
@@ -1771,31 +1772,72 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
           // No server trust information is available.
           handler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
         } else {
-          BOOL shouldAllow = _allowInvalidServerCertificates;
-          if (!shouldAllow) {
-            // Evaluate the certificate chain.
-            SecTrustResultType trustEval = 0;
-            OSStatus trustError = SecTrustEvaluate(serverTrust, &trustEval);
-            if (trustError == errSecSuccess) {
-              // Having a trust level "unspecified" by the user is the usual result, described at
-              //   https://developer.apple.com/library/mac/qa/qa1360
-              if (trustEval == kSecTrustResultUnspecified || trustEval == kSecTrustResultProceed) {
-                shouldAllow = YES;
-              } else {
-                GTMSESSION_LOG_DEBUG(@"Challenge SecTrustResultType %u for %@, properties: %@",
-                    trustEval, [[_request URL] host],
-                    CFBridgingRelease(SecTrustCopyProperties(serverTrust)));
-              }
+          // Server trust information is available.
+          void (^callback)(SecTrustRef, BOOL) = ^(SecTrustRef trustRef, BOOL allow){
+            if (allow) {
+              NSURLCredential *trustCredential = [NSURLCredential credentialForTrust:trustRef];
+              handler(NSURLSessionAuthChallengeUseCredential, trustCredential);
             } else {
-              GTMSESSION_LOG_DEBUG(@"Error %d evaluating trust for %@", (int)trustError, _request);
+              GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", [_request URL]);
+              handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
             }
-          }
-          if (shouldAllow) {
-            NSURLCredential *trustCredential = [NSURLCredential credentialForTrust:serverTrust];
-            handler(NSURLSessionAuthChallengeUseCredential, trustCredential);
+          };
+          if (_allowInvalidServerCertificates) {
+            callback(serverTrust, YES);
           } else {
-            GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", [_request URL]);
-            handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+            // Retain the trust object to avoid a SecTrustEvaluate() crash on iOS 7.
+            CFRetain(serverTrust);
+
+            // Evaluate the certificate chain.
+            //
+            // The delegate queue may be the main thread. Trust evaluation could cause some
+            // blocking network activity, so we must evaluate async, as documented at
+            // https://developer.apple.com/library/ios/technotes/tn2232/
+            //
+            // We must also avoid multiple uses of the trust object, per docs:
+            // "It is not safe to call this function concurrently with any other function that uses
+            // the same trust management object, or to re-enter this function for the same trust
+            // management object."
+            //
+            // SecTrustEvaluateAsync both does sync execution of Evaluate and calls back on the
+            // queue passed to it, according to at sources in
+            // http://www.opensource.apple.com/source/libsecurity_keychain/libsecurity_keychain-55050.9/lib/SecTrust.cpp
+            // It would require a global serial queue to ensure the evaluate happens only on a
+            // single thread at a time, so we'll stick with using SecTrustEvaluate on a background
+            // thread.
+            dispatch_queue_t evaluateBackgroundQueue =
+                dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+            dispatch_async(evaluateBackgroundQueue, ^{
+              // It looks like the implementation of SecTrustEvaluate() on Mac grabs a global lock,
+              // so it may be redundant for us to also lock, but it's easy to synchronize here
+              // anyway.
+              SecTrustResultType trustEval = kSecTrustResultInvalid;
+              BOOL shouldAllow;
+              OSStatus trustError;
+              @synchronized([GTMSessionFetcher class]) {
+                trustError = SecTrustEvaluate(serverTrust, &trustEval);
+              }
+              if (trustError != errSecSuccess) {
+                GTMSESSION_LOG_DEBUG(@"Error %d evaluating trust for %@",
+                                     (int)trustError, _request);
+                shouldAllow = NO;
+              } else {
+                // Having a trust level "unspecified" by the user is the usual result, described at
+                //   https://developer.apple.com/library/mac/qa/qa1360
+                if (trustEval == kSecTrustResultUnspecified
+                    || trustEval == kSecTrustResultProceed) {
+                  shouldAllow = YES;
+                } else {
+                  shouldAllow = NO;
+                  GTMSESSION_LOG_DEBUG(@"Challenge SecTrustResultType %u for %@, properties: %@",
+                                       trustEval, _request.URL.host,
+                                       CFBridgingRelease(SecTrustCopyProperties(serverTrust)));
+                }
+              }
+              callback(serverTrust, shouldAllow);
+
+              CFRelease(serverTrust);
+            });
           }
         }
         return;
@@ -2315,7 +2357,7 @@ didCompleteWithError:(NSError *)error {
     BOOL shouldRetryForAuthRefresh = NO;
     BOOL isFirstAuthError = (_authorizer != nil
                              && !_hasAttemptedAuthRefresh
-                             && status == kGTMSessionFetcherStatusUnauthorized); // 401
+                             && status == GTMSessionFetcherStatusUnauthorized); // 401
 
     if (isFirstAuthError) {
       if ([_authorizer respondsToSelector:@selector(primeForRefresh)]) {
@@ -2406,11 +2448,7 @@ didCompleteWithError:(NSError *)error {
   if (![NSThread isMainThread]) {
     // Defer creating and starting the timer until we're on the main thread to ensure it has
     // a run loop.
-    dispatch_group_t group;
-    @synchronized(self) {
-      group = _callbackGroup;
-    }
-    dispatch_group_async(group, dispatch_get_main_queue(), ^{
+    dispatch_group_async(_callbackGroup, dispatch_get_main_queue(), ^{
         [self beginRetryTimer];
     });
     return;
@@ -3014,7 +3052,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (void)getCookiesForTask:(NSURLSessionTask *)task
-        completionHandler:(void (^)(NSArray *))completionHandler {
+        completionHandler:(void (^)(GTM_NSArrayOf(NSHTTPCookie *) *))completionHandler {
   if (completionHandler) {
     NSURLRequest *currentRequest = task.currentRequest;
     NSArray *cookies = [self cookiesForURL:currentRequest.URL];

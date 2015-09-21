@@ -1239,7 +1239,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     NSInteger errorCode;
   };
 
-  const NSInteger kInsecureError = kGTMSessionFetcherErrorInsecureRequest;
+  const NSInteger kInsecureError = GTMSessionFetcherErrorInsecureRequest;
   const NSUInteger kAllowLocalhostFlag = 1UL << 0;
   const NSUInteger kAllowHTTPSchemeFlag = 1UL << 1;
   const NSUInteger kAllowFileSchemeFlag = 1UL << 2;

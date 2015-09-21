@@ -294,6 +294,8 @@ extern "C" {
   #ifndef GTM_USE_SESSION_FETCHER
     #define GTM_USE_SESSION_FETCHER 1
   #endif
+
+  #define GTMSESSION_DEPRECATE_OLD_ENUMS 1
 #endif
 
 #if !defined(GTMBridgeFetcher)
@@ -309,7 +311,7 @@ extern "C" {
     #define GTMBridgeSystemVersionString GTMFetcherSystemVersionString
     #define GTMBridgeApplicationIdentifier GTMFetcherApplicationIdentifier
     #define kGTMBridgeFetcherStatusDomain kGTMSessionFetcherStatusDomain
-    #define kGTMBridgeFetcherStatusBadRequest kGTMSessionFetcherStatusBadRequest
+    #define kGTMBridgeFetcherStatusBadRequest GTMSessionFetcherStatusBadRequest
   #else
     // Macros to old fetcher class.
     #define GTMBridgeFetcher GTMHTTPFetcher
@@ -354,21 +356,38 @@ extern NSString *const kGTMSessionFetcherStatusDataKey;  // data returned with a
 }
 #endif
 
-typedef NS_ENUM(NSInteger, GTMSessionFetcherErrorCode) {
-  kGTMSessionFetcherErrorDownloadFailed = -1,
-  kGTMSessionFetcherErrorUploadChunkUnavailable = -2,
-  kGTMSessionFetcherErrorBackgroundExpiration = -3,
-  kGTMSessionFetcherErrorBackgroundFetchFailed = -4,
-  kGTMSessionFetcherErrorInsecureRequest = -5,
-  kGTMSessionFetcherErrorTaskCreationFailed = -6,
-
-  // Standard http status codes.
-  kGTMSessionFetcherStatusNotModified = 304,
-  kGTMSessionFetcherStatusBadRequest = 400,
-  kGTMSessionFetcherStatusUnauthorized = 401,
-  kGTMSessionFetcherStatusForbidden = 403,
-  kGTMSessionFetcherStatusPreconditionFailed = 412
+typedef NS_ENUM(NSInteger, GTMSessionFetcherError) {
+  GTMSessionFetcherErrorDownloadFailed = -1,
+  GTMSessionFetcherErrorUploadChunkUnavailable = -2,
+  GTMSessionFetcherErrorBackgroundExpiration = -3,
+  GTMSessionFetcherErrorBackgroundFetchFailed = -4,
+  GTMSessionFetcherErrorInsecureRequest = -5,
+  GTMSessionFetcherErrorTaskCreationFailed = -6,
 };
+
+typedef NS_ENUM(NSInteger, GTMSessionFetcherStatus) {
+  // Standard http status codes.
+  GTMSessionFetcherStatusNotModified = 304,
+  GTMSessionFetcherStatusBadRequest = 400,
+  GTMSessionFetcherStatusUnauthorized = 401,
+  GTMSessionFetcherStatusForbidden = 403,
+  GTMSessionFetcherStatusPreconditionFailed = 412
+};
+
+#if !GTMSESSION_DEPRECATE_OLD_ENUMS
+#define kGTMSessionFetcherErrorDownloadFailed         GTMSessionFetcherErrorDownloadFailed
+#define kGTMSessionFetcherErrorUploadChunkUnavailable GTMSessionFetcherErrorUploadChunkUnavailable
+#define kGTMSessionFetcherErrorBackgroundExpiration   GTMSessionFetcherErrorBackgroundExpiration
+#define kGTMSessionFetcherErrorBackgroundFetchFailed  GTMSessionFetcherErrorBackgroundFetchFailed
+#define kGTMSessionFetcherErrorInsecureRequest        GTMSessionFetcherErrorInsecureRequest
+#define kGTMSessionFetcherErrorTaskCreationFailed     GTMSessionFetcherErrorTaskCreationFailed
+
+#define kGTMSessionFetcherStatusNotModified        GTMSessionFetcherStatusNotModified
+#define kGTMSessionFetcherStatusBadRequest         GTMSessionFetcherStatusBadRequest
+#define kGTMSessionFetcherStatusUnauthorized       GTMSessionFetcherStatusUnauthorized
+#define kGTMSessionFetcherStatusForbidden          GTMSessionFetcherStatusForbidden
+#define kGTMSessionFetcherStatusPreconditionFailed GTMSessionFetcherStatusPreconditionFailed
+#endif  // !GTMSESSION_DEPRECATE_OLD_ENUMS
 
 #ifdef __cplusplus
 extern "C" {
@@ -611,6 +630,10 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 
 // The human-readable description to be assigned to the task.
 @property(copy, GTM_NULLABLE) NSString *taskDescription;
+
+// The priority assigned to the task, if any.  Use NSURLSessionTaskPriorityLow,
+// NSURLSessionTaskPriorityDefault, or NSURLSessionTaskPriorityHigh.
+@property(assign) float taskPriority;
 
 // The fetcher encodes information used to resume a session in the session identifier.
 // This method, intended for internal use returns the encoded information.  The sessionUserInfo
