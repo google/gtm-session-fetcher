@@ -344,7 +344,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
         [invocation invoke];
       }
   };
-  return completionHandler;
+  return [[completionHandler copy] autorelease];
 }
 
 - (void)beginFetchWithDelegate:(id)target
