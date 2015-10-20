@@ -343,6 +343,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   int hasFileURL = (_uploadFileURL != nil) ? 1 : 0;
   int hasUploadDataProvider = (_uploadDataProvider != nil) ? 1 : 0;
   int numberOfSources = hasData + hasFileHandle + hasFileURL + hasUploadDataProvider;
+  #pragma unused(numberOfSources)
   GTMSESSION_ASSERT_DEBUG(numberOfSources == 1,
                           @"Need just one upload source (%d)", numberOfSources);
 #endif
@@ -454,7 +455,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     if (offset == 0 && length == (int64_t)[_uploadData length]) {
       resultData = _uploadData;
     } else {
-      int64_t dataLength = [_uploadData length];
+      int64_t dataLength = (int64_t)[_uploadData length];
       // Ensure our range is valid.  b/18007814
       if (offset + length > dataLength) {
         NSString *errorMessage = [NSString stringWithFormat:
@@ -685,6 +686,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if ([[self downloadedData] length] > 0) {
     NSString *str = [[NSString alloc] initWithData:[self downloadedData]
                                           encoding:NSUTF8StringEncoding];
+    #pragma unused(str)
     GTMSESSION_ASSERT_DEBUG(NO, @"unexpected response data (uploading to the wrong URL?)\n%@", str);
   }
 #endif
@@ -1161,19 +1163,28 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSDictionary *responseHeaders = [chunkFetcher responseHeaders];
   GTMSessionUploadFetcherStatus uploadStatus =
       [[self class] uploadStatusFromResponseHeaders:responseHeaders];
-  GTMSESSION_ASSERT_DEBUG(uploadStatus != kStatusUnknown || error != nil,
-      @"chunk fetcher completion has unexpected upload status for headers %@", responseHeaders);
+  GTMSESSION_ASSERT_DEBUG(uploadStatus != kStatusUnknown
+                          || error != nil
+                          || self.wasCreatedFromBackgroundSession,
+      @"chunk fetcher completion has kStatusUnknown upload status for headers %@ fetcher %@",
+      responseHeaders, self);
+  BOOL isUploadStatusStopped = (uploadStatus == kStatusFinal || uploadStatus == kStatusCancelled);
 
   int64_t previousContentLength =
       [[chunkFetcher.mutableRequest valueForHTTPHeaderField:@"Content-Length"] longLongValue];
+  // The Content-Length header may not be present if the chunk fetcher was recreated from
+  // a background session.
+  BOOL hasKnownChunkSize = (previousContentLength > 0);
+  BOOL needsQuery = (!hasKnownChunkSize && !isUploadStatusStopped);
 
-  if (error) {
+  if (error || needsQuery) {
     NSInteger status = [error code];
 
     // Status 4xx indicates a bad offset in the Google upload protocol. However, do not retry status
     // 404 per spec, nor if the upload size appears to have been zero (since the server will just
     // keep asking us to retry.)
     if (_shouldInitiateOffsetQuery ||
+        needsQuery ||
         ([error.domain isEqual:kGTMSessionFetcherStatusDomain] &&
          status >= 400 && status <= 499 &&
          status != 404 &&
@@ -1198,7 +1209,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     // the "final" upload status.
     BOOL hasUploadAllData = (newOffset == [self fullUploadLength]);
     BOOL isFinalStatus = (uploadStatus == kStatusFinal);
-    GTMSESSION_ASSERT_DEBUG(hasUploadAllData == isFinalStatus,
+    #pragma unused(hasUploadAllData,isFinalStatus)
+    GTMSESSION_ASSERT_DEBUG(hasUploadAllData == isFinalStatus || !hasKnownChunkSize,
                             @"uploadStatus:%@  newOffset:%zd (%lld + %zd)  fullUploadLength:%lld"
                             @" chunkFetcher:%@ requestHeaders:%@ responseHeaders:%@",
                             [responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadStatus],
@@ -1207,7 +1219,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                             chunkFetcher, chunkFetcher.mutableRequest.allHTTPHeaderFields,
                             responseHeaders);
 #endif
-    if (uploadStatus == kStatusFinal || uploadStatus == kStatusCancelled) {
+    if (isUploadStatusStopped) {
       // This was the last chunk.
       if (error == nil && uploadStatus == kStatusCancelled) {
         // Report cancelled status as an error.

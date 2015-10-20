@@ -133,6 +133,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 - (GTM_NULLABLE NSURLSession *)session;
 - (GTM_NULLABLE NSURLSession *)sessionForFetcherCreation;
 - (GTM_NULLABLE id<NSURLSessionDelegate>)sessionDelegate;
+- (GTM_NULLABLE NSDate *)stoppedAllFetchersDate;
 
 // The testBlock can inspect its fetcher parameter's mutableRequest property to
 // determine which fetcher is being faked.

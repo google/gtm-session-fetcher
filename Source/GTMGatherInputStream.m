@@ -28,7 +28,7 @@
 }
 
 + (NSInputStream *)streamWithArray:(NSArray *)dataArray {
-  return [[self alloc] initWithArray:dataArray];
+  return [(GTMGatherInputStream *)[self alloc] initWithArray:dataArray];
 }
 
 - (instancetype)initWithArray:(NSArray *)dataArray {

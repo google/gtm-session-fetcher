@@ -282,6 +282,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 2);
   XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0);
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
@@ -319,6 +320,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -376,6 +378,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 2);
   XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -402,6 +405,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 0);
   XCTAssertEqual(fnctr.fetchStopped, 0);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
 }
 
 - (void)testDataBodyFetch {
@@ -432,6 +436,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -463,6 +468,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:_timeoutInterval
                                handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 
   //
   // Setting a specific queue should call back on that queue.
@@ -490,6 +496,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:_timeoutInterval
                                handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 }
 
 - (void)testStreamProviderFetch {
@@ -525,6 +532,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -565,6 +573,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -639,6 +648,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 3);
   XCTAssertEqual(fnctr.fetchStopped, 3);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 3);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -770,6 +780,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check notifications.
   XCTAssertEqual(fnctr.fetchStarted, 8);
   XCTAssertEqual(fnctr.fetchStopped, 8);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 6);
   XCTAssertEqual(fnctr.retryDelayStarted, 2);
   XCTAssertEqual(fnctr.retryDelayStopped, 2);
 }
@@ -832,6 +843,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -951,6 +963,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 11);
   XCTAssertEqual(fnctr.fetchStopped, 11);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 4);
   XCTAssertEqual(fnctr.retryDelayStarted, 7);
   XCTAssertEqual(fnctr.retryDelayStopped, 7);
 }
@@ -1010,6 +1023,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -1047,6 +1061,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -1109,6 +1124,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -1130,6 +1146,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
   XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount);
   XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
 }
 
 - (void)testCancelAndResumeFetchToFile {
@@ -1218,6 +1235,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 2);
   XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -1323,6 +1341,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   XCTAssertEqual(fnctr.fetchStarted, 1);
   XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
@@ -1379,6 +1398,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   XCTAssertEqual(fnctr.fetchStarted, 3);
   XCTAssertEqual(fnctr.fetchStopped, 3);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 3);
   XCTAssertEqual(fnctr.retryDelayStopped, 3);
 }
@@ -1642,6 +1662,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   XCTAssertEqual(fnctr.fetchStarted, 2);
   XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 
@@ -1778,6 +1799,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                name:kGTMSessionFetcherStoppedNotification
              object:nil];
     [nc addObserver:self
+           selector:@selector(fetchCompletionInvoked:)
+               name:kGTMSessionFetcherCompletionInvokedNotification
+             object:nil];
+    [nc addObserver:self
            selector:@selector(retryDelayStateChanged:)
                name:kGTMSessionFetcherRetryDelayStartedNotification
              object:nil];
@@ -1827,6 +1852,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   NSAssert(_fetchStopped <= _fetchStarted, @"fetch notification imbalance: starts=%d stops=%d",
            (int)_fetchStarted, (int)_fetchStopped);
+}
+
+- (void)fetchCompletionInvoked:(NSNotification *)note {
+  ++_fetchCompletionInvoked;
 }
 
 - (void)retryDelayStateChanged:(NSNotification *)note {

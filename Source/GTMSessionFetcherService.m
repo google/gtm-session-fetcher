@@ -94,6 +94,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   // they've not yet finished invoking their queued callbacks. This array is nil except when
   // waiting on fetchers.
   NSMutableArray *_stoppedFetchersToWaitFor;
+
+  // For fetchers that enqueued their callbacks before stopAllFetchers was called on the service,
+  // set a barrier so the callbacks know to bail out.
+  NSDate *_stoppedAllFetchersDate;
 }
 
 @synthesize maxRunningFetchersPerHost = _maxRunningFetchersPerHost,
@@ -417,6 +421,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       [self delegateDispatcherForFetcher:fetcher];
   [delegateDispatcher removeFetcher:fetcher];
 
+  NSMutableArray *fetchersToStart;
+
   @synchronized(self) {
     // If a test is waiting for all fetchers to stop, it needs to wait for this one
     // to invoke its callbacks on the callback queue.
@@ -446,7 +452,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey
         runningForHost = [_runningFetchersByHost objectForKey:host];
 
         [delayedForHost removeObjectIdenticalTo:nextFetcher];
-        [self startFetcher:nextFetcher];
+
+        if (!fetchersToStart) {
+          fetchersToStart = [NSMutableArray array];
+        }
+        [fetchersToStart addObject:nextFetcher];
       }
     }
 
@@ -458,7 +468,13 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     if ([delayedForHost count] == 0) {
       [_delayedFetchersByHost removeObjectForKey:host];
     }
+  }  // @synchronized(self)
+
+  // Start fetchers outside of the synchronized block to avoid a deadlock.
+  for (GTMSessionFetcher *nextFetcher in fetchersToStart) {
+    [self startFetcher:nextFetcher];
   }
+
   // The fetcher is no longer in the running or the delayed array,
   // so remove its host and thread properties
   fetcher.serviceHost = nil;
@@ -536,6 +552,13 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (void)stopAllFetchers {
   @synchronized(self) {
+    // Set the time barrier so fetchers know not to call back even if
+    // the stop calls below occur after the fetchers naturally
+    // stopped and so were removed from _runningFetchersByHost,
+    // but while the callbacks were already enqueued before stopAllFetchers
+    // was invoked.
+    _stoppedAllFetchersDate = [[NSDate alloc] init];
+
     // Remove fetchers from the delayed list to avoid fetcherDidStop: from
     // starting more fetchers running as a side effect of stopping one
     NSArray *delayedFetchersByHost = [_delayedFetchersByHost allValues];
@@ -555,6 +578,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey
         [self stopFetcher:fetcher];
       }
     }
+  }
+}
+
+- (NSDate *)stoppedAllFetchersDate {
+  @synchronized(self) {
+    return _stoppedAllFetchersDate;
   }
 }
 

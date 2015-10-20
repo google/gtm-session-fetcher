@@ -33,6 +33,10 @@ NSString *const kGTMSessionFetcherStoppedNotification           = @"kGTMSessionF
 NSString *const kGTMSessionFetcherRetryDelayStartedNotification = @"kGTMSessionFetcherRetryDelayStartedNotification";
 NSString *const kGTMSessionFetcherRetryDelayStoppedNotification = @"kGTMSessionFetcherRetryDelayStoppedNotification";
 
+NSString *const kGTMSessionFetcherCompletionInvokedNotification = @"kGTMSessionFetcherCompletionInvokedNotification";
+NSString *const kGTMSessionFetcherCompletionDataKey = @"data";
+NSString *const kGTMSessionFetcherCompletionErrorKey = @"error";
+
 NSString *const kGTMSessionFetcherErrorDomain       = @"com.google.GTMSessionFetcher";
 NSString *const kGTMSessionFetcherStatusDomain      = @"com.google.HTTPStatus";
 NSString *const kGTMSessionFetcherStatusDataKey     = @"data";  // data returned with a kGTMSessionFetcherStatusDomain error
@@ -112,6 +116,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   float _taskPriority;
   NSURLResponse *_response;
   NSString *_sessionIdentifier;
+  BOOL _wasCreatedFromBackgroundSession;
   BOOL _didCreateSessionIdentifier;
   NSString *_sessionIdentifierUUID;
   BOOL _useBackgroundSession;
@@ -148,7 +153,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   NSTimeInterval _minRetryInterval; // random between 1 and 2 seconds
   NSTimeInterval _retryFactor;      // default interval multiplier is 2
   NSTimeInterval _lastRetryInterval;
-  NSDate *_initialRequestDate;
+  NSDate *_initialBeginFetchDate;   // date that beginFetch was first invoked
+  NSDate *_initialRequestDate;      // date of first request to the target server (ignoring auth)
   BOOL _hasAttemptedAuthRefresh;
 
   NSString *_comment;               // comment for log
@@ -194,6 +200,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     fetcher = [self fetcherWithRequest:nil];
     [fetcher setSessionIdentifier:sessionIdentifier];
     [sessionIdentifierToFetcherMap setObject:fetcher forKey:sessionIdentifier];
+    fetcher->_wasCreatedFromBackgroundSession = YES;
     [fetcher setCommentWithFormat:@"Resuming %@",
      fetcher && fetcher->_sessionIdentifierUUID ? fetcher->_sessionIdentifierUUID : @"?"];
   }
@@ -299,8 +306,17 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"%@ %p (%@)",
-          [self class], self, [self.mutableRequest URL]];
+  NSString *requestStr = self.mutableRequest.URL.description;
+  if (requestStr.length == 0) {
+    if (self.downloadResumeData.length > 0) {
+      requestStr = @"<download resume data>";
+    } else if (_wasCreatedFromBackgroundSession) {
+      requestStr = @"<from bg session>";
+    } else {
+      requestStr = @"<no request>";
+    }
+  }
+  return [NSString stringWithFormat:@"%@ %p (%@)", [self class], self, requestStr];
 }
 
 - (void)dealloc {
@@ -368,6 +384,10 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                code:code
                            userInfo:userInfo];
   };
+
+  if (!_initialBeginFetchDate) {
+    _initialBeginFetchDate = [[NSDate alloc] init];
+  }
 
   if (_sessionTask != nil) {
     // If cached fetcher returned through fetcherWithSessionIdentifier:, then it's
@@ -1892,6 +1912,18 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
           @synchronized(self) {
             // Avoid a race between stopFetching and the callback.
             if (_userStoppedFetching) return;
+
+            // Also avoid calling back if the service has stopped all fetchers
+            // since this one was created. The fetcher may have stopped before
+            // stopAllFetchers was invoked, so _userStoppedFetching wasn't set,
+            // but the app still won't expect the callback to fire after
+            // the service's stopAllFetchers was invoked.
+            NSDate *serviceStoppedAllDate = [_service stoppedAllFetchersDate];
+            if (serviceStoppedAllDate
+                && [_initialBeginFetchDate compare:serviceStoppedAllDate] != NSOrderedDescending) {
+              // stopAllFetchers was called after this fetcher began.
+              return;
+            }
           }
         }
         block();
@@ -1909,6 +1941,25 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   if (handler) {
     [self invokeOnCallbackQueueUnlessStopped:^{
         handler(data, error);
+
+        // Post a notification, primarily to allow code to collect responses for
+        // testing.
+        //
+        // The observing code is not likely on the fetcher's callback
+        // queue, so this posts explicitly to the main queue.
+        dispatch_group_async(_callbackGroup, dispatch_get_main_queue(), ^{
+            NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+            if (data) {
+              userInfo[kGTMSessionFetcherCompletionDataKey] = data;
+            }
+            if (error) {
+              userInfo[kGTMSessionFetcherCompletionErrorKey] = error;
+            }
+            NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+            [nc postNotificationName:kGTMSessionFetcherCompletionInvokedNotification
+                              object:self
+                            userInfo:userInfo];
+        });
     }];
   }
 }
@@ -2753,6 +2804,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
       // URL is expected to happen only across development runs through Xcode.
       NSString *oldFilename = [_destinationFileURL lastPathComponent];
       NSString *newFilename = [destinationFileURL lastPathComponent];
+      #pragma unused(oldFilename)
+      #pragma unused(newFilename)
       GTMSESSION_ASSERT_DEBUG([oldFilename isEqualToString:newFilename],
           @"Destination File URL cannot be changed after session identifier has been created");
 #endif
