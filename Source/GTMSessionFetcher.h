@@ -331,14 +331,27 @@ GTM_ASSUME_NONNULL_BEGIN
 
 // Notifications
 //
-// fetch started and stopped, and fetch retry delay started and stopped
+// Fetch started and stopped, and fetch retry delay started and stopped.
 extern NSString *const kGTMSessionFetcherStartedNotification;
 extern NSString *const kGTMSessionFetcherStoppedNotification;
 extern NSString *const kGTMSessionFetcherRetryDelayStartedNotification;
 extern NSString *const kGTMSessionFetcherRetryDelayStoppedNotification;
 
-// callback constants
+// Completion handler notification. This is intended for use by code capturing
+// and replaying fetch requests and results for testing. For fetches where
+// destinationFileURL or accumulateDataBlock is set for the fetcher, the data
+// will be nil for successful fetches.
+//
+// This notification is posted on the main thread.
+extern NSString *const kGTMSessionFetcherCompletionInvokedNotification;
+extern NSString *const kGTMSessionFetcherCompletionDataKey;
+extern NSString *const kGTMSessionFetcherCompletionErrorKey;
+
+// Constants for NSErrors created by the fetcher.
 extern NSString *const kGTMSessionFetcherErrorDomain;
+
+// The fetcher turns server error status values (3XX, 4XX, 5XX) into NSErrors
+// with domain kGTMSessionFetcherStatusDomain.
 extern NSString *const kGTMSessionFetcherStatusDomain;
 extern NSString *const kGTMSessionFetcherStatusDataKey;  // data returned with a kGTMSessionFetcherStatusDomain error
 
@@ -512,6 +525,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 - (GTM_NULLABLE NSURLSession *)session;
 - (GTM_NULLABLE NSURLSession *)sessionForFetcherCreation;
 - (GTM_NULLABLE id<NSURLSessionDelegate>)sessionDelegate;
+- (GTM_NULLABLE NSDate *)stoppedAllFetchersDate;
 
 // Methods for compatibility with the old GTMHTTPFetcher.
 @property(readonly, strong, GTM_NULLABLE) NSOperationQueue *delegateQueue;
@@ -622,6 +636,9 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 
 // The background session identifier.
 @property(readonly, GTM_NULLABLE) NSString *sessionIdentifier;
+
+// Indicates a fetcher created to finish a background session task.
+@property(readonly) BOOL wasCreatedFromBackgroundSession;
 
 // Additional user-supplied data to encode into the session identifier. Since session identifier
 // length limits are unspecified, this should be kept small. Key names beginning with an underscore
@@ -829,7 +846,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 //  finishedWithData:(NSData *)data
 //             error:(NSError *)error;
 //
-// If the application has specified a destinationFileURL
+// If the application has specified a destinationFileURL or an accumulateDataBlock
 // for the fetcher, the data parameter passed to the callback will be nil.
 
 - (void)beginFetchWithDelegate:(id)delegate

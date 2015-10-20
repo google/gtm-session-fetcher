@@ -296,10 +296,13 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   localhosts = [service.delayedFetchersByHost objectForKey:@"localhost"];
   XCTAssertEqual([localhosts count], (NSUInteger)1, @"hosts delayed");
 
+  XCTAssertNil(service.stoppedAllFetchersDate);
+
   [service stopAllFetchers];
 
   XCTAssertEqual([service.runningFetchersByHost count], (NSUInteger)0, @"hosts running");
   XCTAssertEqual([service.delayedFetchersByHost count], (NSUInteger)0, @"hosts delayed");
+  XCTAssertNotNil(service.stoppedAllFetchersDate);
 }
 
 - (void)testSessionReuse {

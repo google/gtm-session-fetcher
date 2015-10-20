@@ -76,6 +76,7 @@ extern NSString *const kGTMGettysburgFileName;
 @interface FetcherNotificationsCounter : NSObject
 @property(nonatomic) int fetchStarted;
 @property(nonatomic) int fetchStopped;
+@property(nonatomic) int fetchCompletionInvoked;
 @property(nonatomic) int uploadChunkFetchStarted;  // Includes query fetches.
 @property(nonatomic) int uploadChunkFetchStopped;  // Includes query fetches.
 @property(nonatomic) int retryDelayStarted;
