@@ -2366,7 +2366,7 @@ didCompleteWithError:(NSError *)error {
 - (BOOL)isRetryError:(NSError *)error {
   struct RetryRecord {
     __unsafe_unretained NSString *const domain;
-    int code;
+    NSInteger code;
   };
 
   struct RetryRecord retries[] = {
@@ -2381,12 +2381,10 @@ didCompleteWithError:(NSError *)error {
 
   // NSError's isEqual always returns false for equal but distinct instances
   // of NSError, so we have to compare the domain and code values explicitly
-
+  NSString *domain = error.domain;
+  NSInteger code = error.code;
   for (int idx = 0; retries[idx].domain != nil; idx++) {
-
-    if ([[error domain] isEqual:retries[idx].domain]
-        && [error code] == retries[idx].code) {
-
+    if (code == retries[idx].code && [domain isEqual:retries[idx].domain]) {
       return YES;
     }
   }
