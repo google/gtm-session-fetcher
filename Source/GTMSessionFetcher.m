@@ -2148,18 +2148,36 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
     _downloadedLength = (int64_t)[attributes fileSize];
 
     // Overwrite any previous file at the destination URL.
-    [fileMgr removeItemAtURL:destinationURL error:NULL];
-
-    NSError *error;
-    if (![fileMgr moveItemAtURL:downloadLocationURL
-                          toURL:destinationURL
-                          error:&error]) {
-      _downloadFinishedError = error;
+    NSError *removeError;
+    if (![fileMgr removeItemAtURL:destinationURL error:&removeError]
+        && removeError.code != NSFileNoSuchFileError) {
+      GTMSESSION_LOG_DEBUG(@"Could not remove previous file at %@ due to %@",
+                           downloadLocationURL.path, removeError);
     }
-    GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
-                               [self class], self,
-                               [downloadLocationURL path], [destinationURL path],
-                               error ? error : @"");
+
+    NSUInteger statusCode = self.statusCode;
+    if (statusCode < 200 || statusCode > 399) {
+      // In OS X 10.11, the response body is written to a file even on a server
+      // status error.  For convenience of the fetcher client, we'll skip saving the
+      // downloaded body to the destination URL so that clients do not need to know
+      // to delete the file following fetch errors. A downside of this is that
+      // the server may have included error details in the response body, and
+      // abandoning the downloaded file here means that the details from the
+      // body are not available to the fetcher client.
+      GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %zd, file %@",
+                           statusCode, downloadLocationURL.path);
+    } else {
+      NSError *moveError;
+      if (![fileMgr moveItemAtURL:downloadLocationURL
+                            toURL:destinationURL
+                            error:&moveError]) {
+        _downloadFinishedError = moveError;
+      }
+      GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
+                                 [self class], self,
+                                 [downloadLocationURL path], [destinationURL path],
+                                 error ? error : @"");
+    }
   }
 }
 
@@ -2642,6 +2660,11 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 + (void)setSystemCompletionHandler:(GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler
               forSessionIdentifier:(NSString *)sessionIdentifier {
+  if (!sessionIdentifier) {
+    NSLog(@"%s with nil identifier", __PRETTY_FUNCTION__);
+    return;
+  }
+
   @synchronized([GTMSessionFetcher class]) {
     if (gSystemCompletionHandlers == nil && systemCompletionHandler != nil) {
       gSystemCompletionHandlers = [[NSMutableDictionary alloc] init];

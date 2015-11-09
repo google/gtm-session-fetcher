@@ -7,31 +7,17 @@
       buildImplicitDependencies = "YES">
       <BuildActionEntries>
          <BuildActionEntry
-            buildForTesting = "YES"
+            buildForTesting = "NO"
             buildForRunning = "YES"
             buildForProfiling = "YES"
-            buildForArchiving = "NO"
+            buildForArchiving = "YES"
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8EC5668C18AAFB1200E2C97D"
-               BuildableName = "FetcheriOSTestApp.app"
-               BlueprintName = "FetcheriOSTestApp"
-               ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8EC566A418AAFB1200E2C97D"
-               BuildableName = "FetcheriOSTests.xctest"
-               BlueprintName = "FetcheriOSTests"
-               ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
+               BlueprintIdentifier = "4F34A21A187CCBB50012E91E"
+               BuildableName = "FetcherOSXTestApp.app"
+               BlueprintName = "FetcherOSXTestApp"
+               ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -42,24 +28,14 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       buildConfiguration = "Debug">
       <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8EC566A418AAFB1200E2C97D"
-               BuildableName = "FetcheriOSTests.xctest"
-               BlueprintName = "FetcheriOSTests"
-               ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "8EC5668C18AAFB1200E2C97D"
-            BuildableName = "FetcheriOSTestApp.app"
-            BlueprintName = "FetcheriOSTestApp"
-            ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
+            BlueprintIdentifier = "4F34A21A187CCBB50012E91E"
+            BuildableName = "FetcherOSXTestApp.app"
+            BlueprintName = "FetcherOSXTestApp"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </TestAction>
@@ -72,13 +48,14 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       allowLocationSimulation = "YES">
-      <BuildableProductRunnable>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "8EC5668C18AAFB1200E2C97D"
-            BuildableName = "FetcheriOSTestApp.app"
-            BlueprintName = "FetcheriOSTestApp"
-            ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
+            BlueprintIdentifier = "4F34A21A187CCBB50012E91E"
+            BuildableName = "FetcherOSXTestApp.app"
+            BlueprintName = "FetcherOSXTestApp"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <AdditionalOptions>
@@ -90,13 +67,14 @@
       useCustomWorkingDirectory = "NO"
       buildConfiguration = "Release"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "8EC5668C18AAFB1200E2C97D"
-            BuildableName = "FetcheriOSTestApp.app"
-            BlueprintName = "FetcheriOSTestApp"
-            ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
+            BlueprintIdentifier = "4F34A21A187CCBB50012E91E"
+            BuildableName = "FetcherOSXTestApp.app"
+            BlueprintName = "FetcherOSXTestApp"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

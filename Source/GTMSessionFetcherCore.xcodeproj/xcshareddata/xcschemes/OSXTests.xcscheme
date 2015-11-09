@@ -5,22 +5,6 @@
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
-      <BuildActionEntries>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "4F5566B01862981000D6D62C"
-               BuildableName = "GTMSessionFetcher.framework"
-               BlueprintName = "GTMSessionFetcher"
-               ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-      </BuildActionEntries>
    </BuildAction>
    <TestAction
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
@@ -35,10 +19,19 @@
                BlueprintIdentifier = "4F5566C71862981000D6D62C"
                BuildableName = "FetcherMacTests.xctest"
                BlueprintName = "FetcherMacTests"
-               ReferencedContainer = "container:GTMSessionFetcher.xcodeproj">
+               ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "4F5566C71862981000D6D62C"
+            BuildableName = "FetcherMacTests.xctest"
+            BlueprintName = "FetcherMacTests"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </TestAction>
    <LaunchAction
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
