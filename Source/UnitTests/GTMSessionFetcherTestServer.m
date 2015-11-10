@@ -157,7 +157,9 @@ static NSString *const kEtag = @"GoodETag";
 
     _docRoot = [docRoot copy];
     _uploadBytesExpected = -1;
+#if GTMHTTPSERVER_LOG_VERBOSE
     NSLog(@"Started GTMHTTPFetcherTestServer for docRoot='%@'", _docRoot);
+#endif
   }
   return self;
 }
@@ -177,7 +179,9 @@ static NSString *const kEtag = @"GoodETag";
     if (_server) {
       _redirectServer = [GTMHTTPServer startedServerWithDelegate:self];
       if (_redirectServer) {
+#if GTMHTTPSERVER_LOG_VERBOSE
         NSLog(@"Started redirect target server for docRoot='%@'", _docRoot);
+#endif
       }
     }
   } else {
@@ -633,13 +637,17 @@ static NSString *const kEtag = @"GoodETag";
 
 - (void)stopServers {
   if (_server) {
+#if GTMHTTPSERVER_LOG_VERBOSE
     NSLog(@"Stopped GTMHTTPFetcherTestServer on port %d (docRoot='%@')",
           _server.port, _docRoot);
+#endif
     _server = nil;
   }
   if (_redirectServer) {
+#if GTMHTTPSERVER_LOG_VERBOSE
     NSLog(@"Stopped redirect target server on port %d (docRoot='%@')",
           _redirectServer.port, _docRoot);
+#endif
     _redirectServer = nil;
   }
   _docRoot = nil;
