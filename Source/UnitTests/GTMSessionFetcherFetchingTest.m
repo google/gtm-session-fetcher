@@ -1877,6 +1877,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 - (void)uploadLocationObtained:(NSNotification *)note {
   GTMSessionUploadFetcher *fetcher = [note object];
+#pragma unused (fetcher)  // Unused when NS_BLOCK_ASSERTIONS
+
   NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);
 
   ++_uploadLocationObtained;
