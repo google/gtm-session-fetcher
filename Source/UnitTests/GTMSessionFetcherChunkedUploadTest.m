@@ -615,7 +615,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       [expectation fulfill];
   }];
 
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  // Add four minutes for the timeout of the huge upload test.
+  [self waitForExpectationsWithTimeout:_timeoutInterval + (4 * 60)
+                               handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Chunk length is constrained to a sane buffer size.
