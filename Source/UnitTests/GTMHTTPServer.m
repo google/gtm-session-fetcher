@@ -29,6 +29,10 @@
 #define GTMHTTPSERVER_DEFINE_GLOBALS
 #import "GTMHTTPServer.h"
 
+#ifndef GTMHTTPSERVER_LOG_VERBOSE
+#define GTMHTTPSERVER_LOG_VERBOSE 0
+#endif
+
 // keys for our connection dictionaries
 static NSString *kInputStream = @"InputStream";
 static NSString *kOutputStream = @"OutputStream";
@@ -186,7 +190,9 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
     NSLog(@"Failed to start up %@ (error=%@)", NSStringFromClass(self), error);
     return nil;
   }
+#if GTMHTTPSERVER_LOG_VERBOSE
   NSLog(@"Started up %@ on port %d", NSStringFromClass(self), server.port);
+#endif
   return server;
 }
 
@@ -198,7 +204,6 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   self = [super init];
   if (self) {
     if (!delegate) {
-      NSLog(@"missing delegate");
       return nil;
     }
     _delegate = delegate;
