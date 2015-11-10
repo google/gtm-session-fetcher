@@ -3,6 +3,8 @@
 **Project site** <https://github.com/google/gtm-session-fetcher><br>
 **Discussion group** <http://groups.google.com/group/google-toolbox-for-mac>
 
+[![Build Status](https://travis-ci.org/google/gtm-session-fetcher.svg?branch=master)](https://travis-ci.org/google/gtm-session-fetcher)
+
 `GTMSessionFetcher` makes it easy for Cocoa applications to perform http
 operations. The fetcher is implemented as a wrapper on `NSURLSession`, so its
 behavior is asynchronous and uses operating-system settings on iOS and Mac OS X.
