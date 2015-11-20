@@ -350,6 +350,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       }
       XCTAssertNotNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)0);
+
+      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+      XCTAssertNil(retriesDone);
+      XCTAssertNil(elapsedInterval);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -912,6 +917,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNotNil(data, @"error data is expected");
       XCTAssertEqual(fetcher.statusCode, (NSInteger)503);
       XCTAssertEqual(fetcher.retryCount, (NSUInteger)3);
+
+      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+      XCTAssertEqual(retriesDone.integerValue, 3);
+      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
    }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -931,6 +941,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNil(data, @"error data unexpected");
       XCTAssertEqual(fetcher.statusCode, (NSInteger)408, @"%@", error);
       XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
+
+      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+      XCTAssertEqual(retriesDone.integerValue, 1);
+      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -946,6 +961,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNotNil(data);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)503, @"%@", error);
       XCTAssertEqual(fetcher.retryCount, (NSUInteger)2);
+
+      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+      XCTAssertEqual(retriesDone.integerValue, 2);
+      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1393,7 +1413,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertEqualObjects(error, fakedResultError);
+      XCTAssertEqualObjects(error.domain, fakedResultError.domain);
+      XCTAssertEqual(error.code, fakedResultError.code);
+      XCTAssertEqualObjects(error.userInfo[kGTMSessionFetcherStatusDataKey],
+                            fakedResultError.userInfo[kGTMSessionFetcherStatusDataKey]);
       XCTAssertNil(data);
       XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
       XCTAssertEqualObjects(fetcher.responseHeaders[@"Alaskan"], @"Malamute");

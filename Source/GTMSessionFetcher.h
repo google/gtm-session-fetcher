@@ -347,13 +347,22 @@ extern NSString *const kGTMSessionFetcherCompletionInvokedNotification;
 extern NSString *const kGTMSessionFetcherCompletionDataKey;
 extern NSString *const kGTMSessionFetcherCompletionErrorKey;
 
-// Constants for NSErrors created by the fetcher.
+// Constants for NSErrors created by the fetcher (excluding server status errors,
+// and error objects originating in the OS.)
 extern NSString *const kGTMSessionFetcherErrorDomain;
 
 // The fetcher turns server error status values (3XX, 4XX, 5XX) into NSErrors
 // with domain kGTMSessionFetcherStatusDomain.
+//
+// Any server response body data accompanying the status error is added to the
+// userInfo dictionary with key kGTMSessionFetcherStatusDataKey.
 extern NSString *const kGTMSessionFetcherStatusDomain;
-extern NSString *const kGTMSessionFetcherStatusDataKey;  // data returned with a kGTMSessionFetcherStatusDomain error
+extern NSString *const kGTMSessionFetcherStatusDataKey;
+
+// When a fetch fails with an error, these keys are included in the error userInfo
+// dictionary if retries were attempted.
+extern NSString *const kGTMSessionFetcherNumberOfRetriesDoneKey;
+extern NSString *const kGTMSessionFetcherElapsedIntervalWithRetriesKey;
 
 // Background session support requires access to NSUserDefaults.
 // If [NSUserDefaults standardUserDefaults] doesn't yield the correct NSUserDefaults for your usage,
@@ -885,6 +894,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 // Local path to which the downloaded file will be moved.
 //
 // If a file already exists at the path, it will be overwritten.
+// Will create the enclosing folders if they are not present.
 @property(strong, GTM_NULLABLE) NSURL *destinationFileURL;
 
 // userData is retained solely for the convenience of the client.
