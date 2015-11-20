@@ -41,6 +41,9 @@ NSString *const kGTMSessionFetcherErrorDomain       = @"com.google.GTMSessionFet
 NSString *const kGTMSessionFetcherStatusDomain      = @"com.google.HTTPStatus";
 NSString *const kGTMSessionFetcherStatusDataKey     = @"data";  // data returned with a kGTMSessionFetcherStatusDomain error
 
+NSString *const kGTMSessionFetcherNumberOfRetriesDoneKey        = @"kGTMSessionFetcherNumberOfRetriesDoneKey";
+NSString *const kGTMSessionFetcherElapsedIntervalWithRetriesKey = @"kGTMSessionFetcherElapsedIntervalWithRetriesKey";
+
 static NSString *const kGTMSessionIdentifierPrefix = @"com.google.GTMSessionFetcher";
 static NSString *const kGTMSessionIdentifierDestinationFileURLMetadataKey = @"_destURL";
 static NSString *const kGTMSessionIdentifierBodyFileURLMetadataKey        = @"_bodyURL";
@@ -2168,9 +2171,17 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
                            statusCode, downloadLocationURL.path);
     } else {
       NSError *moveError;
-      if (![fileMgr moveItemAtURL:downloadLocationURL
-                            toURL:destinationURL
-                            error:&moveError]) {
+      NSURL *destinationFolderURL = [destinationURL URLByDeletingLastPathComponent];
+      BOOL didMoveDownload = NO;
+      if ([fileMgr createDirectoryAtURL:destinationFolderURL
+            withIntermediateDirectories:YES
+                             attributes:nil
+                                  error:&moveError]) {
+        didMoveDownload = [fileMgr moveItemAtURL:downloadLocationURL
+                                           toURL:destinationURL
+                                           error:&moveError];
+      }
+      if (!didMoveDownload) {
         _downloadFinishedError = moveError;
       }
       GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
@@ -2283,8 +2294,20 @@ didCompleteWithError:(NSError *)error {
       NSURL *destinationURL = self.destinationFileURL;
       if (([_downloadedData length] > 0) && (destinationURL != nil)) {
         // Overwrite any previous file at the destination URL.
-        [[NSFileManager defaultManager] removeItemAtURL:destinationURL error:NULL];
-        if ([_downloadedData writeToURL:destinationURL options:NSDataWritingAtomic error:&error]) {
+        NSFileManager *fileMgr = [NSFileManager defaultManager];
+        [fileMgr removeItemAtURL:destinationURL
+                           error:NULL];
+        NSURL *destinationFolderURL = [destinationURL URLByDeletingLastPathComponent];
+        BOOL didMoveDownload = NO;
+        if ([fileMgr createDirectoryAtURL:destinationFolderURL
+              withIntermediateDirectories:YES
+                               attributes:nil
+                                    error:&error]) {
+          didMoveDownload = [_downloadedData writeToURL:destinationURL
+                                                options:NSDataWritingAtomic
+                                                  error:&error];
+        }
+        if (didMoveDownload) {
           _downloadedData = nil;
         } else {
           _downloadFinishedError = error;
@@ -2330,6 +2353,21 @@ didCompleteWithError:(NSError *)error {
         }
         if ([_downloadedData length] > 0) {
           downloadedData = _downloadedData;
+        }
+        // If the error occurred after retries, report the number and duration of the
+        // retries. This provides a clue to a developer looking at the error description
+        // that the fetcher did retry before failing with this error.
+        if (_retryCount > 0) {
+          NSMutableDictionary *userInfoWithRetries =
+              [NSMutableDictionary dictionaryWithDictionary:error.userInfo];
+          NSTimeInterval timeSinceInitialRequest = -[_initialRequestDate timeIntervalSinceNow];
+          [userInfoWithRetries setObject:@(timeSinceInitialRequest)
+                                  forKey:kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+          [userInfoWithRetries setObject:@(_retryCount)
+                                  forKey:kGTMSessionFetcherNumberOfRetriesDoneKey];
+          error = [NSError errorWithDomain:error.domain
+                                      code:error.code
+                                  userInfo:userInfoWithRetries];
         }
       }
     }
