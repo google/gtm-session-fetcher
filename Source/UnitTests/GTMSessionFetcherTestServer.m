@@ -155,6 +155,8 @@ static NSString *const kEtag = @"GoodETag";
     _server = [GTMHTTPServer startedServerWithDelegate:self];
     if (!_server) return nil;
 
+    _defaultContentType = @"text/plain";
+
     _docRoot = [docRoot copy];
     _uploadBytesExpected = -1;
 #if GTMHTTPSERVER_LOG_VERBOSE
@@ -536,7 +538,7 @@ static NSString *const kEtag = @"GoodETag";
   NSString *bodySequenceLenStr = [[self class] valueForParameter:@"requestBodyLength" query:query];
   if (bodySequenceLenStr) {
     int expectedLen = [bodySequenceLenStr intValue];
-    NSData *expectedData = [[self class] generatedBodyDataWithLength:expectedLen];
+    NSData *expectedData = [[self class] generatedBodyDataWithLength:(NSUInteger)expectedLen];
     if (![requestBodyData isEqual:expectedData]) {
       NSLog(@"Mismatched request body data (actual %d bytes, expected %d bytes)",
             (int)[requestBodyData length], expectedLen);
@@ -549,7 +551,7 @@ static NSString *const kEtag = @"GoodETag";
   if (responseLengthStr) {
     int statusCode = 200;
     int responseLength = [responseLengthStr intValue];
-    NSData *responseData = [[self class] generatedBodyDataWithLength:responseLength];
+    NSData *responseData = [[self class] generatedBodyDataWithLength:(NSUInteger)responseLength];
     if (rangeHeader) {
       NSString *contentRangeHeader;
       responseData = [[self class] trimResponseData:responseData
@@ -562,7 +564,7 @@ static NSString *const kEtag = @"GoodETag";
     if ([requestMethod isEqual:@"GET"]) {
       responseHeaders[@"Etag"] = kEtag;
     }
-    return sendResponse(statusCode, responseData, @"text/plain");
+    return sendResponse(statusCode, responseData, _defaultContentType);
   }
 
   if ([cookies length] > 0) {
@@ -587,7 +589,7 @@ static NSString *const kEtag = @"GoodETag";
   }
 
   // Finally, package up the response, and return it to the client
-  return sendResponse(resultStatus, data, @"text/plain");
+  return sendResponse(resultStatus, data, _defaultContentType);
 }
 
 #pragma mark - Private
@@ -782,19 +784,19 @@ static NSString *const kEtag = @"GoodETag";
     NSRange byteRange;
     if ([byteRangeString hasPrefix:@"-"]) {
       // Final number of bytes
-      byteRange.length = [[byteRangeString substringFromIndex:1] integerValue];
+      byteRange.length = (NSUInteger)[[byteRangeString substringFromIndex:1] integerValue];
       byteRange.location = [responseData length] - byteRange.length;
     } else if ([byteRangeString hasSuffix:@"-"]) {
       // Final bytes beginning at offset
       NSRange offsetRange = NSMakeRange(0, ([byteRangeString length] - 1));
-      byteRange.location = [[byteRangeString substringWithRange:offsetRange] integerValue];
+      byteRange.location = (NSUInteger)[[byteRangeString substringWithRange:offsetRange] integerValue];
       byteRange.length = [responseData length] - byteRange.location;
     } else {
       NSArray *byteOffsets = [byteRangeString componentsSeparatedByString:@"-"];
       NSAssert([byteOffsets count] == 2,
                @"Unexpected number of values in byte range, %@", byteRangeString);
-      byteRange.location = [byteOffsets[0] integerValue];
-      byteRange.length = [byteOffsets[1] integerValue] - byteRange.location + 1;
+      byteRange.location = (NSUInteger)[byteOffsets[0] integerValue];
+      byteRange.length = (NSUInteger)[byteOffsets[1] integerValue] + 1 - byteRange.location;
     }
     contentRange = (contentRange.length == 0) ? byteRange : NSUnionRange(contentRange, byteRange);
   }

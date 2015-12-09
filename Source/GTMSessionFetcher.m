@@ -82,8 +82,8 @@ static NSString * const kGTMSessionFetcherPersistedDestinationKey =
 
 @interface GTMSessionFetcher ()
 
-@property(strong, readwrite) NSData *downloadedData;
-@property(strong, readwrite) NSMutableURLRequest *mutableRequest;
+@property(strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
+@property(strong, readwrite, GTM_NULLABLE) NSMutableURLRequest *mutableRequest;
 
 @end
 
@@ -123,7 +123,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
   BOOL _didCreateSessionIdentifier;
   NSString *_sessionIdentifierUUID;
   BOOL _useBackgroundSession;
-  NSMutableData *_downloadedData;
+  NSMutableData * GTM_NULLABLE_TYPE _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;
   NSURL *_destinationFileURL;
@@ -185,7 +185,7 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
 }
 
 + (instancetype)fetcherWithURLString:(NSString *)requestURLString {
-  return [self fetcherWithURL:[NSURL URLWithString:requestURLString]];
+  return [self fetcherWithURL:(NSURL * GTM_NONNULL_TYPE)[NSURL URLWithString:requestURLString]];
 }
 
 + (instancetype)fetcherWithDownloadResumeData:(NSData *)resumeData {
@@ -697,7 +697,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
                                    _session, _request);
   } else if (needsUploadTask) {
     if (_bodyFileURL) {
-      _sessionTask = [_session uploadTaskWithRequest:_request fromFile:_bodyFileURL];
+      _sessionTask = [_session uploadTaskWithRequest:_request
+                                            fromFile:(NSURL * GTM_NONNULL_TYPE)_bodyFileURL];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
                                      @"Failed uploadTaskWithRequest for %@, %@, file %@",
                                      _session, _request, [_bodyFileURL path]);
@@ -709,7 +710,8 @@ static GTMSessionFetcherTestBlock gGlobalTestBlock;
     } else {
       GTMSESSION_ASSERT_DEBUG_OR_LOG(_bodyData != nil,
                                      @"Upload task needs body data, %@", _request);
-      _sessionTask = [_session uploadTaskWithRequest:_request fromData:_bodyData];
+      _sessionTask = [_session uploadTaskWithRequest:_request
+                                            fromData:(NSData * GTM_NONNULL_TYPE)_bodyData];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(_sessionTask,
           @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
           _session, _request, [_bodyData length]);
@@ -887,7 +889,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
         // No input stream; use the supplied data or file URL.
         if (_bodyFileURL) {
           NSError *readError;
-          _bodyData = [NSData dataWithContentsOfURL:_bodyFileURL
+          _bodyData = [NSData dataWithContentsOfURL:(NSURL * GTM_NONNULL_TYPE)_bodyFileURL
                                             options:NSDataReadingMappedIfSafe
                                               error:&readError];
           error = readError;
@@ -1272,7 +1274,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
       [NSString stringWithFormat:@"%@_%@", kGTMSessionIdentifierPrefix, _sessionIdentifierUUID];
   // Start with user-supplied keys so they cannot accidentally override the fetcher's keys.
   NSMutableDictionary *metadataDict =
-      [NSMutableDictionary dictionaryWithDictionary:_sessionUserInfo];
+      [NSMutableDictionary dictionaryWithDictionary:(NSDictionary * GTM_NONNULL_TYPE)_sessionUserInfo];
 
   if (metadataToInclude) {
     [metadataDict addEntriesFromDictionary:metadataToInclude];
@@ -2142,15 +2144,17 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
   [self setSessionTask:downloadTask];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didFinishDownloadingToURL:%@",
                            [self class], self, session, downloadTask, downloadLocationURL);
-  NSFileManager *fileMgr = [NSFileManager defaultManager];
-  NSDictionary *attributes = [fileMgr attributesOfItemAtPath:[downloadLocationURL path]
-                                                       error:NULL];
+  NSNumber *fileSizeNum;
+  [downloadLocationURL getResourceValue:&fileSizeNum
+                                 forKey:NSURLFileSizeKey
+                                  error:NULL];
   @synchronized(self) {
     NSURL *destinationURL = self.destinationFileURL;
 
-    _downloadedLength = (int64_t)[attributes fileSize];
+    _downloadedLength = fileSizeNum.longLongValue;
 
     // Overwrite any previous file at the destination URL.
+    NSFileManager *fileMgr = [NSFileManager defaultManager];
     NSError *removeError;
     if (![fileMgr removeItemAtURL:destinationURL error:&removeError]
         && removeError.code != NSFileNoSuchFileError) {
@@ -2158,7 +2162,7 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
                            downloadLocationURL.path, removeError);
     }
 
-    NSUInteger statusCode = self.statusCode;
+    NSInteger statusCode = self.statusCode;
     if (statusCode < 200 || statusCode > 399) {
       // In OS X 10.11, the response body is written to a file even on a server
       // status error.  For convenience of the fetcher client, we'll skip saving the
@@ -2756,7 +2760,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             retryBlock = _retryBlock,
             retryFactor = _retryFactor,
             downloadedLength = _downloadedLength,
-            downloadedData = _downloadedData,
             useUploadTask = _useUploadTask,
             allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
@@ -2790,6 +2793,18 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
       }
     }
     return _bodyLength;
+  }
+}
+
+- (NSData * GTM_NULLABLE_TYPE)downloadedData {
+  @synchronized(self) {
+    return _downloadedData;
+  }
+}
+
+- (void)setDownloadedData:(NSData * GTM_NULLABLE_TYPE)data {
+  @synchronized(self) {
+    _downloadedData = [data mutableCopy];
   }
 }
 
@@ -3167,7 +3182,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
         completionHandler:(void (^)(GTM_NSArrayOf(NSHTTPCookie *) *))completionHandler {
   if (completionHandler) {
     NSURLRequest *currentRequest = task.currentRequest;
-    NSArray *cookies = [self cookiesForURL:currentRequest.URL];
+    NSURL *currentRequestURL = currentRequest.URL;
+    NSArray *cookies = [self cookiesForURL:currentRequestURL];
     completionHandler(cookies);
   }
 }

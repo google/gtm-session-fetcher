@@ -40,6 +40,9 @@ typedef enum {
                          password:(NSString *)password;
 - (void)clearHTTPAuthentication;
 
+// Content type normally returned; defaults to text/plain
+@property(copy) NSString *defaultContentType;
+
 // Utilities for users.
 - (NSURL *)localURLForFile:(NSString *)name;     // http://localhost:port/filename
 - (NSURL *)localv6URLForFile:(NSString *)name;   // http://[::1]:port/filename

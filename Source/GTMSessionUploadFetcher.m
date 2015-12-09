@@ -544,7 +544,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 #if DEBUG
     NSNumber *fileSizeNum;
     BOOL hasFileSize = [fileURL getResourceValue:&fileSizeNum forKey:NSURLFileSizeKey error:NULL];
-    GTMSESSION_LOG_DEBUG(@"uploadFileURL failed to map for making a chunk, file size %@, %@",
+    GTMSESSION_LOG_DEBUG(@"Note: uploadFileURL is falling back to creating upload chunks by reading"
+                         @" an NSFileHandle since uploadFileURL failed to map the upload file,"
+                         @" file size %@, %@",
                          hasFileSize ? fileSizeNum : @"unknown", error);
 #endif
 
@@ -684,7 +686,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // not supplied with the request, and the server is thus expecting a non-
   // resumable request/response.
   if ([[self downloadedData] length] > 0) {
-    NSString *str = [[NSString alloc] initWithData:[self downloadedData]
+    NSData *downloadedData = [self downloadedData];
+    NSString *str = [[NSString alloc] initWithData:downloadedData
                                           encoding:NSUTF8StringEncoding];
     #pragma unused(str)
     GTMSESSION_ASSERT_DEBUG(NO, @"unexpected response data (uploading to the wrong URL?)\n%@", str);
@@ -1084,7 +1087,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 - (GTMSessionFetcher *)uploadFetcherWithProperties:(NSDictionary *)properties
                                       isQueryFetch:(BOOL)isQueryFetch {
   // Common code to make a request for a query command or for a chunk upload.
-  NSMutableURLRequest *chunkRequest = [NSMutableURLRequest requestWithURL:self.uploadLocationURL];
+  NSURL *uploadLocationURL = self.uploadLocationURL;
+  NSMutableURLRequest *chunkRequest = [NSMutableURLRequest requestWithURL:uploadLocationURL];
   [chunkRequest setHTTPMethod:@"PUT"];
 
   // copy the user-agent from the original connection

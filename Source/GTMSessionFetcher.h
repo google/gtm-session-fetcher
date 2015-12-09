@@ -17,15 +17,18 @@
 //
 // What does this offer on top of of NSURLSession?
 //
-// - Block-style callbacks for useful functionality like progress rather than delegate methods.
-// - Out-of-process uploads and downloads using NSURLSession, including management of fetches after
-//   relaunch.
-// - Integration with GTMOAuth2 for invisible management and refresh of authorization tokens.
+// - Block-style callbacks for useful functionality like progress rather
+//   than delegate methods.
+// - Out-of-process uploads and downloads using NSURLSession, including
+//   management of fetches after relaunch.
+// - Integration with GTMOAuth2 for invisible management and refresh of
+//   authorization tokens.
 // - Pretty-printed http logging.
-// - Cookies handling that does not interfere with or get interfered with by WebKit cookies
-//   or on Mac by Safari and other apps.
+// - Cookies handling that does not interfere with or get interfered with
+//   by WebKit cookies or on Mac by Safari and other apps.
 // - Credentials handling for the http operation.
-// - Rate-limiting and cookie grouping when fetchers are created with GTMSessionFetcherService.
+// - Rate-limiting and cookie grouping when fetchers are created with
+//   GTMSessionFetcherService.
 //
 // If the bodyData or bodyFileURL property is set, then a POST request is assumed.
 //
@@ -42,19 +45,23 @@
 //
 // Sample usage:
 //
-//  GTMSessionFetcher *myFetcher = [GTMSessionFetcher fetcherWithURLString:myURLString];
+//  _fetcherService = [[GTMSessionFetcherService alloc] init];
+//
+//  GTMSessionFetcher *myFetcher = [_fetcherService fetcherWithURLString:myURLString];
+//  myFetcher.retryEnabled = YES;
+//  myFetcher.comment = @"First profile image";
 //
 //  // Optionally specify a file URL or NSData for the request body to upload.
 //  myFetcher.bodyData = [postString dataUsingEncoding:NSUTF8StringEncoding];
 //
-//  // Optionally specify if the transfer should be done in another process.
-//  myFetcher.useBackgroundSession = YES;
-//
-//  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+//  [myFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
 //    if (error != nil) {
-//      // Status code or network error
+//      // Server status code or network error.
+//      //
+//      // If the domain is kGTMSessionFetcherStatusDomain then the error code
+//      // is a failure status from the server.
 //    } else {
-//      // Succeeded
+//      // Fetch succeeded.
 //    }
 //  }];
 //
@@ -62,25 +69,32 @@
 // a pointer and selector is a better style when the callback is a substantial, separate method.
 //
 // NOTE:  Fetches may retrieve data from the server even though the server
-//        returned an error.  The completion handler is called when the server
-//        status is >= 300 with an NSError having domain
-//        kGTMSessionFetcherStatusDomain and code set to the server status.
+//        returned an error, so the criteria for success is a non-nil error.
+//        The completion handler is called when the server status is >= 300 with an NSError
+//        having domain kGTMSessionFetcherStatusDomain and code set to the server status.
 //
 //        Status codes are at <http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html>
 //
 //
 // Background session support:
 //
-// Out-of-process uploads and downloads may be created by setting the useBackgroundSession property.
-// Data to be uploaded should be provided with a file URL; the download destination should also
-// specified with a file URL.
+// Out-of-process uploads and downloads may be created by setting the fetcher's
+// useBackgroundSession property. Data to be uploaded should be provided via
+// the uploadFileURL property; the download destination should be specified with
+// the destinationFileURL.  NOTE: Background upload files should be in a location
+// that will be valid even after the device is restarted, so the file should not
+// be uploaded from a system temporary or cache directory.
 //
-// When background sessions are used in iOS apps, the application delegate must pass
-// through the parameters from UIApplicationDelegate's
-// application:handleEventsForBackgroundURLSession:completionHandler: to the fetcher class.
+// Background session transfers are slower, and should typically be used only
+// or very large downloads or uploads (hundreds of megabytes).
 //
-// When the application has been relaunched, it may also create a new fetcher instance
-// to handle completion of the transfers.
+// When background sessions are used in iOS apps, the application delegate must
+// pass through the parameters from UIApplicationDelegate's
+// application:handleEventsForBackgroundURLSession:completionHandler: to the
+// fetcher class.
+//
+// When the application has been relaunched, it may also create a new fetcher
+// instance to handle completion of the transfers.
 //
 //  - (void)application:(UIApplication *)application
 //      handleEventsForBackgroundURLSession:(NSString *)identifier
@@ -103,6 +117,9 @@
 //
 // Threading and queue support:
 //
+// Networking always happens on a background thread; there is no advantage to
+// changing thread or queue to create or start a fetcher.
+//
 // Callbacks are run on the main thread; alternatively, the app may set the
 // fetcher's callbackQueue to a dispatch queue.
 //
@@ -120,13 +137,31 @@
 // creating the fetcher with an appropriate NSMutableURLRequest
 //
 //
+// Caching:
+//
+// The fetcher avoids caching. That is best for API requests, but may hurt
+// repeat fetches of static data. Apps may enable a persistent disk cache by
+// customizing the config:
+//
+//  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
+//                                 NSURLSessionConfiguration *config) {
+//    config.URLCache = [NSURLCache sharedURLCache];
+//  };
+//
+// Or use the standard system config to share cookie storage with web views
+// and to enable disk caching:
+//
+//  fetcher.configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
+//
+//
 // Cookies:
 //
 // There are three supported mechanisms for remembering cookies between fetches.
 //
-// By default, a standalone GTMSessionFetcher uses a mutable array held statically to track
-// cookies for all instantiated fetchers.  This avoids cookies being set by servers for the
-// application from interfering with Safari and WebKit cookie settings, and vice versa.
+// By default, a standalone GTMSessionFetcher uses a mutable array held
+// statically to track cookies for all instantiated fetchers.  This avoids
+// cookies being set by servers for the application from interfering with
+// Safari and WebKit cookie settings, and vice versa.
 // The fetcher cookies are lost when the application quits.
 //
 // To rely instead on WebKit's global NSHTTPCookieStorage, set the fetcher's
@@ -143,8 +178,8 @@
 //
 // Monitoring data transfers.
 //
-// The fetcher supports a variety of properties for progress monitoring progress with callback
-// blocks.
+// The fetcher supports a variety of properties for progress monitoring
+// progress with callback blocks.
 //  GTMSessionFetcherSendProgressBlock sendProgressBlock
 //  GTMSessionFetcherReceivedProgressBlock receivedProgressBlock
 //  GTMSessionFetcherDownloadProgressBlock downloadProgressBlock
@@ -177,9 +212,16 @@
 //  myFetcher.maxRetryInterval = 60.0; // in seconds; default is 60 seconds
 //                                     // for downloads, 600 for uploads
 //
-// Also optionally, the client may provide a block to determine if a status code or other error
-// should be retried. The block returns YES to set the retry timer or NO to fail without additional
-// fetch attempts.
+// Servers should never send a 400 or 500 status for errors that are retryable
+// by clients, as those values indicate permanent failures. In nearly all
+// cases, the default standard retry behavior is correct for clients, and no
+// custom client retry behavior is needed or appropriate. Servers that send
+// non-retryable status codes and expect the client to retry the request are
+// faulty.
+//
+// Still, the client may provide a block to determine if a status code or other
+// error should be retried. The block returns YES to set the retry timer or NO
+// to fail without additional fetch attempts.
 //
 // The retry method may return the |suggestedWillRetry| argument to get the
 // default retry behavior.  Server status codes are present in the
@@ -233,11 +275,6 @@
   #endif
 #endif
 
-// Until Xcode can autocomplete typedef'd blocks with nullable
-// annotations (broken in 6.3.x), we'll leave the annotations disabled.
-// <http://openradar.appspot.com/20723086>
-#define GTM_CAN_XCODE_AUTOCOMPLETE_WITH_NULLABLES 0
-
 // Macro useful for examining messages from NSURLSession during debugging.
 #if 0
 #define GTM_LOG_SESSION_DELEGATE(...) GTMSESSION_LOG_DEBUG(__VA_ARGS__)
@@ -246,8 +283,7 @@
 #endif
 
 #ifndef GTM_NULLABLE
-  #if GTM_CAN_XCODE_AUTOCOMPLETE_WITH_NULLABLES && \
-      __has_feature(nullability)  // Available starting in Xcode 6.3
+  #if __has_feature(nullability)  // Available starting in Xcode 6.3
     #define GTM_NULLABLE_TYPE __nullable
     #define GTM_NONNULL_TYPE __nonnull
     #define GTM_NULLABLE nullable
@@ -428,7 +464,7 @@ typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamP
 typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
 typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
                                                          GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
-typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest *redirectedRequest);
+typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest * GTM_NULLABLE_TYPE redirectedRequest);
 typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectResponse,
                                                    NSURLRequest *redirectRequest,
                                                    GTMSessionFetcherWillRedirectResponse response);
@@ -441,7 +477,7 @@ typedef void (^GTMSessionFetcherDownloadProgressBlock)(int64_t bytesWritten,
 typedef void (^GTMSessionFetcherSendProgressBlock)(int64_t bytesSent,
                                                    int64_t totalBytesSent,
                                                    int64_t totalBytesExpectedToSend);
-typedef void (^GTMSessionFetcherWillCacheURLResponseResponse)(NSCachedURLResponse *cachedResponse);
+typedef void (^GTMSessionFetcherWillCacheURLResponseResponse)(NSCachedURLResponse * GTM_NULLABLE_TYPE cachedResponse);
 typedef void (^GTMSessionFetcherWillCacheURLResponseBlock)(NSCachedURLResponse *proposedResponse,
                                                            GTMSessionFetcherWillCacheURLResponseResponse responseBlock);
 typedef void (^GTMSessionFetcherRetryResponse)(BOOL shouldRetry);
@@ -858,8 +894,8 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 // If the application has specified a destinationFileURL or an accumulateDataBlock
 // for the fetcher, the data parameter passed to the callback will be nil.
 
-- (void)beginFetchWithDelegate:(id)delegate
-             didFinishSelector:(SEL)finishedSEL;
+- (void)beginFetchWithDelegate:(GTM_NULLABLE_TYPE id)delegate
+             didFinishSelector:(GTM_NULLABLE_TYPE SEL)finishedSEL;
 
 - (void)beginFetchWithCompletionHandler:(GTM_NULLABLE GTMSessionFetcherCompletionHandler)handler;
 
@@ -904,7 +940,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 @property(copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
 
 - (void)setProperty:(GTM_NULLABLE id)obj forKey:(NSString *)key;  // Pass nil for obj to remove the property.
-- (id)propertyForKey:(NSString *)key;
+- (id GTM_NULLABLE_TYPE)propertyForKey:(NSString *)key;
 
 - (void)addPropertiesFromDictionary:(GTM_NSDictionaryOf(NSString *, id) *)dict;
 

@@ -459,7 +459,8 @@ static NSString *gLoggingProcessName = nil;
         && self.destinationFileURL) {
       // There's a download file that's not too big, so get the data to display from the downloaded
       // file.
-      downloadedData = [NSData dataWithContentsOfURL:self.destinationFileURL];
+      NSURL *destinationURL = self.destinationFileURL;
+      downloadedData = [NSData dataWithContentsOfURL:destinationURL];
     }
     NSString *responseType = [responseHeaders valueForKey:@"Content-Type"];
     responseDataStr = [self formattedStringFromData:downloadedData
@@ -837,7 +838,8 @@ static NSString *gLoggingProcessName = nil;
   Class monitorClass = NSClassFromString(@"GTMReadMonitorInputStream");
   if (!monitorClass) {
     NSString const *str = @"<<Uploaded stream log unavailable without GTMReadMonitorInputStream>>";
-    [self appendLoggedStreamData:[str dataUsingEncoding:NSUTF8StringEncoding]];
+    NSData *stringData = [str dataUsingEncoding:NSUTF8StringEncoding];
+    [self appendLoggedStreamData:stringData];
     return inputStream;
   }
   inputStream = [monitorClass inputStreamWithStream:inputStream];
@@ -859,7 +861,8 @@ static NSString *gLoggingProcessName = nil;
   Class monitorClass = NSClassFromString(@"GTMReadMonitorInputStream");
   if (!monitorClass) {
     NSString const *str = @"<<Uploaded stream log unavailable without GTMReadMonitorInputStream>>";
-    [self appendLoggedStreamData:[str dataUsingEncoding:NSUTF8StringEncoding]];
+    NSData *stringData = [str dataUsingEncoding:NSUTF8StringEncoding];
+    [self appendLoggedStreamData:stringData];
     return streamProvider;
   }
   GTMSessionFetcherBodyStreamProvider loggedStreamProvider =
