@@ -117,7 +117,7 @@ static NSString *kResponseOffset = @"ResponseOffset";
     long dataLengthRemaining = charPtrEnd - charPtr;
     // Just append the remaining characters if the current chunk exceeds the extent of data.
     if (_chunkLengthToRead >= dataLengthRemaining) {
-      [_accumulatedData appendBytes:charPtr length:dataLengthRemaining];
+      [_accumulatedData appendBytes:charPtr length:(NSUInteger)dataLengthRemaining];
       _chunkLengthToRead -= dataLengthRemaining;
       return YES;
     }
@@ -384,7 +384,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
         [self closeReadConnection:connDict];
         return;
       }
-      [readData appendBytes:readDataBytes length:readDataSize];
+      [readData appendBytes:readDataBytes length:(NSUInteger)readDataSize];
 
       @try {
         GTMHTTPRequestMessage *request = connDict[kRequest];
@@ -446,7 +446,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
           [self closeConnection:connDict];
           return;
         }
-        offset += bytesWritten;
+        offset += (NSUInteger)bytesWritten;
         connDict[kResponseOffset] = @(offset);
       });
       break;
@@ -565,7 +565,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 - (BOOL)isHeaderComplete {
-  return CFHTTPMessageIsHeaderComplete(_message);
+  // Convert type Boolean to BOOL when returning.
+  return CFHTTPMessageIsHeaderComplete(_message) ? YES : NO;
 }
 
 - (BOOL)appendData:(NSData *)data {
@@ -604,7 +605,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
           NSData *newBody = [NSData dataWithBytes:[body bytes] length:(NSUInteger)contentLength];
           [self setBody:newBody];
           NSLog(@"Got %lu extra bytes on http request, ignoring them",
-                     (unsigned long)(bodyLength - contentLength));
+                     (unsigned long)(bodyLength - (unsigned long)contentLength));
         }
       }
     }

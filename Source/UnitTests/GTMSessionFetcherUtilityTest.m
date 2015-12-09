@@ -187,7 +187,7 @@
                               options:NSDataWritingAtomic
                                 error:&fileError], @"%@", fileError);
 
-  inputStream = [NSInputStream inputStreamWithFileAtPath:[tempFileURL path]];
+  inputStream = [NSInputStream inputStreamWithURL:tempFileURL];
   result = GTMDataFromInputStream(inputStream, &streamError);
   XCTAssertEqualObjects(result, inputData);
   XCTAssertNotEqual(result, inputData);

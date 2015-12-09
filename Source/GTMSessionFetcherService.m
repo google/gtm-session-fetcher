@@ -63,6 +63,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
            forTask:(NSURLSessionTask *)task;
 - (void)removeFetcher:(GTMSessionFetcher *)fetcher;
 
+// Before using a session, tells the delegate dispatcher to stop the discard timer.
+- (void)startSessionUsage;
+
 // When abandoning a delegate dispatcher, we want to avoid the session retaining
 // the delegate after tasks complete.
 - (void)abandon;
@@ -152,8 +155,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             fetcherClass:(Class)fetcherClass {
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
                                                        configuration:self.configuration];
-  if (self.callbackQueue) {
-    fetcher.callbackQueue = self.callbackQueue;
+  dispatch_queue_t callbackQueue = self.callbackQueue;
+  if (callbackQueue) {
+    fetcher.callbackQueue = callbackQueue;
   }
   fetcher.credential = self.credential;
   fetcher.proxyCredential = self.proxyCredential;
@@ -194,7 +198,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 }
 
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)requestURLString {
-  return [self fetcherWithURL:[NSURL URLWithString:requestURLString]];
+  NSURL *url = [NSURL URLWithString:requestURLString];
+  return [self fetcherWithURL:url];
 }
 
 // Returns a session for the fetcher's host, or nil.
@@ -212,6 +217,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   // Avoid waiting in the @synchronized section since that can deadlock.
   dispatch_semaphore_t semaphore;
   @synchronized(self) {
+    [_delegateDispatcher startSessionUsage];
+
     semaphore = _delegateDispatcher.sessionCreationSemaphore;
     GTMSESSION_ASSERT_DEBUG(semaphore != nil || _delegateDispatcher == nil, @"Expected semaphore");
   }
@@ -734,8 +741,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 + (instancetype)mockFetcherServiceWithFakedData:(NSData *)fakedDataOrNil
                                      fakedError:(NSError *)fakedErrorOrNil {
 #if !GTM_DISABLE_FETCHER_TEST_BLOCK
+  NSURL *url = [NSURL URLWithString:@"http://example.invalid"];
   NSHTTPURLResponse *fakedResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:@"http://example.invalid"]
+      [[NSHTTPURLResponse alloc] initWithURL:url
                                   statusCode:(fakedErrorOrNil ? 500 : 200)
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:nil];
@@ -876,8 +884,16 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 }
 
 - (void)abandon {
+  dispatch_semaphore_wait(_sessionCreationSemaphore, DISPATCH_TIME_FOREVER);
   @synchronized(self) {
     [self destroySessionAndTimer];
+  }
+  dispatch_semaphore_signal(_sessionCreationSemaphore);
+}
+
+- (void)startSessionUsage {
+  @synchronized(self) {
+    [self destroyDiscardTimer];
   }
 }
 

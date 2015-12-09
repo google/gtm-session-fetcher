@@ -43,8 +43,8 @@
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   NSData *smallData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:13];
-  NSString *testURLString = @"http://test.example.com/foo";
-  NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:testURLString]];
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+  NSURLRequest *request = [NSURLRequest requestWithURL:testURL];
 
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
@@ -54,7 +54,7 @@
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
   NSHTTPURLResponse *fakedResultResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:testURLString]
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:@{ @"Bichon" : @"Frise" }];

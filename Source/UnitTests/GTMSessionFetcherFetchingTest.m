@@ -230,7 +230,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       // A cookie should've been set.
       cookieStorage = fetcher.configuration.HTTPCookieStorage;
-      NSArray *cookies = [cookieStorage cookiesForURL:[NSURL URLWithString:@"http://localhost/"]];
+      NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
+      NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
       XCTAssertEqual([cookies count], (NSUInteger)1);
       NSHTTPCookie *firstCookie = [cookies firstObject];
       XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
@@ -842,7 +843,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       // A cookie should've been set.
       NSHTTPCookieStorage *cookieStorage = fetcher.configuration.HTTPCookieStorage;
-      NSArray *cookies = [cookieStorage cookiesForURL:[NSURL URLWithString:@"http://localhost/"]];
+      NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
+      NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
       XCTAssertEqual([cookies count], (NSUInteger)1);
       NSHTTPCookie *firstCookie = [cookies firstObject];
       XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
@@ -1338,13 +1340,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Use the test block to fake fetching our test file.
   //
-  NSString *testURLString = @"http://test.example.com/foo";
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
 
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:testURLString];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
   NSHTTPURLResponse *fakedResultResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:testURLString]
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:@{ @"Bichon" : @"Frise" }];
@@ -1352,7 +1354,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
                         GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL.absoluteString, testURLString);
+      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL, testURL);
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
@@ -1381,16 +1383,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Fake fetching our test file, failing with an error, including retries.
   //
-  NSString *testURLString = @"http://test.example.com/foo";
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
 
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:testURLString];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
   fetcher.retryEnabled = YES;
   fetcher.minRetryInterval = 1;
   fetcher.maxRetryInterval = 5;
 
   NSData *fakedResultData = nil;
   NSHTTPURLResponse *fakedResultResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:testURLString]
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:504  // 504 is a retryable error.
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:@{ @"Alaskan" : @"Malamute" }];
@@ -1401,7 +1403,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
                         GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL.absoluteString, testURLString);
+      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL, testURL);
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
@@ -1440,16 +1442,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Test callbacks for data upload and download.
   //
-  NSString *testURLString = @"http://test.example.com/foo";
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
 
   NSData *uploadData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:33];
   NSData *downloadData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:333];
 
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:testURLString];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
 
   fetcher.bodyData = uploadData;
   NSHTTPURLResponse *fakedResultResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:testURLString]
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:@{ @"Aussie" : @"Shepherd" }];
@@ -1518,7 +1520,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Now test file upload and download.
   //
-  fetcher = [self fetcherWithURLString:testURLString];
+  fetcher = [self fetcherWithURL:testURL];
 
   NSURL *uploadFileURL = [self temporaryFileURLWithBaseName:@"TestBlockUpload"];
   NSURL *downloadFileURL = [self temporaryFileURLWithBaseName:@"TestBlockDownload"];
@@ -1581,7 +1583,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Now test stream upload, and the data accumulation callback.
   //
-  fetcher = [self fetcherWithURLString:testURLString];
+  fetcher = [self fetcherWithURL:testURL];
 
   fetcher.bodyStreamProvider = ^(GTMSessionFetcherBodyStreamProviderResponse response) {
     NSInputStream *stream = [NSInputStream inputStreamWithData:uploadData];
@@ -1639,13 +1641,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // Use the test block to fake fetching our test file.
   //
-  NSString *testURLString = @"http://test.example.com/foo";
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
 
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:testURLString];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
   NSHTTPURLResponse *fakedResultResponse =
-      [[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:testURLString]
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
                                 headerFields:@{ @"Bichon" : @"Frise" }];
@@ -1708,6 +1710,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.allowLocalhostRequest = YES;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
   return fetcher;
+}
+
+- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url {
+  return [self fetcherWithURLString:url.absoluteString];
 }
 
 // Utility method for making a fetcher to test for retries.
@@ -1866,7 +1872,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSString *command = [request valueForHTTPHeaderField:@"X-Goog-Upload-Command"];
       NSInteger offset = [[request valueForHTTPHeaderField:@"X-Goog-Upload-Offset"] integerValue];
       NSInteger length = [[request valueForHTTPHeaderField:@"Content-Length"] integerValue];
-      [_uploadChunkRequestPaths addObject:request.URL.path];
+      NSString *path = request.URL.path;
+      [_uploadChunkRequestPaths addObject:path];
       [_uploadChunkCommands addObject:command];
       [_uploadChunkOffsets addObject:@(offset)];
       [_uploadChunkLengths addObject:@(length)];
