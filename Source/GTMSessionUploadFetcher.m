@@ -58,6 +58,7 @@ typedef NS_ENUM(NSUInteger, GTMSessionUploadFetcherStatus) {
 NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     @"kGTMSessionFetcherUploadLocationObtainedNotification";
 
+#if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ProtectedMethods)
 
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks;
@@ -73,6 +74,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 - (void)releaseCallbacks;
 
 @end
+#endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
 @interface GTMSessionUploadFetcher ()
 @property(strong, readwrite) NSURLRequest *lastChunkRequest;

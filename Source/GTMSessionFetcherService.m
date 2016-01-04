@@ -24,12 +24,12 @@ NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification
 NSString *const kGTMSessionFetcherServiceSessionKey
     = @"kGTMSessionFetcherServiceSessionKey";
 
+#if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
-
 - (BOOL)beginFetchMayDelay:(BOOL)mayDelay
               mayAuthorize:(BOOL)mayAuthorize;
-
 @end
+#endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
 @interface GTMSessionFetcherService ()
 

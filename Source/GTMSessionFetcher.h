@@ -491,7 +491,7 @@ typedef void (^GTMSessionFetcherTestResponse)(NSHTTPURLResponse * GTM_NULLABLE_T
 typedef void (^GTMSessionFetcherTestBlock)(GTMSessionFetcher *fetcherToTest,
                                            GTMSessionFetcherTestResponse testResponse);
 
-void GTMSessionFetcherAssertValidSelector(id obj, SEL sel, ...);
+void GTMSessionFetcherAssertValidSelector(id GTM_NULLABLE_TYPE obj, SEL GTM_NULLABLE_TYPE sel, ...);
 
 // Utility functions for applications self-identifying to servers via a
 // user-agent header

@@ -36,7 +36,7 @@
 //
 // We locally declare methods of GTMReadMonitorInputStream so we
 // do not need to import the header, as some projects may not have it available
-#ifndef GTM_NSSTREAM_DELEGATE
+#if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMReadMonitorInputStream : NSInputStream
 
 + (instancetype)inputStreamWithStream:(NSInputStream *)input;
@@ -45,7 +45,9 @@
 @property (assign) SEL readSelector;
 
 @end
-#endif
+#else
+@class GTMReadMonitorInputStream;
+#endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
 @interface GTMSessionFetcher (GTMHTTPFetcherLoggingUtilities)
 
