@@ -71,8 +71,15 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 // set this property to nil.
 @property(atomic, copy, GTM_NULLABLE) NSString *userAgent;
 
-
+// The authorizer to attach to the created fetchers. If a specific fetcher should
+// not authorize its requests, the fetcher's authorizer property may be set to nil
+// before the fetch begins.
 @property(atomic, strong, GTM_NULLABLE) id<GTMFetcherAuthorizationProtocol> authorizer;
+
+// Delegate queue used by the session when calling back to the fetcher.  The default
+// is the main queue.  Changing this does not affect the queue used to call back to the
+// application; that is specified by the callbackQueue property above.
+@property(atomic, strong, GTM_NULLABLE) NSOperationQueue *sessionDelegateQueue;
 
 // When enabled, indicates the same session should be used by subsequent fetchers.
 //

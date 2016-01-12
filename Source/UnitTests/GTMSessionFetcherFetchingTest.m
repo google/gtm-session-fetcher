@@ -259,7 +259,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher = [self fetcherWithURLString:localURLString];
   fetcher.configuration = priorConfig;
   // TODO(seh): Shouldn't be needed; without it the cookie isn't being received by the test server.
-  // https://b2.corp.google.com/issues/17646646
+  // b/17646646
   [fetcher.mutableRequest setValue:cookieExpected forHTTPHeaderField:@"Cookie"];
   fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
                                  NSURLSessionConfiguration *config) {
@@ -668,6 +668,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testAuthorizerFetch {
   if (!_isServerRunning) return;
 
+  [self createTestFetchersWithFetcherService:YES];
+
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   //
@@ -699,6 +701,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error, @"unexpected error");
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  //
+  // Repeat with an async authorization that returns an auth error.
+  //
+  fetcher = [self fetcherWithURLString:authedURLString];
+  fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
+  ((TestAuthorizer *)fetcher.authorizer).willFailWithError = YES;
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    NSString *authHdr =
+      [[fetcher.mutableRequest allHTTPHeaderFields] objectForKey:@"Authorization"];
+    XCTAssertNil(authHdr);
+    XCTAssertNil(data);
+    XCTAssertNotNil(error);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -792,7 +810,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check notifications.
   XCTAssertEqual(fnctr.fetchStarted, 8);
   XCTAssertEqual(fnctr.fetchStopped, 8);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, 6);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 7);
   XCTAssertEqual(fnctr.retryDelayStarted, 2);
   XCTAssertEqual(fnctr.retryDelayStopped, 2);
 }
@@ -1416,7 +1434,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(error.domain, fakedResultError.domain);
-      XCTAssertEqual(error.code, fakedResultError.code);
+      XCTAssertEqual(error.code, fakedResultError.code, @"%@", error);
       XCTAssertEqualObjects(error.userInfo[kGTMSessionFetcherStatusDataKey],
                             fakedResultError.userInfo[kGTMSessionFetcherStatusDataKey]);
       XCTAssertNil(data);
@@ -1703,9 +1721,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #pragma mark - Utilities
 
 // Utility method for making a fetcher to test.
+- (void)createTestFetchersWithFetcherService:(BOOL)shouldUseFetcherService {
+  if (shouldUseFetcherService) {
+    _fetcherService = [[GTMSessionFetcherService alloc] init];
+  } else {
+    _fetcherService = nil;
+  }
+}
+
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
   NSURLRequest *request = [self requestWithURLString:urlString];
-  GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithRequest:request];
+  GTMSessionFetcher *fetcher;
+  if (_fetcherService) {
+    fetcher = [_fetcherService fetcherWithRequest:request];
+  } else {
+    fetcher = [GTMSessionFetcher fetcherWithRequest:request];
+  }
   XCTAssertNotNil(fetcher);
   fetcher.allowLocalhostRequest = YES;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
@@ -1764,9 +1795,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)authorizeRequest:(NSMutableURLRequest *)request
                 delegate:(id)delegate
        didFinishSelector:(SEL)sel {
-  NSString *value = self.expired ? kExpiredBearerValue : kGoodBearerValue;
-  [request setValue:value forHTTPHeaderField:@"Authorization"];
   NSError *error = nil;
+  if (self.willFailWithError) {
+    error = [NSError errorWithDomain:NSURLErrorDomain
+                                code:NSURLErrorNotConnectedToInternet
+                            userInfo:nil];
+  } else {
+    NSString *value = self.expired ? kExpiredBearerValue : kGoodBearerValue;
+    [request setValue:value forHTTPHeaderField:@"Authorization"];
+  }
 
   if (delegate && sel) {
     id selfParam = self;
@@ -1778,6 +1815,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [invocation setArgument:&request atIndex:3];
     [invocation setArgument:&error atIndex:4];
     if (self.async) {
+      [invocation retainArguments];
       dispatch_async(dispatch_get_main_queue(), ^{
         [invocation invoke];
       });
@@ -1814,11 +1852,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 @end
 
-@implementation FetcherNotificationsCounter
+@implementation FetcherNotificationsCounter {
+  NSDate *_counterCreationDate;
+}
 
 - (instancetype)init {
   self = [super init];
   if (self) {
+    _counterCreationDate = [[NSDate alloc] init];
+
     _uploadChunkRequestPaths = [[NSMutableArray alloc] init];
     _uploadChunkCommands = [[NSMutableArray alloc] init];
     _uploadChunkOffsets = [[NSMutableArray alloc] init];
@@ -1857,10 +1899,20 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
+- (BOOL)shouldIgnoreNotification:(NSNotification *)note {
+  GTMSessionFetcher *fetcher = note.object;
+  NSDate *fetcherBeginDate = fetcher.initialBeginFetchDate;
+  BOOL isTooOld = (fetcherBeginDate
+                   && [fetcherBeginDate compare:_counterCreationDate] == NSOrderedAscending);
+  return isTooOld;
+}
+
 - (void)fetchStateChanged:(NSNotification *)note {
-  GTMSessionFetcher *fetcher = [note object];
+  if ([self shouldIgnoreNotification:note]) return;
+
+  GTMSessionFetcher *fetcher = note.object;
   BOOL isUploadChunkFetcher = ([fetcher parentUploadFetcher] != nil);
-  BOOL isFetchStartedNotification = [[note name] isEqual:kGTMSessionFetcherStartedNotification];
+  BOOL isFetchStartedNotification = [note.name isEqual:kGTMSessionFetcherStartedNotification];
 
   if (isFetchStartedNotification) {
     ++_fetchStarted;
@@ -1891,11 +1943,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)fetchCompletionInvoked:(NSNotification *)note {
+  if ([self shouldIgnoreNotification:note]) return;
+
   ++_fetchCompletionInvoked;
 }
 
 - (void)retryDelayStateChanged:(NSNotification *)note {
-  if ([[note name] isEqual:kGTMSessionFetcherRetryDelayStartedNotification]) {
+  if ([self shouldIgnoreNotification:note]) return;
+
+  if ([note.name isEqual:kGTMSessionFetcherRetryDelayStartedNotification]) {
     ++_retryDelayStarted;
   } else {
     ++_retryDelayStopped;
@@ -1906,7 +1962,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)uploadLocationObtained:(NSNotification *)note {
-  GTMSessionUploadFetcher *fetcher = [note object];
+  if ([self shouldIgnoreNotification:note]) return;
+
+  GTMSessionUploadFetcher *fetcher = note.object;
 #pragma unused (fetcher)  // Unused when NS_BLOCK_ASSERTIONS
 
   NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);

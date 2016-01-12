@@ -30,6 +30,7 @@ extern NSString *const kGTMGettysburgFileName;
   GTMSessionFetcherTestServer *_testServer;
   BOOL _isServerRunning;
   NSTimeInterval _timeoutInterval;
+  GTMSessionFetcherService *_fetcherService;
 }
 
 // A path to the test folder containing documents to be returned by the http server.
@@ -65,6 +66,7 @@ extern NSString *const kGTMGettysburgFileName;
 
 @property(assign, getter=isAsync) BOOL async;
 @property(assign, getter=isExpired) BOOL expired;
+@property(assign) BOOL willFailWithError;
 
 + (instancetype)syncAuthorizer;
 + (instancetype)asyncAuthorizer;

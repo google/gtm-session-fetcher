@@ -288,6 +288,7 @@
     #define GTM_NONNULL_TYPE __nonnull
     #define GTM_NULLABLE nullable
     #define GTM_NONNULL_DECL nonnull  // GTM_NONNULL is used by GTMDefines.h
+    #define GTM_NULL_RESETTABLE null_resettable
 
     #define GTM_ASSUME_NONNULL_BEGIN NS_ASSUME_NONNULL_BEGIN
     #define GTM_ASSUME_NONNULL_END NS_ASSUME_NONNULL_END
@@ -296,6 +297,7 @@
     #define GTM_NONNULL_TYPE
     #define GTM_NULLABLE
     #define GTM_NONNULL_DECL
+    #define GTM_NULL_RESETTABLE
     #define GTM_ASSUME_NONNULL_BEGIN
     #define GTM_ASSUME_NONNULL_END
   #endif  // __has_feature(nullability)
@@ -933,6 +935,10 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 // Will create the enclosing folders if they are not present.
 @property(strong, GTM_NULLABLE) NSURL *destinationFileURL;
 
+// The time this fetcher originally began fetching. This is useful as a time
+// barrier for ignoring irrelevant fetch notifications or callbacks.
+@property(strong, readonly, GTM_NULLABLE) NSDate *initialBeginFetchDate;
+
 // userData is retained solely for the convenience of the client.
 @property(strong, GTM_NULLABLE) id userData;
 
@@ -953,7 +959,20 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 @property(copy, GTM_NULLABLE) NSString *log;
 
 // Callbacks are run on this queue.  If none is supplied, the main queue is used.
-@property(strong, GTM_NONNULL_DECL) dispatch_queue_t callbackQueue;
+@property(strong, GTM_NULL_RESETTABLE) dispatch_queue_t callbackQueue;
+
+// The queue used internally by the session to invoke its delegate methods in the fetcher.
+//
+// Application callbacks are always called by the fetcher on the callbackQueue above,
+// not on this queue. Apps should generally not change this queue.
+//
+// The default delegate queue is the main queue. A nil value tells NSURLSession to
+// create a serial queue.
+//
+// This value is ignored after the session has been created, so this
+// property should be set in the fetcher service rather in the fetcher as it applies
+// to a shared session.
+@property(strong, GTM_NULL_RESETTABLE) NSOperationQueue *sessionDelegateQueue;
 
 // Spin the run loop or sleep the thread, discarding events, until the fetch has completed.
 //
@@ -1041,5 +1060,95 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 - (void)removeAllCookies;
 
 @end
+
+// Macros to monitor synchronization blocks in debug builds.
+// These report problems using GTMSessionCheckDebug.
+//
+// GTMSessionMonitorSynchronized           Start monitoring a top-level-only
+//                                         @sync scope.
+// GTMSessionMonitorRecursiveSynchronized  Start monitoring a top-level or
+//                                         recursive @sync scope.
+// GTMSessionCheckSynchronized             Verify that the current execution
+//                                         is inside a @sync scope.
+// GTMSessionCheckNotSynchronized          Verify that the current execution
+//                                         is not inside a @sync scope.
+//
+// Example usage:
+//
+// - (void)myExternalMethod {
+//   @synchronized(self) {
+//     GTMSessionMonitorSynchronized(self)
+//
+// - (void)myInternalMethod {
+//   GTMSessionCheckSynchronized(self);
+//
+// - (void)callMyCallbacks {
+//   GTMSessionCheckNotSynchronized(self);
+//
+// GTMSessionCheckNotSynchronized is available for verifying the code isn't
+// in a deadlockable @sync state when posting notifications and invoking
+// callbacks. Don't use GTMSessionCheckNotSynchronized immediately before a
+// @sync scope; the normal recursiveness check of GTMSessionMonitorSynchronized
+// can catch those.
+
+#ifdef __OBJC__
+#if DEBUG
+  #define __GTMSessionMonitorSynchronizedVariableInner(varname, counter) \
+      varname ## counter
+  #define __GTMSessionMonitorSynchronizedVariable(varname, counter)  \
+      __GTMSessionMonitorSynchronizedVariableInner(varname, counter)
+
+  #define GTMSessionMonitorSynchronized(obj)                                     \
+      NS_VALID_UNTIL_END_OF_SCOPE id                                             \
+        __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) =        \
+        [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj \
+                                                    allowRecursive:NO            \
+                                                     functionName:__func__]
+
+  #define GTMSessionMonitorRecursiveSynchronized(obj)                            \
+      NS_VALID_UNTIL_END_OF_SCOPE id                                             \
+        __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) =        \
+        [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj \
+                                                    allowRecursive:YES           \
+                                                     functionName:__func__]
+
+  #define GTMSessionCheckSynchronized(obj) {                                           \
+      GTMSESSION_ASSERT_DEBUG(                                                         \
+          [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
+          @"GTMSessionCheckSynchronized(" #obj ") failed: not sync'd"                  \
+          @" on " #obj " in %s. Call stack:\n%@",                                      \
+          __func__, [NSThread callStackSymbols]);                                      \
+      }
+
+  #define GTMSessionCheckNotSynchronized(obj) {                                       \
+      GTMSESSION_ASSERT_DEBUG(                                                        \
+        ![GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
+        @"GTMSessionCheckNotSynchronized(" #obj ") failed: was sync'd"                \
+        @" on " #obj " in %s by %@. Call stack:\n%@", __func__,                       \
+        [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj],  \
+        [NSThread callStackSymbols]);                                                 \
+      }
+
+// GTMSessionSyncMonitorInternal is a private class that keeps track of the
+// beginning and end of synchronized scopes.
+//
+// This class should not be used directly, but only via the
+// GTMSessionMonitorSynchronized macro.
+@interface GTMSessionSyncMonitorInternal : NSObject
+- (instancetype)initWithSynchronizationObject:(id)object
+                               allowRecursive:(BOOL)allowRecursive
+                                 functionName:(const char *)functionName;
+// Return the names of the functions that hold sync on the object, or nil if none.
++ (NSArray *)functionsHoldingSynchronizationOnObject:(id)object;
+@end
+
+#else
+  #define GTMSessionMonitorSynchronized(obj) do { } while (0)
+  #define GTMSessionMonitorRecursiveSynchronized(obj) do { } while (0)
+  #define GTMSessionCheckSynchronized(obj) do { } while (0)
+  #define GTMSessionCheckNotSynchronized(obj) do { } while (0)
+#endif  // !DEBUG
+#endif  // __OBJC__
+
 
 GTM_ASSUME_NONNULL_END
