@@ -868,6 +868,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
       [expectation fulfill];
   }];
+  [fetcher waitForCompletionWithTimeout:_timeoutInterval];
+
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 

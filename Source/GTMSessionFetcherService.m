@@ -82,6 +82,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   GTMSessionFetcherSessionDelegateDispatcher *_delegateDispatcher;
 
   dispatch_queue_t _callbackQueue;
+  NSOperationQueue *_delegateQueue;
   NSHTTPCookieStorage *_cookieStorage;
   NSString *_userAgent;
   NSTimeInterval _timeout;
@@ -109,6 +110,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             cookieStorage = _cookieStorage,
             userAgent = _userAgent,
             callbackQueue = _callbackQueue,
+            sessionDelegateQueue = _delegateQueue,
             credential = _credential,
             proxyCredential = _proxyCredential,
             allowedInsecureSchemes = _allowedInsecureSchemes,
@@ -159,6 +161,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   if (callbackQueue) {
     fetcher.callbackQueue = callbackQueue;
   }
+  NSOperationQueue *delegateQueue = self.sessionDelegateQueue;
+  if (delegateQueue) {
+    fetcher.sessionDelegateQueue = delegateQueue;
+  }
   fetcher.credential = self.credential;
   fetcher.proxyCredential = self.proxyCredential;
   fetcher.authorizer = self.authorizer;
@@ -205,6 +211,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 // Returns a session for the fetcher's host, or nil.
 - (NSURLSession *)session {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSURLSession *session = _delegateDispatcher.session;
     return session;
   }
@@ -217,6 +225,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   // Avoid waiting in the @synchronized section since that can deadlock.
   dispatch_semaphore_t semaphore;
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     [_delegateDispatcher startSessionUsage];
 
     semaphore = _delegateDispatcher.sessionCreationSemaphore;
@@ -231,6 +241,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   }
 
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSURLSession *session = _delegateDispatcher.session;
     if (session) {
       GTMSESSION_ASSERT_DEBUG(semaphore == _delegateDispatcher.sessionCreationSemaphore,
@@ -249,6 +261,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (id<NSURLSessionDelegate>)sessionDelegate {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _delegateDispatcher;
   }
 }
@@ -281,6 +295,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (BOOL)isDelayingFetcher:(GTMSessionFetcher *)fetcher {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSString *host = [[[fetcher mutableRequest] URL] host];
     if (host == nil) {
       return NO;
@@ -295,6 +311,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 - (BOOL)fetcherShouldBeginFetching:(GTMSessionFetcher *)fetcher {
   // Entry point from the fetcher
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSURL *requestURL = [[fetcher mutableRequest] URL];
     NSString *host = [requestURL host];
 
@@ -343,9 +361,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 // Internal utility. Returns a fetcher's delegate if it's a dispatcher, or nil if the fetcher
 // is its own delegate and has no dispatcher.
-//
-// Do not call this inside @synchronized(self).
 - (GTMSessionFetcherSessionDelegateDispatcher *)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher {
+  GTMSessionCheckNotSynchronized(self);
+
   NSURLSession *fetcherSession = fetcher.session;
   if (fetcherSession) {
     id<NSURLSessionDelegate> fetcherDelegate = fetcherSession.delegate;
@@ -431,6 +449,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   NSMutableArray *fetchersToStart;
 
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     // If a test is waiting for all fetchers to stop, it needs to wait for this one
     // to invoke its callbacks on the callback queue.
     [_stoppedFetchersToWaitFor addObject:fetcher];
@@ -488,15 +508,15 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 }
 
 - (NSUInteger)numberOfFetchers {
-  @synchronized(self) {
-    NSUInteger running = [self numberOfRunningFetchers];
-    NSUInteger delayed = [self numberOfDelayedFetchers];
-    return running + delayed;
-  }
+  NSUInteger running = [self numberOfRunningFetchers];
+  NSUInteger delayed = [self numberOfDelayedFetchers];
+  return running + delayed;
 }
 
 - (NSUInteger)numberOfRunningFetchers {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSUInteger sum = 0;
     for (NSString *host in _runningFetchersByHost) {
       NSArray *fetchers = [_runningFetchersByHost objectForKey:host];
@@ -508,6 +528,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSUInteger)numberOfDelayedFetchers {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSUInteger sum = 0;
     for (NSString *host in _delayedFetchersByHost) {
       NSArray *fetchers = [_delayedFetchersByHost objectForKey:host];
@@ -519,6 +541,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSArray *)issuedFetchers {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSMutableArray *allFetchers = [NSMutableArray array];
     void (^accumulateFetchers)(id, id, BOOL *) = ^(NSString *host,
                                                    NSArray *fetchersForHost,
@@ -558,7 +582,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 }
 
 - (void)stopAllFetchers {
+  NSArray *delayedFetchersByHost;
+  NSArray *runningFetchersByHost;
+
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     // Set the time barrier so fetchers know not to call back even if
     // the stop calls below occur after the fetchers naturally
     // stopped and so were removed from _runningFetchersByHost,
@@ -568,28 +597,30 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
     // Remove fetchers from the delayed list to avoid fetcherDidStop: from
     // starting more fetchers running as a side effect of stopping one
-    NSArray *delayedFetchersByHost = [_delayedFetchersByHost allValues];
+    delayedFetchersByHost = [_delayedFetchersByHost allValues];
     [_delayedFetchersByHost removeAllObjects];
 
-    for (NSArray *delayedForHost in delayedFetchersByHost) {
-      for (GTMSessionFetcher *fetcher in delayedForHost) {
-        [self stopFetcher:fetcher];
-      }
-    }
-
-    NSArray *runningFetchersByHost = [_runningFetchersByHost allValues];
+    runningFetchersByHost = [_runningFetchersByHost allValues];
     [_runningFetchersByHost removeAllObjects];
+  }
 
-    for (NSArray *runningForHost in runningFetchersByHost) {
-      for (GTMSessionFetcher *fetcher in runningForHost) {
-        [self stopFetcher:fetcher];
-      }
+  for (NSArray *delayedForHost in delayedFetchersByHost) {
+    for (GTMSessionFetcher *fetcher in delayedForHost) {
+      [self stopFetcher:fetcher];
+    }
+  }
+
+  for (NSArray *runningForHost in runningFetchersByHost) {
+    for (GTMSessionFetcher *fetcher in runningForHost) {
+      [self stopFetcher:fetcher];
     }
   }
 }
 
 - (NSDate *)stoppedAllFetchersDate {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _stoppedAllFetchersDate;
   }
 }
@@ -598,12 +629,16 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (BOOL)reuseSession {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _delegateDispatcher != nil;
   }
 }
 
 - (void)setReuseSession:(BOOL)shouldReuse {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     BOOL wasReusing = (_delegateDispatcher != nil);
     if (shouldReuse != wasReusing) {
       [self abandonDispatcher];
@@ -620,6 +655,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (void)resetSession {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     // The old dispatchers may be retained as delegates of any ongoing sessions by those sessions.
     if (_delegateDispatcher) {
       [self abandonDispatcher];
@@ -632,12 +669,16 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSTimeInterval)unusedSessionTimeout {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _unusedSessionTimeout;
   }
 }
 
 - (void)setUnusedSessionTimeout:(NSTimeInterval)timeout {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _unusedSessionTimeout = timeout;
     _delegateDispatcher.discardInterval = timeout;
   }
@@ -650,36 +691,48 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSDictionary *)runningFetchersByHost {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return [_runningFetchersByHost copy];
   }
 }
 
 - (void)setRunningFetchersByHost:(NSDictionary *)dict {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _runningFetchersByHost = [dict mutableCopy];
   }
 }
 
 - (NSDictionary *)delayedFetchersByHost {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return [_delayedFetchersByHost copy];
   }
 }
 
 - (void)setDelayedFetchersByHost:(NSDictionary *)dict {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _delayedFetchersByHost = [dict mutableCopy];
   }
 }
 
 - (id<GTMFetcherAuthorizationProtocol>)authorizer {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _authorizer;
   }
 }
 
 - (void)setAuthorizer:(id<GTMFetcherAuthorizationProtocol>)obj {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     if (obj != _authorizer) {
       [self detachAuthorizer];
     }
@@ -797,12 +850,16 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (NSInteger)cookieStorageMethod {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _cookieStorageMethod;
   }
 }
 
 - (void)setCookieStorageMethod:(NSInteger)cookieStorageMethod {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _cookieStorageMethod = cookieStorageMethod;
   }
 }
@@ -868,6 +925,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 - (void)discardTimerFired:(NSTimer *)timer {
   GTMSessionFetcherService *service;
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     NSUInteger numberOfTasks = [_taskToFetcherMap count];
     if (numberOfTasks == 0) {
       service = _parentService;
@@ -886,6 +945,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 - (void)abandon {
   dispatch_semaphore_wait(_sessionCreationSemaphore, DISPATCH_TIME_FOREVER);
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     [self destroySessionAndTimer];
   }
   dispatch_semaphore_signal(_sessionCreationSemaphore);
@@ -893,6 +954,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (void)startSessionUsage {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     [self destroyDiscardTimer];
   }
 }
@@ -914,6 +977,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   GTMSESSION_ASSERT_DEBUG(fetcher != nil, @"missing fetcher");
 
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     if (_taskToFetcherMap == nil) {
       _taskToFetcherMap = [[NSMutableDictionary alloc] init];
     }
@@ -927,6 +992,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (void)removeFetcher:(GTMSessionFetcher *)fetcher {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     // Typically, a fetcher should be removed when its task invokes
     // URLSession:task:didCompleteWithError:.
     //
@@ -946,36 +1013,48 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 // methods below.
 - (id)fetcherForTask:(NSURLSessionTask *)task {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return [_taskToFetcherMap objectForKey:task];
   }
 }
 
 - (void)removeTaskFromMap:(NSURLSessionTask *)task {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     [_taskToFetcherMap removeObjectForKey:task];
   }
 }
 
 - (void)setSession:(NSURLSession *)session {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _session = session;
   }
 }
 
 - (NSURLSession *)session {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _session;
   }
 }
 
 - (NSTimeInterval)discardInterval {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     return _discardInterval;
   }
 }
 
 - (void)setDiscardInterval:(NSTimeInterval)interval {
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _discardInterval = interval;
   }
 }
@@ -992,6 +1071,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
                            [self class], self, session, error);
   NSDictionary *localTaskToFetcherMap;
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _session = nil;
 
     localTaskToFetcherMap = [_taskToFetcherMap copy];

@@ -160,16 +160,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         XCTAssertTrue(fetcher.servicePriority <= pendingPriority,
                       @"a pending fetcher has greater priority");
 
-        XCTAssertEqual([service numberOfFetchers],
-                       [running count] + [pending count],
-                       @"fetcher count off");
-        XCTAssertEqual([service numberOfRunningFetchers], [running count], @"running off");
-        XCTAssertEqual([service numberOfDelayedFetchers], [pending count], @"delayed off");
-
-        NSArray *knownToService = [running arrayByAddingObjectsFromArray:pending];
-        NSArray *issuedFetchers = service.issuedFetchers;
-        XCTAssertEqualObjects([NSCountedSet setWithArray:issuedFetchers],
-                              [NSCountedSet setWithArray:knownToService]);
+        XCTAssert([service.issuedFetchers containsObject:fetcher], @"%@", fetcher);
 
         NSArray *matches = [service issuedFetchersWithRequestURL:fetcherReqURL];
         NSUInteger idx = NSNotFound;
@@ -201,22 +192,14 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         NSUInteger numberPending = FetchersPerHost(pending, host);
         NSUInteger numberCompleted = FetchersPerHost(completed, host);
 
-        XCTAssertTrue(numberRunning <= kMaxRunningFetchersPerHost, @"too many running");
-        XCTAssertTrue(numberPending + numberRunning + numberCompleted <= URLsPerHost(urlArray, host),
+        XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost, @"too many running");
+        XCTAssertLessThanOrEqual(numberPending + numberRunning + numberCompleted, URLsPerHost(urlArray, host),
                       @"%d issued running (pending:%u running:%u completed:%u)",
                       (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
                       (unsigned int)numberRunning, (unsigned int)numberCompleted);
 
-        NSArray *knownToService =
-            [[running arrayByAddingObjectsFromArray:pending] arrayByAddingObject:fetcher];
-        NSArray *issuedFetchers = service.issuedFetchers;
-        XCTAssertEqualObjects([NSCountedSet setWithArray:issuedFetchers],
-                              [NSCountedSet setWithArray:knownToService]);
-
-        XCTAssertEqual([service numberOfFetchers], [running count] + [pending count] + 1,
-                       @"fetcher count off");
-        XCTAssertEqual([service numberOfRunningFetchers], [running count] + 1, @"running off");
-        XCTAssertEqual([service numberOfDelayedFetchers], [pending count], @"delayed off");
+        // The stop notification may be posted on the main thread before or after the
+        // fetcher service has been notified the fetcher has stopped.
     }];
     [observers addObject:stopObserver];
 
@@ -249,10 +232,10 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   [service waitForCompletionOfAllFetchersWithTimeout:15];
 
-  XCTAssertEqual([pending count], (NSUInteger)0, @"still pending: %@", pending);
-  XCTAssertEqual([running count], (NSUInteger)0, @"still running: %@", running);
-  XCTAssertEqual([completed count], (NSUInteger)totalNumberOfFetchers, @"incomplete");
-  XCTAssertEqual([fetchersInFlight count], (NSUInteger)0, @"Uncompleted: %@", fetchersInFlight);
+  XCTAssertEqual(pending.count, (NSUInteger)0, @"still pending: %@", pending);
+  XCTAssertEqual(running.count, (NSUInteger)0, @"still running: %@", running);
+  XCTAssertEqual(completed.count, (NSUInteger)totalNumberOfFetchers, @"incomplete");
+  XCTAssertEqual(fetchersInFlight.count, (NSUInteger)0, @"Uncompleted: %@", fetchersInFlight);
 
   XCTAssertEqual([service numberOfFetchers], (NSUInteger)0, @"service non-empty");
 
@@ -576,6 +559,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   };
 
   for (int idx = 1; idx < 5; idx++) {
+    XCTestExpectation *fetcherCompletedExpectation =
+        [self expectationWithDescription:[NSString stringWithFormat:@"fetcher completed %d", idx]];
     NSString *urlStr = [NSString stringWithFormat:@"http://%@/%d", host, idx];
     GTMSessionFetcher *fetcher = [service fetcherWithURLString:urlStr];
 
@@ -594,13 +579,12 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
           XCTAssertEqual(fetcher.statusCode, 500);
           XCTAssertEqualObjects(fetcher.responseHeaders[@"Afghan"], @"Hound");
         }
+        [fetcherCompletedExpectation fulfill];
     }];
   }
 
-  XCTAssertEqual([[service.runningFetchersByHost objectForKey:host] count],
-                 (NSUInteger)4);
-
   [service waitForCompletionOfAllFetchersWithTimeout:10];
+  [self waitForExpectationsWithTimeout:10 handler:nil];
 
   XCTAssertEqual([[service.runningFetchersByHost objectForKey:host] count],
                  (NSUInteger)0);
