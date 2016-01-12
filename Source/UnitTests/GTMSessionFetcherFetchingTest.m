@@ -38,6 +38,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   NSString *docRoot = [self docRootPath];
 
+  // For tests that create fetchers without a fetcher service, _fetcherService will
+  // be set to nil by the test.
+  _fetcherService = [[GTMSessionFetcherService alloc] init];
+
   _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
   _isServerRunning = (_testServer != nil);
   XCTAssertTrue(_isServerRunning,
@@ -47,6 +51,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)tearDown {
   _testServer = nil;
   _isServerRunning = NO;
+
+  [_fetcherService stopAllFetchers];
+  _fetcherService = nil;
 
   [[GTMSessionFetcher staticCookieStorage] removeAllCookies];
 }
@@ -212,6 +219,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTFail(@"redirect not expected");
   };
 
+  __block BOOL wasConfigBlockCalled = NO;
+  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
+                                 NSURLSessionConfiguration *config) {
+    wasConfigBlockCalled = YES;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+    XCTAssertEqual(configFetcher, fetcher);
+#pragma clang diagnostic pop
+  };
+
   NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
@@ -250,11 +267,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
 
+  XCTAssert(wasConfigBlockCalled);
+
   //
   // Repeat the fetch, reusing the session's cookie storage.
   //
   NSURLSessionConfiguration *priorConfig = fetcher.configuration;
-  __block BOOL wasConfigBlockCalled = NO;
+  wasConfigBlockCalled = NO;
 
   fetcher = [self fetcherWithURLString:localURLString];
   fetcher.configuration = priorConfig;
@@ -282,18 +301,29 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 
-  XCTAssert(wasConfigBlockCalled);
+  if (!_fetcherService) {
+    XCTAssert(wasConfigBlockCalled);
+  } else {
+    // Since this fetcher has a reused session from the service, the config block will not
+    // be invoked.
+    XCTAssertFalse(wasConfigBlockCalled);
+  }
 
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 2);
-  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchStarted, 2, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 2, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
-  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0);
-  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetch];
 }
 
 - (void)testAccumulatingFetch {
@@ -325,11 +355,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testAccumulatingFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testAccumulatingFetch];
 }
 
 - (void)testWrongFetch {
@@ -388,11 +423,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 2);
-  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchStarted, 2, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 2, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testWrongFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testWrongFetch];
 }
 
 - (void)testInvalidBodyFile {
@@ -415,9 +455,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 0);
-  XCTAssertEqual(fnctr.fetchStopped, 0);
+  XCTAssertEqual(fnctr.fetchStarted, 0, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 0, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+}
+
+- (void)testInvalidBodyFile_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testInvalidBodyFile];
 }
 
 - (void)testDataBodyFetch {
@@ -446,11 +491,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testDataBodyFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testDataBodyFetch];
 }
 
 - (void)testCallbackQueue {
@@ -511,6 +561,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 }
 
+- (void)testCallbackQueue_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testCallbackQueue];
+}
+
 - (void)testStreamProviderFetch {
   if (!_isServerRunning) return;
 
@@ -542,11 +597,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testStreamProviderFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStreamProviderFetch];
 }
 
 - (void)testHTTPBodyStreamFetch {
@@ -583,11 +643,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testHTTPBodyStreamFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testHTTPBodyStreamFetch];
 }
 
 - (void)testHTTPAuthentication {
@@ -658,17 +723,20 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 3);
-  XCTAssertEqual(fnctr.fetchStopped, 3);
+  XCTAssertEqual(fnctr.fetchStarted, 3, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 3, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 3);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 }
 
+- (void)testHTTPAuthentication_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testHTTPAuthentication];
+}
+
 - (void)testAuthorizerFetch {
   if (!_isServerRunning) return;
-
-  [self createTestFetchersWithFetcherService:YES];
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
@@ -808,11 +876,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 8);
-  XCTAssertEqual(fnctr.fetchStopped, 8);
+  XCTAssertEqual(fnctr.fetchStarted, 8, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 8, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 7);
   XCTAssertEqual(fnctr.retryDelayStarted, 2);
   XCTAssertEqual(fnctr.retryDelayStopped, 2);
+}
+
+- (void)testAuthorizerFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testAuthorizerFetch];
 }
 
 - (void)testRedirectFetch {
@@ -872,11 +945,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testRedirectFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testRedirectFetch];
 }
 
 - (void)testRetryFetches {
@@ -1007,11 +1085,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 11);
-  XCTAssertEqual(fnctr.fetchStopped, 11);
+  XCTAssertEqual(fnctr.fetchStarted, 11, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 11, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 4);
   XCTAssertEqual(fnctr.retryDelayStarted, 7);
   XCTAssertEqual(fnctr.retryDelayStopped, 7);
+}
+
+- (void)testRetryFetches_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testRetryFetches];
 }
 
 - (void)testFetchToFile {
@@ -1067,11 +1150,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self removeTemporaryFileURL:destFileURL];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testFetchToFile_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetchToFile];
 }
 
 - (void)testFetchDataSchemeToFile {
@@ -1105,11 +1193,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self removeTemporaryFileURL:destFileURL];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testFetchDataSchemeToFile_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetchDataSchemeToFile];
 }
 
 - (void)testUnsuccessfulFetchToFile {
@@ -1168,11 +1261,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertFalse([destFileURL checkResourceIsReachableAndReturnError:NULL]);
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testUnsuccessfulFetchToFile_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testUnsuccessfulFetchToFile];
 }
 
 - (void)testQuickBeginStopFetching {
@@ -1190,9 +1288,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [fetcher stopFetching];
     XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   }
-  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount);
-  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount);
+  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
+}
+
+- (void)testQuickBeginStopFetching_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testQuickBeginStopFetching];
 }
 
 - (void)testCancelAndResumeFetchToFile {
@@ -1279,11 +1382,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self removeTemporaryFileURL:destFileURL];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 2);
-  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchStarted, 2, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 2, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testCancelAndResumeFetchToFile_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testCancelAndResumeFetchToFile];
 }
 
 - (void)testInsecureRequests {
@@ -1346,6 +1454,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
 }
 
+- (void)testInsecureRequests_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testInsecureRequests];
+}
+
 #pragma mark - TestBlock Tests
 
 - (void)testFetcherTestBlock {
@@ -1385,11 +1498,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
 
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
+}
+
+- (void)testFetcherTestBlock_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetcherTestBlock];
 }
 
 - (void)testFetcherTestBlockFailsWithRetries {
@@ -1445,11 +1563,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(numberOfRetryBlockInvokes, 3);
   [self assertCallbacksReleasedForFetcher:fetcher];
 
-  XCTAssertEqual(fnctr.fetchStarted, 3);
-  XCTAssertEqual(fnctr.fetchStopped, 3);
+  XCTAssertEqual(fnctr.fetchStarted, 4, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 4, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 3);
   XCTAssertEqual(fnctr.retryDelayStopped, 3);
+}
+
+- (void)testFetcherTestBlockFailsWithRetries_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetcherTestBlockFailsWithRetries];
 }
 
 - (void)testFetcherTestBlockSimulateDataCallbacks {
@@ -1651,6 +1774,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 }
 
+- (void)testFetcherTestBlockSimulateDataCallbacks_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetcherTestBlockSimulateDataCallbacks];
+}
+
 - (void)testFetcherGlobalTestBlock {
   if (!_isServerRunning) return;
 
@@ -1709,8 +1837,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
 
-  XCTAssertEqual(fnctr.fetchStarted, 2);
-  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchStarted, 2, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 2, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
@@ -1718,18 +1846,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [GTMSessionFetcher setGlobalTestBlock:nil];
 }
 
-#pragma mark - Utilities
-
-// Utility method for making a fetcher to test.
-- (void)createTestFetchersWithFetcherService:(BOOL)shouldUseFetcherService {
-  if (shouldUseFetcherService) {
-    _fetcherService = [[GTMSessionFetcherService alloc] init];
-  } else {
-    _fetcherService = nil;
-  }
+- (void)testFetcherGlobalTestBlock_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testFetcherGlobalTestBlock];
 }
 
+#pragma mark - Utilities
+
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
+  NSInvocation *currentTestInvocation = self.invocation;
+  NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
+
   NSURLRequest *request = [self requestWithURLString:urlString];
   GTMSessionFetcher *fetcher;
   if (_fetcherService) {
@@ -1740,6 +1867,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNotNil(fetcher);
   fetcher.allowLocalhostRequest = YES;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
+  fetcher.comment = testCaseName;
   return fetcher;
 }
 
@@ -1865,6 +1993,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     _uploadChunkCommands = [[NSMutableArray alloc] init];
     _uploadChunkOffsets = [[NSMutableArray alloc] init];
     _uploadChunkLengths = [[NSMutableArray alloc] init];
+    _fetchersStartedDescriptions = [[NSMutableArray alloc] init];
+    _fetchersStoppedDescriptions = [[NSMutableArray alloc] init];
 
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self
@@ -1907,6 +2037,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   return isTooOld;
 }
 
+- (NSString *)descriptionForFetcher:(GTMSessionFetcher *)fetcher {
+  NSString *description = [NSString stringWithFormat:@"fetcher %p %@ %@",
+                           fetcher,
+                           fetcher.comment ?: @"<no comment>",
+                           fetcher.mutableRequest.URL.absoluteString];
+  if (fetcher.retryCount > 0) {
+    description = [description stringByAppendingFormat:@" retry %tu", fetcher.retryCount];
+  }
+  return description;
+}
+
 - (void)fetchStateChanged:(NSNotification *)note {
   if ([self shouldIgnoreNotification:note]) return;
 
@@ -1916,6 +2057,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   if (isFetchStartedNotification) {
     ++_fetchStarted;
+    [_fetchersStartedDescriptions addObject:[self descriptionForFetcher:fetcher]];
 
     if (isUploadChunkFetcher) {
       ++_uploadChunkFetchStarted;
@@ -1932,6 +2074,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     }
   } else {
     ++_fetchStopped;
+    [_fetchersStoppedDescriptions addObject:[self descriptionForFetcher:fetcher]];
 
     if (isUploadChunkFetcher) {
       ++_uploadChunkFetchStopped;

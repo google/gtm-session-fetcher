@@ -1047,7 +1047,7 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
   [queue addOperationWithBlock:^{
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
-    NSInteger status = error ? [error code] : 200;
+    NSInteger status = error ? error.code : 200;
     [self shouldRetryNowForStatus:status error:error response:^(BOOL shouldRetry) {
         [self finishWithError:error shouldRetry:shouldRetry];
     }];
@@ -2405,6 +2405,13 @@ didCompleteWithError:(NSError *)error {
   BOOL succeeded = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+
+#if !GTM_DISABLE_FETCHER_TEST_BLOCK
+    // The task is never resumed when a testBlock is used. When the session is destroyed,
+    // we should ignore the callback, since the testBlock support code itself invokes
+    // shouldRetryNowForStatus: and finishWithError:shouldRetry:
+    if (_isUsingTestBlock) return;
+#endif
 
     if (error == nil) {
       error = _downloadFinishedError;

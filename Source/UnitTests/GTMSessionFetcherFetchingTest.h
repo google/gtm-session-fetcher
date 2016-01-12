@@ -90,5 +90,8 @@ extern NSString *const kGTMGettysburgFileName;
 @property(nonatomic) NSMutableArray *uploadChunkOffsets; // of NSUInteger
 @property(nonatomic) NSMutableArray *uploadChunkLengths; // of NSUInteger
 
+@property(nonatomic) NSMutableArray *fetchersStartedDescriptions; // of NSString
+@property(nonatomic) NSMutableArray *fetchersStoppedDescriptions; // of NSString
+
 @end
 
