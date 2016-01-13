@@ -2066,6 +2066,8 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
         if (!afterStopped) {
+          NSDate *serviceStoppedAllDate = [_service stoppedAllFetchersDate];
+
           @synchronized(self) {
             GTMSessionMonitorSynchronized(self);
 
@@ -2079,7 +2081,6 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             // stopAllFetchers was invoked, so _userStoppedFetching wasn't set,
             // but the app still won't expect the callback to fire after
             // the service's stopAllFetchers was invoked.
-            NSDate *serviceStoppedAllDate = [_service stoppedAllFetchersDate];
             if (serviceStoppedAllDate
                 && [_initialBeginFetchDate compare:serviceStoppedAllDate] != NSOrderedDescending) {
               // stopAllFetchers was called after this fetcher began.
@@ -3022,6 +3023,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             sessionTask = _sessionTask,
             sessionUserInfo = _sessionUserInfo,
             taskDescription = _taskDescription,
+            taskPriority = _taskPriority,
             useBackgroundSession = _useBackgroundSession,
             canShareSession = _canShareSession,
             completionHandler = _completionHandler,
