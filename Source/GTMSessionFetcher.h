@@ -456,6 +456,8 @@ extern "C" {
 @class GTMSessionCookieStorage;
 @class GTMSessionFetcher;
 
+// The configuration block is for modifying the NSURLSessionConfiguration only.
+// DO NOT change any fetcher properties in the configuration block.
 typedef void (^GTMSessionFetcherConfigurationBlock)(GTMSessionFetcher *fetcher,
                                                     NSURLSessionConfiguration *configuration);
 typedef void (^GTMSessionFetcherSystemCompletionHandler)(void);
@@ -672,6 +674,11 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 // This is called synchronously, either on the thread that begins the fetch or, during a retry,
 // on the main thread. The configuration block may be called repeatedly if multiple fetchers are
 // created.
+//
+// The configuration block is for modifying the NSURLSessionConfiguration only.
+// DO NOT change any fetcher properties in the configuration block. Fetcher properties
+// may be set in the fetcher service prior to fetcher creation, or on the fetcher prior
+// to invoking beginFetch.
 @property(copy, GTM_NULLABLE) GTMSessionFetcherConfigurationBlock configurationBlock;
 
 // A session is created as needed by the fetcher.  A fetcher service object
