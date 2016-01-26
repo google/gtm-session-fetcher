@@ -1591,10 +1591,10 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
   BOOL hasCanceledTask = NO;
 
+  [holdSelf destroyRetryTimer];
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-
-    [holdSelf destroyRetryTimer];
 
     service = _service;
 
@@ -2149,6 +2149,11 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
 
   if ([NSThread isMainThread] && !requireAsync) {
     // Post synchronously for compatibility with older code using the fetcher.
+
+    // Avoid calling out to other code from inside a sync block to avoid risk
+    // of a deadlock or of recursive sync.
+    GTMSessionCheckNotSynchronized(self);
+
     postBlock();
   } else {
     dispatch_async(dispatch_get_main_queue(), postBlock);
@@ -2805,14 +2810,14 @@ didCompleteWithError:(NSError *)error {
     return;
   }
 
+  [self destroyRetryTimer];
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     NSTimeInterval nextInterval = [self nextRetryIntervalUnsynchronized];
     NSTimeInterval maxInterval = _maxRetryInterval;
     NSTimeInterval newInterval = MIN(nextInterval, (maxInterval > 0 ? maxInterval : DBL_MAX));
-
-    [self destroyRetryTimer];
 
     _lastRetryInterval = newInterval;
 
@@ -2831,10 +2836,11 @@ didCompleteWithError:(NSError *)error {
 }
 
 - (void)retryTimerFired:(NSTimer *)timer {
+  [self destroyRetryTimer];
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    [self destroyRetryTimer];
     _retryCount++;
   }  // @synchronized(self)
 
@@ -2845,14 +2851,16 @@ didCompleteWithError:(NSError *)error {
 }
 
 - (void)destroyRetryTimer {
-  GTMSessionCheckSynchronized(self);
-
   BOOL shouldNotify = NO;
 
-  if (_retryTimer) {
-    [_retryTimer invalidate];
-    _retryTimer = nil;
-    shouldNotify = YES;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (_retryTimer) {
+      [_retryTimer invalidate];
+      _retryTimer = nil;
+      shouldNotify = YES;
+    }
   }
 
   if (shouldNotify) {
