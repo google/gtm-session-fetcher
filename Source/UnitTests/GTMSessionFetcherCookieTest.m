@@ -45,7 +45,7 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   NSURL *subdomainURL = [NSURL URLWithString:@"http://frogbreath.example.com"];
 
   NSArray *foundCookies = [cookieStorage cookiesForURL:fullURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger) 0);
+  XCTAssertEqual(foundCookies.count, (NSUInteger) 0);
 
   // Make two unique cookies
   NSHTTPCookie *testCookie1 =
@@ -70,18 +70,18 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   [cookieStorage setCookies:@[ testCookie1, testCookie2 ]];
 
   foundCookies = [cookieStorage cookiesForURL:fullURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)2);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)2);
 
   foundCookies = [cookieStorage cookiesForURL:subdomainURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)1);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)1);
 
   // Store expiring cookie 2a, replacing cookie 2.
   [cookieStorage setCookies:@[ testCookie2a ]];
 
   foundCookies = [cookieStorage cookiesForURL:subdomainURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)1);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)1);
 
-  NSHTTPCookie *foundCookie = [foundCookies firstObject];
+  NSHTTPCookie *foundCookie = foundCookies.firstObject;
   XCTAssertEqualObjects([foundCookie value], [testCookie2a value]);
 
   // Wait for cookie 2a to expire, then remove expired cookies.
@@ -89,15 +89,15 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   [cookieStorage setCookies:nil];  // no-op but invokes removeExpiredCookies
 
   foundCookies = [cookieStorage cookiesForURL:subdomainURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)0);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)0);
 
   foundCookies = [cookieStorage cookiesForURL:fullURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)1);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)1);
 
   // Remove all cookies.
   [cookieStorage removeAllCookies];
   foundCookies = [cookieStorage cookiesForURL:fullURL];
-  XCTAssertEqual([foundCookies count], (NSUInteger)0);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)0);
 }
 
 - (void)testStrictCookieDomain {

@@ -230,7 +230,7 @@
 //
 //  myFetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
 //                           GTMSessionFetcherRetryResponse response) {
-//    // Perhaps examine [error domain] and [error code], or [fetcher retryCount]
+//    // Perhaps examine error.domain and error.code, or fetcher.retryCount
 //    //
 //    // Respond with YES to start the retry timer, NO to proceed to the failure
 //    // callback, or suggestedWillRetry to get default behavior for the

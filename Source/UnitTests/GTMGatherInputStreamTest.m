@@ -62,7 +62,7 @@
 
   XCTAssertEqualObjects(readString, expectedResultString, @"bad read (%@)", testMethod);
 
-  NSInteger expectedLength = [expectedResultString length];
+  NSInteger expectedLength = (NSInteger)expectedResultString.length;
   XCTAssertEqual(bytesRead, expectedLength, @"bad read length (%@)", testMethod);
 }
 

@@ -101,10 +101,10 @@
   NSUInteger bytesRemaining = len;
 
   // Read bytes from the currently-indexed array.
-  while ((bytesRemaining > 0) && (_arrayIndex < [_dataArray count])) {
+  while ((bytesRemaining > 0) && (_arrayIndex < _dataArray.count)) {
     NSData *data = [_dataArray objectAtIndex:_arrayIndex];
 
-    NSUInteger dataLen = [data length];
+    NSUInteger dataLen = data.length;
     NSUInteger dataBytesLeft = dataLen - (NSUInteger)_dataOffset;
 
     NSUInteger bytesToCopy = MIN(bytesRemaining, dataBytesLeft);
@@ -121,7 +121,7 @@
       _arrayIndex++;
     }
   }
-  if (_arrayIndex >= [_dataArray count]) {
+  if (_arrayIndex >= _dataArray.count) {
     _streamStatus = NSStreamStatusAtEnd;
   }
   return bytesRead;
@@ -153,7 +153,7 @@
     if (index >= _arrayIndex) {
       break;
     }
-    absoluteOffset += [data length];
+    absoluteOffset += data.length;
     ++index;
   }
   absoluteOffset += _dataOffset;
@@ -167,14 +167,14 @@
   _arrayIndex = 0;
   _dataOffset = absoluteOffset;
   for (NSData *data in _dataArray) {
-    long long dataLen = (long long) [data length];
+    long long dataLen = (long long) data.length;
     if (dataLen > _dataOffset) {
       break;
     }
     _arrayIndex++;
     _dataOffset -= dataLen;
   }
-  if (_arrayIndex == [_dataArray count]) {
+  if (_arrayIndex == _dataArray.count) {
     if (_dataOffset > 0) {
       _dataOffset = 0;
     }

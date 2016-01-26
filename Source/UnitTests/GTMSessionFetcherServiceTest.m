@@ -66,7 +66,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSUInteger (^URLsPerHost)(NSArray *, NSString *) = ^(NSArray *URLs, NSString *host) {
       NSUInteger counter = 0;
       for (NSURL *url in URLs) {
-        if ([host isEqual:[url host]]) {
+        if ([host isEqual:url.host]) {
           counter++;
         }
       }
@@ -82,7 +82,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSInteger (^PriorityPerHost) (NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
       NSInteger val = NSIntegerMax;
       for (GTMSessionFetcher *fetcher in fetchers) {
-        if ([host isEqual:[[fetcher.mutableRequest URL] host]]) {
+        if ([host isEqual:fetcher.mutableRequest.URL.host]) {
           val = MIN(val, fetcher.servicePriority);
         }
       }
@@ -113,9 +113,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   NSURL *altValidURL = [_testServer localv6URLForFile:invalidFile];
 
-  XCTAssertEqualObjects([validFileURL host], @"localhost", @"unexpected host");
-  XCTAssertEqualObjects([invalidFileURL host], @"localhost", @"unexpected host");
-  XCTAssertEqualObjects([altValidURL host], @"::1", @"unexpected host");
+  XCTAssertEqualObjects(validFileURL.host, @"localhost", @"unexpected host");
+  XCTAssertEqualObjects(invalidFileURL.host, @"localhost", @"unexpected host");
+  XCTAssertEqualObjects(altValidURL.host, @"::1", @"unexpected host");
 
   // Make an array with the urls from the different hosts, including one
   // that will fail with a status 400 error.
@@ -125,13 +125,13 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:altValidURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
-  NSUInteger totalNumberOfFetchers = [urlArray count];
+  NSUInteger totalNumberOfFetchers = urlArray.count;
 
   __block NSMutableArray *pending = [NSMutableArray array];
   __block NSMutableArray *running = [NSMutableArray array];
   __block NSMutableArray *completed = [NSMutableArray array];
 
-  NSUInteger priorityVal = 0;
+  NSInteger priorityVal = 0;
 
   // Create all the fetchers.
   NSMutableArray *fetchersInFlight = [NSMutableArray array];
@@ -149,9 +149,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [running addObject:fetcher];
         [pending removeObject:fetcher];
 
-        NSMutableURLRequest *fetcherReq = [fetcher mutableRequest];
-        NSURL *fetcherReqURL = [fetcherReq URL];
-        NSString *host = [fetcherReqURL host];
+        NSMutableURLRequest *fetcherReq = fetcher.mutableRequest;
+        NSURL *fetcherReqURL = fetcherReq.URL;
+        NSString *host = fetcherReqURL.host;
         NSUInteger numberRunning = FetchersPerHost(running, host);
         XCTAssertTrue(numberRunning > 0, @"count error");
         XCTAssertTrue(numberRunning <= kMaxRunningFetchersPerHost, @"too many running");
@@ -170,7 +170,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         XCTAssertTrue(idx != NSNotFound, @"Missing %@ in %@", fetcherReqURL, matches);
         NSURL *fakeURL = [NSURL URLWithString:@"http://example.com/bad"];
         matches = [service issuedFetchersWithRequestURL:fakeURL];
-        XCTAssertEqual([matches count], (NSUInteger)0);
+        XCTAssertEqual(matches.count, (NSUInteger)0);
 
         NSString *agent = [fetcherReq valueForHTTPHeaderField:@"User-Agent"];
         XCTAssertEqualObjects(agent, kUserAgent);
@@ -186,7 +186,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [completed addObject:fetcher];
         [running removeObject:fetcher];
 
-        NSString *host = [[[fetcher mutableRequest] URL] host];
+        NSString *host = fetcher.mutableRequest.URL.host;
 
         NSUInteger numberRunning = FetchersPerHost(running, host);
         NSUInteger numberPending = FetchersPerHost(pending, host);
@@ -218,14 +218,14 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [fetchersInFlight removeObjectIdenticalTo:fetcher];
 
         // The query should be empty except for the URL with a status code.
-        NSString *query = [[[fetcher mutableRequest] URL] query];
-        BOOL isValidRequest = ([query length] == 0);
+        NSString *query = [fetcher.mutableRequest.URL query];
+        BOOL isValidRequest = (query.length == 0);
         if (isValidRequest) {
           XCTAssertEqualObjects(fetchData, gettysburgAddress, @"Bad fetch data");
-          XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, [fetchError userInfo]);
+          XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, fetchError.userInfo);
         } else {
           // This is the query with ?status=400.
-          XCTAssertEqual([fetchError code], (NSInteger)400, @"expected error");
+          XCTAssertEqual(fetchError.code, (NSInteger)400, @"expected error");
         }
     }];
   }
@@ -271,22 +271,22 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }
 
   // Two hosts.
-  XCTAssertEqual([service.runningFetchersByHost count], (NSUInteger)2, @"hosts running");
-  XCTAssertEqual([service.delayedFetchersByHost count], (NSUInteger)2, @"hosts delayed");
+  XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)2, @"hosts running");
+  XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)2, @"hosts delayed");
 
   // We should see two fetchers running and one delayed for each host.
   NSArray *localhosts = [service.runningFetchersByHost objectForKey:@"localhost"];
-  XCTAssertEqual([localhosts count], (NSUInteger)2, @"hosts running");
+  XCTAssertEqual(localhosts.count, (NSUInteger)2, @"hosts running");
 
   localhosts = [service.delayedFetchersByHost objectForKey:@"localhost"];
-  XCTAssertEqual([localhosts count], (NSUInteger)1, @"hosts delayed");
+  XCTAssertEqual(localhosts.count, (NSUInteger)1, @"hosts delayed");
 
   XCTAssertNil(service.stoppedAllFetchersDate);
 
   [service stopAllFetchers];
 
-  XCTAssertEqual([service.runningFetchersByHost count], (NSUInteger)0, @"hosts running");
-  XCTAssertEqual([service.delayedFetchersByHost count], (NSUInteger)0, @"hosts delayed");
+  XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)0, @"hosts running");
+  XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)0, @"hosts delayed");
   XCTAssertNotNil(service.stoppedAllFetchersDate);
 }
 
@@ -325,9 +325,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
 
   // We should have one unique session per fetcher.
-  XCTAssertEqual(completedFetchCounter, [urlArray count]);
-  XCTAssertEqual([uniqueTasks count], [urlArray count]);
-  XCTAssertEqual([uniqueSessions count], [urlArray count], @"%@", uniqueSessions);
+  XCTAssertEqual(completedFetchCounter, urlArray.count);
+  XCTAssertEqual(uniqueTasks.count, urlArray.count);
+  XCTAssertEqual(uniqueSessions.count, urlArray.count, @"%@", uniqueSessions);
   XCTAssertNil([service session]);
   XCTAssertNil([service sessionDelegate]);
 
@@ -359,9 +359,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
 
   // We should have used two sessions total.
-  XCTAssertEqual(completedFetchCounter, [urlArray count]);
-  XCTAssertEqual([uniqueTasks count], [urlArray count]);
-  XCTAssertEqual([uniqueSessions count], (NSUInteger)1, @"%@", uniqueSessions);
+  XCTAssertEqual(completedFetchCounter, urlArray.count);
+  XCTAssertEqual(uniqueTasks.count, urlArray.count);
+  XCTAssertEqual(uniqueSessions.count, (NSUInteger)1, @"%@", uniqueSessions);
 
   // Inside the delegate dispatcher, there should be an empty map of tasks to fetchers.
   taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
@@ -436,7 +436,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
 
   // Here we verify that all fetchers were called back.
-  XCTAssertEqual(numberOfCallsBack, (int)[urlArray count]);
+  XCTAssertEqual(numberOfCallsBack, (int)urlArray.count);
 
   // On some builds (Mac/iOS and certain machines), all are succeeding; on some,
   // one finishes with an error, apparently a task ending up suspended when we
@@ -467,8 +467,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // failing to keep up.
   NSMutableIndexSet *overloadIndexes = [NSMutableIndexSet indexSet];
 
-  for (int index = 0; index < kNumberOfFetchersToCreate; index++) {
-    NSString *desc = [NSString stringWithFormat:@"Fetcher %d", index];
+  for (NSUInteger index = 0; index < kNumberOfFetchersToCreate; index++) {
+    NSString *desc = [NSString stringWithFormat:@"Fetcher %tu", index];
     XCTestExpectation *expectation = [self expectationWithDescription:desc];
 
     dispatch_queue_t queue = queues[index % queues.count];
@@ -492,11 +492,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
               dispatch_queue_get_label(queues[(index / 3) % queues.count]);
           const char *actualQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL);
           XCTAssert(strcmp(actualQueueLabel, expectedQueueLabel) == 0,
-                    @"queue mismatch on index %d: %s (expected %s)",
+                    @"queue mismatch on index %tu: %s (expected %s)",
                     index, actualQueueLabel, expectedQueueLabel);
 
-          XCTAssertNotNil(fetchData, @"index %d", index);
-          XCTAssertNil(fetchError, @"index %d", index);
+          XCTAssertNotNil(fetchData, @"index %tu", index);
+          XCTAssertNil(fetchError, @"index %tu", index);
         }
       }];
     });
@@ -586,7 +586,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [service waitForCompletionOfAllFetchersWithTimeout:10];
   [self waitForExpectationsWithTimeout:10 handler:nil];
 
-  XCTAssertEqual([[service.runningFetchersByHost objectForKey:host] count],
+  XCTAssertEqual([service.runningFetchersByHost objectForKey:host].count,
                  (NSUInteger)0);
 }
 

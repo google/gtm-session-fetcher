@@ -42,6 +42,13 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
                             const unsigned char *haystack, NSUInteger haystackLen,
                             NSUInteger *foundOffset);
 
+// SearchDataForBytes
+//
+// This implements the functionality of the +searchData: methods below. See the documentation
+// for those methods.
+static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger targetLength,
+                               NSMutableArray *foundOffsets, NSMutableArray *foundBlockNumbers);
+
 @implementation GTMMIMEDocumentPart {
   NSDictionary *_headers;
   NSData *_headerData;  // Header content including the ending "\r\n".
@@ -85,7 +92,7 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 }
 
 - (NSUInteger)length {
-  return [_headerData length] + [_bodyData length];
+  return _headerData.length + _bodyData.length;
 }
 
 - (NSString *)description {
@@ -127,7 +134,7 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 
 - (NSString *)description {
   return [NSString stringWithFormat:@"%@ %p (%tu parts)",
-          [self class], self, [_parts count]];
+          [self class], self, _parts.count];
 }
 
 #pragma mark - Joining Parts
@@ -176,8 +183,8 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
   for (int tries = 0; tries < maxTries; ++tries) {
 
     NSData *data = [_boundary dataUsingEncoding:NSUTF8StringEncoding];
-    const void *dataBytes = [data bytes];
-    NSUInteger dataLen = [data length];
+    const void *dataBytes = data.bytes;
+    NSUInteger dataLen = data.length;
 
     for (GTMMIMEDocumentPart *part in _parts) {
       didCollide = [part containsBytes:dataBytes length:dataLen];
@@ -229,14 +236,14 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 
   for (GTMMIMEDocumentPart *part in _parts) {
     [dataArray addObject:mainBoundaryData];
-    [dataArray addObject:[part headerData]];
-    [dataArray addObject:[part body]];
+    [dataArray addObject:part.headerData];
+    [dataArray addObject:part.body];
 
-    length += [part length] + [mainBoundaryData length];
+    length += part.length + mainBoundaryData.length;
   }
 
   [dataArray addObject:endBoundaryData];
-  length += [endBoundaryData length];
+  length += endBoundaryData.length;
 
   if (outLength)   *outLength = length;
   if (outBoundary) *outBoundary = boundary;
@@ -298,7 +305,7 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 
   // Sort the header keys so we have a deterministic order for unit testing.
   SEL sortSel = @selector(caseInsensitiveCompare:);
-  NSArray *sortedKeys = [[headers allKeys] sortedArrayUsingSelector:sortSel];
+  NSArray *sortedKeys = [headers.allKeys sortedArrayUsingSelector:sortSel];
 
   for (NSString *key in sortedKeys) {
     NSString *value = [headers objectForKey:key];
@@ -373,7 +380,8 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
       //
       // The last four bytes before a boundary are CRLF--.
       // The first two bytes following a boundary are either CRLF or, for the last boundary, --.
-      NSInteger previousPartDataStartOffset = previousBoundaryOffset + boundaryLength + 2;
+      NSInteger previousPartDataStartOffset =
+          previousBoundaryOffset + (NSInteger)boundaryLength + 2;
       NSInteger previousPartDataEndOffset = currentBoundaryOffset.integerValue - 4;
       NSInteger previousPartDataLength = previousPartDataEndOffset - previousPartDataStartOffset;
 
@@ -387,7 +395,7 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 
         dispatch_data_t partData =
             dispatch_data_create_subrange(dataWrapper,
-                                          previousPartDataStartOffset, previousPartDataLength);
+                (size_t)previousPartDataStartOffset, (size_t)previousPartDataLength);
         // Scan the part data for the separator between headers and body. After the CRLF,
         // either the headers start immediately, or there's another CRLF and there are no headers.
         //
@@ -407,7 +415,7 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
 
         if (hasAnotherCRLF) {
           // There are no headers; skip the CRLF to get to the body, and leave headers nil.
-          bodyData = dispatch_data_create_subrange(partData, 2, previousPartDataLength - 2);
+          bodyData = dispatch_data_create_subrange(partData, 2, (size_t)previousPartDataLength - 2);
         } else {
           // There are part headers. They are separated from body data by CRLFCRLF.
           NSArray *crlfOffsets;
@@ -424,11 +432,11 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
           } else {
             NSInteger headerSeparatorOffset = ((NSNumber *)crlfOffsets.firstObject).integerValue;
             dispatch_data_t headerData =
-                dispatch_data_create_subrange(partData, 0, headerSeparatorOffset);
+                dispatch_data_create_subrange(partData, 0, (size_t)headerSeparatorOffset);
             headers = [self headersWithData:(NSData *)headerData];
 
-            bodyData = dispatch_data_create_subrange(partData, headerSeparatorOffset + 4,
-                previousPartDataLength - (headerSeparatorOffset + 4));
+            bodyData = dispatch_data_create_subrange(partData, (size_t)headerSeparatorOffset + 4,
+                (size_t)(previousPartDataLength - (headerSeparatorOffset + 4)));
           }  // crlfOffsets.count == 0
         }  // hasAnotherCRLF
         GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
@@ -473,8 +481,8 @@ static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
   *outFoundBlockNumbers = foundBlockNumbers;
 }
 
-void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger targetLength,
-                        NSMutableArray *foundOffsets, NSMutableArray *foundBlockNumbers) {
+static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger targetLength,
+                               NSMutableArray *foundOffsets, NSMutableArray *foundBlockNumbers) {
   __block NSUInteger priorPartialMatchAmount = 0;
   __block NSInteger priorPartialMatchStartingBlockNumber = -1;
   __block NSInteger blockNumber = -1;
@@ -484,7 +492,7 @@ void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger target
                                         BOOL *stop) {
     // Search for the first character in the current range.
     const void *ptr = bytes;
-    NSInteger remainingInCurrentRange = byteRange.length;
+    NSInteger remainingInCurrentRange = (NSInteger)byteRange.length;
     ++blockNumber;
 
     if (priorPartialMatchAmount > 0) {
@@ -492,7 +500,7 @@ void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger target
       NSUInteger remainingFoundOffset;
       NSUInteger amountMatched = FindBytes(targetBytes + priorPartialMatchAmount,
                                            amountRemainingToBeMatched,
-                                           ptr, remainingInCurrentRange, &remainingFoundOffset);
+                                           ptr, (NSUInteger)remainingInCurrentRange, &remainingFoundOffset);
       if (amountMatched == 0 || remainingFoundOffset > 0) {
         // No match of the rest of the prior partial match in this range.
       } else if (amountMatched < amountRemainingToBeMatched) {
@@ -511,8 +519,8 @@ void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger target
 
     while (remainingInCurrentRange > 0) {
       NSUInteger offsetFromPtr;
-      NSUInteger amountMatched = FindBytes(targetBytes, targetLength,
-                                           ptr, remainingInCurrentRange, &offsetFromPtr);
+      NSUInteger amountMatched = FindBytes(targetBytes, targetLength, ptr,
+                                           (NSUInteger)remainingInCurrentRange, &offsetFromPtr);
       if (amountMatched == 0) {
         // No match in this range.
         return;
@@ -524,7 +532,7 @@ void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger target
         return;
       }
       // Found the full target.
-      NSUInteger globalOffset = byteRange.location + (ptr - bytes) + offsetFromPtr;
+      NSUInteger globalOffset = byteRange.location + (NSUInteger)(ptr - bytes) + offsetFromPtr;
 
       [foundOffsets addObject:@(globalOffset)];
       [foundBlockNumbers addObject:@(blockNumber)];
@@ -575,14 +583,14 @@ static NSUInteger FindBytes(const unsigned char* needle, NSUInteger needleLen,
                             const unsigned char* haystack, NSUInteger haystackLen,
                             NSUInteger *foundOffset) {
   const unsigned char *ptr = haystack;
-  NSInteger remain = haystackLen;
+  NSInteger remain = (NSInteger)haystackLen;
   // Assume memchr is an efficient way to find a match for the first
   // byte of the needle, and memcmp is an efficient way to compare a
   // range of bytes.
-  while (remain > 0 && (ptr = memchr(ptr, needle[0], remain)) != 0) {
+  while (remain > 0 && (ptr = memchr(ptr, needle[0], (size_t)remain)) != 0) {
     // The first character is present.
     NSUInteger offset = (NSUInteger)(ptr - haystack);
-    remain = haystackLen - offset;
+    remain = (NSInteger)(haystackLen - offset);
 
     NSUInteger amountToCompare = MIN((NSUInteger)remain, needleLen);
     if (memcmp(ptr, needle, amountToCompare) == 0) {

@@ -290,9 +290,9 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     _request = [request mutableCopy];
     _configuration = configuration;
 
-    NSData *bodyData = [request HTTPBody];
+    NSData *bodyData = request.HTTPBody;
     if (bodyData) {
-      _bodyLength = (int64_t)[bodyData length];
+      _bodyLength = (int64_t)bodyData.length;
     } else {
       _bodyLength = NSURLSessionTransferSizeUnknown;
     }
@@ -337,7 +337,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 - (void)dealloc {
   GTMSESSION_ASSERT_DEBUG(!_isStopNotificationNeeded,
-                          @"unbalanced fetcher notification for %@", [_request URL]);
+                          @"unbalanced fetcher notification for %@", _request.URL);
   [self forgetSessionIdentifierForFetcherWithoutSyncCheck];
 
   // Note: if a session task or a retry timer was pending, then this instance
@@ -476,7 +476,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         requestScheme != nil && [requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame;
     if (!isSecure) {
       BOOL allowRequest = NO;
-      NSString *host = [fetchRequestURL host];
+      NSString *host = fetchRequestURL.host;
 
       // Check schemes first.  A file scheme request may be allowed here, or as a localhost request.
       for (NSString *allowedScheme in _allowedInsecureSchemes) {
@@ -614,7 +614,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     // after the task has completed, but before the system relaunches us in the background.
     [self.session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks,
                                                   NSArray *downloadTasks) {
-      if ([dataTasks count] == 0 && [uploadTasks count] == 0 && [downloadTasks count] == 0) {
+      if (dataTasks.count == 0 && uploadTasks.count == 0 && downloadTasks.count == 0) {
         double const kDelayInSeconds = 1.0;  // We should get progress indication or completion soon
         dispatch_time_t checkForFeedbackDelay =
             dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kDelayInSeconds * NSEC_PER_SEC));
@@ -656,7 +656,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
   NSString *effectiveHTTPMethod = [fetchRequest valueForHTTPHeaderField:@"X-HTTP-Method-Override"];
   if (effectiveHTTPMethod == nil) {
-    effectiveHTTPMethod = [fetchRequest HTTPMethod];
+    effectiveHTTPMethod = fetchRequest.HTTPMethod;
   }
   BOOL isEffectiveHTTPGet = (effectiveHTTPMethod == nil
                              || [effectiveHTTPMethod isEqual:@"GET"]);
@@ -718,7 +718,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     newSessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
         @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
-        _session, [_downloadResumeData length]);
+        _session, _downloadResumeData.length);
   } else if (_destinationFileURL && !isDataRequest) {
     newSessionTask = [_session downloadTaskWithRequest:fetchRequest];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask, @"Failed downloadTaskWithRequest for %@, %@",
@@ -729,7 +729,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                                             fromFile:(NSURL * GTM_NONNULL_TYPE)_bodyFileURL];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
                                      @"Failed uploadTaskWithRequest for %@, %@, file %@",
-                                     _session, fetchRequest, [_bodyFileURL path]);
+                                     _session, fetchRequest, _bodyFileURL.path);
     } else if (_bodyStreamProvider) {
       newSessionTask = [_session uploadTaskWithStreamedRequest:fetchRequest];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
@@ -742,7 +742,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                                             fromData:(NSData * GTM_NONNULL_TYPE)_bodyData];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
           @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
-          _session, fetchRequest, [_bodyData length]);
+          _session, fetchRequest, _bodyData.length);
     }
     needsDataAccumulator = YES;
   } else {
@@ -983,7 +983,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
     // Simulate reporting send progress.
     if (_sendProgressBlock) {
-      [self simulateByteTransferReportWithDataLength:(int64_t)[bodyData length]
+      [self simulateByteTransferReportWithDataLength:(int64_t)bodyData.length
                                                block:^(int64_t bytesSent,
                                                        int64_t totalBytesSent,
                                                        int64_t totalBytesExpectedToSend) {
@@ -995,7 +995,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     if (_destinationFileURL) {
       // Simulate download to file progress.
       if (_downloadProgressBlock) {
-        [self simulateByteTransferReportWithDataLength:(int64_t)[responseData length]
+        [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
                                                  block:^(int64_t bytesDownloaded,
                                                          int64_t totalBytesDownloaded,
                                                          int64_t totalBytesExpectedToDownload) {
@@ -1025,7 +1025,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       }
 
       if (_receivedProgressBlock) {
-        [self simulateByteTransferReportWithDataLength:(int64_t)[responseData length]
+        [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
                                                  block:^(int64_t bytesReceived,
                                                          int64_t totalBytesReceived,
                                                          int64_t totalBytesExpectedToReceive) {
@@ -1140,7 +1140,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   GTM_LOG_BACKGROUND_SESSION(@"Remove from background sessions: %@", newBackgroundSessions);
 
   NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
-  if ([newBackgroundSessions count] == 0) {
+  if (newBackgroundSessions.count == 0) {
     [userDefaults removeObjectForKey:kGTMSessionFetcherPersistedDestinationKey];
   } else {
     [userDefaults setObject:newBackgroundSessions
@@ -1153,7 +1153,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   NSArray *oldBackgroundSessions =
       [userDefaults arrayForKey:kGTMSessionFetcherPersistedDestinationKey];
-  if ([oldBackgroundSessions count] == 0) {
+  if (oldBackgroundSessions.count == 0) {
     return nil;
   }
   NSMutableArray *activeBackgroundSessions = nil;
@@ -1240,7 +1240,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
           return [key hasPrefix:@"_"];
       }];
       [metadata removeObjectsForKeys:[keysToRemove allObjects]];
-      if ([metadata count] > 0) {
+      if (metadata.count > 0) {
         _sessionUserInfo = metadata;
       }
     }
@@ -1268,7 +1268,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   if (_bodyFileURL) {
     defaultUserInfo[kGTMSessionIdentifierBodyFileURLMetadataKey] = [_bodyFileURL absoluteString];
   }
-  return ([defaultUserInfo count] > 0) ? defaultUserInfo : nil;
+  return (defaultUserInfo.count > 0) ? defaultUserInfo : nil;
 }
 
 - (void)restoreDefaultStateForSessionIdentifierMetadata {
@@ -1346,13 +1346,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     if (defaultMetadataDict) {
       [metadataDict addEntriesFromDictionary:defaultMetadataDict];
     }
-    if ([metadataDict count] > 0) {
+    if (metadataDict.count > 0) {
       NSData *metadataData = [NSJSONSerialization dataWithJSONObject:metadataDict
                                                              options:0
                                                                error:NULL];
       GTMSESSION_ASSERT_DEBUG(metadataData != nil,
                               @"Session identifier user info failed to convert to JSON");
-      if ([metadataData length] > 0) {
+      if (metadataData.length > 0) {
         NSString *metadataString = [[NSString alloc] initWithData:metadataData
                                                          encoding:NSUTF8StringEncoding];
         _sessionIdentifier =
@@ -1958,7 +1958,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
               NSURLCredential *trustCredential = [NSURLCredential credentialForTrust:trustRef];
               handler(NSURLSessionAuthChallengeUseCredential, trustCredential);
             } else {
-              GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", [_request URL]);
+              GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", _request.URL);
               handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
             }
           };
@@ -2218,7 +2218,7 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
           dataTask:(NSURLSessionDataTask *)dataTask
     didReceiveData:(NSData *)data {
   [self setSessionTask:dataTask];
-  NSUInteger bufferLength = [data length];
+  NSUInteger bufferLength = data.length;
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveData:%p (%llu bytes)",
                            [self class], self, session, dataTask, data,
                            (unsigned long long)bufferLength);
@@ -2249,7 +2249,7 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
       }
 
       [_downloadedData appendData:data];
-      _downloadedLength = (int64_t)[_downloadedData length];
+      _downloadedLength = (int64_t)_downloadedData.length;
 
       // We won't hold on to receivedProgressBlock here; it's ok to not send
       // it if the transfer finishes.
@@ -2398,7 +2398,7 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
       }
       GTM_LOG_BACKGROUND_SESSION(@"%@ %p Moved download from \"%@\" to \"%@\"  %@",
                                  [self class], self,
-                                 [downloadLocationURL path], [destinationURL path],
+                                 downloadLocationURL.path, destinationURL.path,
                                  error ? error : @"");
     }
   }  // @synchronized(self)
@@ -2444,7 +2444,7 @@ didCompleteWithError:(NSError *)error {
   // Authorization header, so if a 403 was generated due to a missing OAuth header, set the current
   // request's URL to the redirected URL, so we in effect restore the Authorization header.
   if ((status == 403) && self.usingBackgroundSession) {
-    NSURL *redirectURL = [self.response URL];
+    NSURL *redirectURL = self.response.URL;
     NSMutableURLRequest *request = self.mutableRequest;
     if (![request.URL isEqual:redirectURL]) {
       NSString *authorizationHeader =
@@ -2538,7 +2538,7 @@ didCompleteWithError:(NSError *)error {
 #endif
     if (fetchSucceeded) {
       // Success
-      if (([_downloadedData length] > 0) && (destinationURL != nil)) {
+      if ((_downloadedData.length > 0) && (destinationURL != nil)) {
         // Overwrite any previous file at the destination URL.
         NSFileManager *fileMgr = [NSFileManager defaultManager];
         [fileMgr removeItemAtURL:destinationURL
@@ -2570,7 +2570,7 @@ didCompleteWithError:(NSError *)error {
         if (error == nil) {
           // Create an error.
           NSDictionary *userInfo = nil;
-          if ([_downloadedData length] > 0) {
+          if (_downloadedData.length > 0) {
             userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
           }
           error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
@@ -2582,7 +2582,7 @@ didCompleteWithError:(NSError *)error {
           void (^resumeBlock)(NSData *) = _resumeDataBlock;
           _resumeDataBlock = nil;
           if (resumeBlock) {
-            NSData *resumeData = [[error userInfo] objectForKey:NSURLSessionDownloadTaskResumeData];
+            NSData *resumeData = [error.userInfo objectForKey:NSURLSessionDownloadTaskResumeData];
             if (resumeData) {
               [self invokeOnCallbackQueueAfterUserStopped:YES block:^{
                   resumeBlock(resumeData);
@@ -2590,7 +2590,7 @@ didCompleteWithError:(NSError *)error {
             }
           }
         }
-        if ([_downloadedData length] > 0) {
+        if (_downloadedData.length > 0) {
           downloadedData = _downloadedData;
         }
         // If the error occurred after retries, report the number and duration of the
@@ -2740,7 +2740,7 @@ didCompleteWithError:(NSError *)error {
     BOOL canRetry = shouldRetryForAuthRefresh || shouldDoRetry;
     if (canRetry) {
       NSDictionary *userInfo = nil;
-      if ([_downloadedData length] > 0) {
+      if (_downloadedData.length > 0) {
         userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
       }
       NSError *statusError = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
@@ -3118,7 +3118,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
     if (_bodyLength == NSURLSessionTransferSizeUnknown) {
       if (_bodyData) {
-        _bodyLength = (int64_t)[_bodyData length];
+        _bodyLength = (int64_t)_bodyData.length;
       } else if (_bodyFileURL) {
         NSNumber *fileSizeNum = nil;
         NSError *fileSizeError = nil;
@@ -3538,9 +3538,9 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
   if (_policy == NSHTTPCookieAcceptPolicyNever) return;
 
-  BOOL isValidCookie = ([[newCookie name] length] > 0
-                        && [[newCookie domain] length] > 0
-                        && [[newCookie path] length] > 0);
+  BOOL isValidCookie = (newCookie.name.length > 0
+                        && newCookie.domain.length > 0
+                        && newCookie.path.length > 0);
   GTMSESSION_ASSERT_DEBUG(isValidCookie, @"invalid cookie: %@", newCookie);
 
   if (isValidCookie) {
@@ -3581,8 +3581,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     }
 
     if (_policy == NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain) {
-      NSString *mainHost = [mainDocumentURL host];
-      NSString *associatedHost = [URL host];
+      NSString *mainHost = mainDocumentURL.host;
+      NSString *associatedHost = URL.host;
       if (!mainHost || ![associatedHost hasSuffix:mainHost]) {
         return;
       }
@@ -3618,8 +3618,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     // We'll prepend "." to the desired domain, since we want the
     // actual domain "nytimes.com" to still match the cookie domain
     // ".nytimes.com" when we check it below with hasSuffix.
-    NSString *host = [[theURL host] lowercaseString];
-    NSString *path = [theURL path];
+    NSString *host = theURL.host.lowercaseString;
+    NSString *path = theURL.path;
     NSString *scheme = [theURL scheme];
 
     NSString *requestingDomain = nil;
@@ -3628,14 +3628,14 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     if (IsLocalhost(host)) {
       isLocalhostRetrieval = YES;
     } else {
-      if ([host length] > 0) {
+      if (host.length > 0) {
         requestingDomain = [@"." stringByAppendingString:host];
       }
     }
 
     for (NSHTTPCookie *storedCookie in _cookies) {
-      NSString *cookieDomain = [[storedCookie domain] lowercaseString];
-      NSString *cookiePath = [storedCookie path];
+      NSString *cookieDomain = storedCookie.domain.lowercaseString;
+      NSString *cookiePath = storedCookie.path;
       BOOL cookieIsSecure = [storedCookie isSecure];
 
       BOOL isDomainOK;
@@ -3696,17 +3696,17 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 - (NSHTTPCookie *)cookieMatchingCookie:(NSHTTPCookie *)cookie {
   GTMSessionCheckSynchronized(self);
 
-  NSString *name = [cookie name];
-  NSString *domain = [cookie domain];
-  NSString *path = [cookie path];
+  NSString *name = cookie.name;
+  NSString *domain = cookie.domain;
+  NSString *path = cookie.path;
 
   GTMSESSION_ASSERT_DEBUG(name && domain && path,
                           @"Invalid stored cookie (name:%@ domain:%@ path:%@)", name, domain, path);
 
   for (NSHTTPCookie *storedCookie in _cookies) {
-    if ([[storedCookie name] isEqual:name]
-        && [[storedCookie domain] isEqual:domain]
-        && [[storedCookie path] isEqual:path]) {
+    if ([storedCookie.name isEqual:name]
+        && [storedCookie.domain isEqual:domain]
+        && [storedCookie.path isEqual:path]) {
       return storedCookie;
     }
   }
@@ -3721,7 +3721,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   GTMSessionCheckSynchronized(self);
 
   // Count backwards since we're deleting items from the array
-  for (NSInteger idx = (NSInteger)[_cookies count] - 1; idx >= 0; idx--) {
+  for (NSInteger idx = (NSInteger)_cookies.count - 1; idx >= 0; idx--) {
     NSHTTPCookie *storedCookie = [_cookies objectAtIndex:(NSUInteger)idx];
     if ([[self class] hasCookieExpired:storedCookie]) {
       [_cookies removeObjectAtIndex:(NSUInteger)idx];
@@ -3829,11 +3829,11 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str) {
   [result replaceOccurrencesOfString:@" "
                           withString:@"_"
                              options:0
-                               range:NSMakeRange(0, [result length])];
+                               range:NSMakeRange(0, result.length)];
   [result replaceOccurrencesOfString:@","
                           withString:@"_"
                              options:0
-                               range:NSMakeRange(0, [result length])];
+                               range:NSMakeRange(0, result.length)];
 
   // Delete http token separators and remaining whitespace
   static NSCharacterSet *charsToDelete = nil;
@@ -3889,7 +3889,7 @@ NSString *GTMFetcherSystemVersionString(void) {
       NSString *const kPath = @"/System/Library/CoreServices/SystemVersion.plist";
       NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:kPath];
       versString = [plist objectForKey:@"ProductVersion"];
-      if ([versString length] == 0) {
+      if (versString.length == 0) {
         versString = @"10.?.?";
       }
     }
@@ -3959,8 +3959,8 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
 
     // Apps may add a string to the info.plist to uniquely identify different builds.
     identifier = [bundle objectForInfoDictionaryKey:@"GTMUserAgentID"];
-    if ([identifier length] == 0) {
-      if ([bundleID length] > 0) {
+    if (identifier.length == 0) {
+      if (bundleID.length > 0) {
         identifier = bundleID;
       } else {
         // Fall back on the procname, prefixed by "proc" to flag that it's
@@ -3975,7 +3975,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
 
     // If there's a version number, append that
     NSString *version = [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-    if ([version length] == 0) {
+    if (version.length == 0) {
       version = [bundle objectForInfoDictionaryKey:@"CFBundleVersion"];
     }
 
@@ -3984,7 +3984,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
 
     // Glue the two together (cleanup done above or else cleanup would strip the
     // slash)
-    if ([version length] > 0) {
+    if (version.length > 0) {
       identifier = [identifier stringByAppendingFormat:@"/%@", version];
     }
 

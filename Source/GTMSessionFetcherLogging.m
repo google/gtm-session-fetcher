@@ -91,7 +91,7 @@ static NSString *gLoggingProcessName = nil;
     paths = NSSearchPathForDirectoriesInDomains(NSDesktopDirectory, NSUserDomainMask, YES);
 #endif
 
-    NSString *desktopPath = [paths firstObject];
+    NSString *desktopPath = paths.firstObject;
     if (desktopPath) {
       NSString *const kGTMLogFolderName = @"GTMHTTPDebugLogs";
       NSString *logsFolderPath = [desktopPath stringByAppendingPathComponent:kGTMLogFolderName];
@@ -257,7 +257,7 @@ static NSString *gLoggingProcessName = nil;
   if (!inputData) return nil;
 
   // if the content type is JSON and we have the parsing class available, use that
-  if ([contentType hasPrefix:@"application/json"] && [inputData length] > 5) {
+  if ([contentType hasPrefix:@"application/json"] && inputData.length > 5) {
     // convert from JSON string to NSObjects and back to a formatted string
     NSMutableDictionary *obj = [NSJSONSerialization JSONObjectWithData:inputData
                                                                options:NSJSONReadingMutableContainers
@@ -296,8 +296,8 @@ static NSString *gLoggingProcessName = nil;
     gHasCheckedAvailability = YES;
   }
   if (gIsXMLLintAvailable
-      && [inputData length] > 5
-      && strncmp([inputData bytes], "<?xml", 5) == 0) {
+      && inputData.length > 5
+      && strncmp(inputData.bytes, "<?xml", 5) == 0) {
 
     // call xmllint to format the data
     NSTask *task = [[NSTask alloc] init];
@@ -323,7 +323,7 @@ static NSString *gLoggingProcessName = nil;
     [task waitUntilExit];
 
     int status = [task terminationStatus];
-    if (status == 0 && [formattedData length] > 0) {
+    if (status == 0 && formattedData.length > 0) {
       // success
       inputData = formattedData;
     }
@@ -360,9 +360,9 @@ static NSString *gLoggingProcessName = nil;
   // Munge a buffer by replacing non-ASCII bytes with underscores, and turn that munged buffer an
   // NSString.  That gives us a string we can use with NSScanner.
   NSMutableData *mutableData = [NSMutableData dataWithData:data];
-  unsigned char *bytes = (unsigned char *)[mutableData mutableBytes];
+  unsigned char *bytes = (unsigned char *)mutableData.mutableBytes;
 
-  for (unsigned int idx = 0; idx < [mutableData length]; ++idx) {
+  for (unsigned int idx = 0; idx < mutableData.length; ++idx) {
     if (bytes[idx] > 0x7F || bytes[idx] == 0) {
       bytes[idx] = '_';
     }
@@ -386,7 +386,7 @@ static NSString *gLoggingProcessName = nil;
       NSMutableArray *origParts = [NSMutableArray array];
       NSUInteger offset = 0;
       for (NSString *mungedPart in mungedParts) {
-        NSUInteger partSize = [mungedPart length];
+        NSUInteger partSize = mungedPart.length;
         NSData *origPartData = [data subdataWithRange:NSMakeRange(offset, partSize)];
         NSString *origPartStr = [[NSString alloc] initWithData:origPartData
                                                       encoding:NSUTF8StringEncoding];
@@ -403,10 +403,10 @@ static NSString *gLoggingProcessName = nil;
           }
           // make a part string with the header and <<n bytes>>
           NSString *binStr = [NSString stringWithFormat:@"\r%@\r<<%lu bytes>>\r",
-                              header, (long)(partSize - [header length])];
+                              header, (long)(partSize - header.length)];
           [origParts addObject:binStr];
         }
-        offset += partSize + [boundary length];
+        offset += partSize + boundary.length;
       }
       // rejoin the original parts
       streamDataStr = [origParts componentsJoinedByString:boundary];
@@ -414,7 +414,7 @@ static NSString *gLoggingProcessName = nil;
   }
   if (!streamDataStr) {
     // give up; just make a string showing the uploaded bytes
-    streamDataStr = [NSString stringWithFormat:@"<<%u bytes>>", (unsigned int)[data length]];
+    streamDataStr = [NSString stringWithFormat:@"<<%u bytes>>", (unsigned int)data.length];
   }
   return streamDataStr;
 }
@@ -531,15 +531,15 @@ static NSString *gLoggingProcessName = nil;
   [outputHTML appendFormat:@"<b>%@ &nbsp;&nbsp;&nbsp;&nbsp; ", [NSDate date]];
 
   NSString *comment = [self comment];
-  if ([comment length] > 0) {
+  if (comment.length > 0) {
     [outputHTML appendFormat:@"%@ &nbsp;&nbsp;&nbsp;&nbsp; ", comment];
   }
   [outputHTML appendFormat:@"</b><a href='%@'><i>request/response log</i></a><br>", copyableFileName];
 
   // write the request URL
-  NSURLRequest *request = [self mutableRequest];
-  NSString *requestMethod = [request HTTPMethod];
-  NSURL *requestURL = [request URL];
+  NSURLRequest *request = self.mutableRequest;
+  NSString *requestMethod = request.HTTPMethod;
+  NSURL *requestURL = request.URL;
 
   // Save the request URL for next time in case this redirects.
   NSString *redirectedFromURLString = [self.redirectedFromURL absoluteString];
@@ -551,8 +551,8 @@ static NSString *gLoggingProcessName = nil;
   [outputHTML appendFormat:@"<b>request:</b> %@ <code>%@</code><br>\n", requestMethod, requestURL];
 
   // write the request headers
-  NSDictionary *requestHeaders = [request allHTTPHeaderFields];
-  NSUInteger numberOfRequestHeaders = [requestHeaders count];
+  NSDictionary *requestHeaders = request.allHTTPHeaderFields;
+  NSUInteger numberOfRequestHeaders = requestHeaders.count;
   if (numberOfRequestHeaders > 0) {
     // Indicate if the request is authorized; warn if the request is authorized but non-SSL
     NSString *auth = [requestHeaders objectForKey:@"Authorization"];
@@ -592,12 +592,12 @@ static NSString *gLoggingProcessName = nil;
   } else {
     bodyData = self.bodyData;
     if (bodyData == nil) {
-      bodyData = [self.mutableRequest HTTPBody];
+      bodyData = self.mutableRequest.HTTPBody;
     }
   }
-  uint64_t bodyDataLength = [bodyData length];
+  uint64_t bodyDataLength = bodyData.length;
 
-  if ([bodyData length] == 0) {
+  if (bodyData.length == 0) {
     // If the data is in a body upload file URL, read that in if it's not huge.
     NSURL *bodyFileURL = self.bodyFileURL;
     if (bodyFileURL) {
@@ -679,9 +679,9 @@ static NSString *gLoggingProcessName = nil;
     }
     // show the response URL only if it's different from the request URL
     NSString *responseURLStr = @"";
-    NSURL *responseURL = [response URL];
+    NSURL *responseURL = response.URL;
 
-    if (responseURL && ![responseURL isEqual:[request URL]]) {
+    if (responseURL && ![responseURL isEqual:request.URL]) {
       NSString *const responseURLFormat =
           @"<FONT COLOR='#FF00FF'>response URL:</FONT> <code>%@</code><br>\n";
       responseURLStr = [NSString stringWithFormat:responseURLFormat, [responseURL absoluteString]];
@@ -689,7 +689,7 @@ static NSString *gLoggingProcessName = nil;
     [outputHTML appendFormat:@"<b>response:</b>&nbsp;&nbsp;status %@<br>\n%@",
                               statusString, responseURLStr];
     // Write the response headers
-    NSUInteger numberOfResponseHeaders = [responseHeaders count];
+    NSUInteger numberOfResponseHeaders = responseHeaders.count;
     if (numberOfResponseHeaders > 0) {
       // Indicate if the server is setting cookies
       NSString *cookiesSet = [responseHeaders valueForKey:@"Set-Cookie"];
@@ -708,7 +708,7 @@ static NSString *gLoggingProcessName = nil;
   }
   // error
   if (error) {
-    [outputHTML appendFormat:@"<b>Error:</b> %@ <br>\n", [error description]];
+    [outputHTML appendFormat:@"<b>Error:</b> %@ <br>\n", error.description];
   }
   // Write the response data
   if (responseDataFileName) {
@@ -742,7 +742,7 @@ static NSString *gLoggingProcessName = nil;
     [copyable appendFormat:@"Redirected from %@\n", redirectedFromURLString];
   }
   [copyable appendFormat:@"Request: %@ %@\n", requestMethod, requestURL];
-  if ([requestHeaders count] > 0) {
+  if (requestHeaders.count > 0) {
     [copyable appendFormat:@"Request headers:\n%@\n",
                             [[self class] headersStringForDictionary:requestHeaders]];
   }
@@ -771,7 +771,7 @@ static NSString *gLoggingProcessName = nil;
         // Even though it's redundant, we'll put in text to indicate that all the bytes are binary.
         if (self.destinationFileURL) {
           [copyable appendFormat:@"<<%lld bytes>>  to file %@\n",
-           responseDataLength, [self.destinationFileURL path]];
+           responseDataLength, self.destinationFileURL.path];
         } else {
           [copyable appendFormat:@"<<%lld bytes>>\n", responseDataLength];
         }
@@ -806,7 +806,7 @@ static NSString *gLoggingProcessName = nil;
     [outputHTML appendString:@"<br><hr><p>"];
 
     // Append the HTML to the main output file
-    const char* htmlBytes = [outputHTML UTF8String];
+    const char* htmlBytes = outputHTML.UTF8String;
     NSOutputStream *stream = [NSOutputStream outputStreamToFileAtPath:htmlPath
                                                                append:YES];
     [stream open];
@@ -907,7 +907,7 @@ static NSString *gLoggingProcessName = nil;
   if (startRange.location == NSNotFound) return originalStr;
 
   // We found the start string
-  NSUInteger originalLength = [originalStr length];
+  NSUInteger originalLength = originalStr.length;
   NSUInteger startOfTarget = NSMaxRange(startRange);
   NSRange targetAndRest = NSMakeRange(startOfTarget, originalLength - startOfTarget);
   NSRange endRange = [originalStr rangeOfString:endStr
@@ -935,7 +935,7 @@ static NSString *gLoggingProcessName = nil;
   //
   // Pad the key names, but not beyond 16 chars, since long custom header
   // keys just create too much whitespace
-  NSArray *keys = [[dict allKeys] sortedArrayUsingSelector:@selector(compare:)];
+  NSArray *keys = [dict.allKeys sortedArrayUsingSelector:@selector(compare:)];
 
   NSMutableString *str = [NSMutableString string];
   for (NSString *key in keys) {

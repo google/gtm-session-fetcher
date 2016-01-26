@@ -44,7 +44,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   // This routine, called by the later test methods, reads the data from the input stream
   // and verifies that it matches the expected string.
 
-  NSInteger expectedLength = [expectedResultString length];
+  NSInteger expectedLength = (NSInteger)expectedResultString.length;
 
   // now read the document from the input stream
   unsigned char buffer[9999];
@@ -67,11 +67,11 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   NSInputStream *stream = nil;
   NSString *boundary = nil;
-  unsigned long long length = -1;
+  unsigned long long length = ULONG_MAX;
 
   NSString *expectedBoundary = @"END_OF_PART";
   NSString *expectedString = @"\r\n--END_OF_PART--\r\n";
-  NSUInteger expectedLength = [expectedString length];
+  NSUInteger expectedLength = expectedString.length;
 
   // Generate the boundary and the data.
   dispatch_data_t data;
@@ -112,12 +112,12 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
                                     "\r\n"    // Newline after headers.
                                     "Hi mom"
                                     "\r\n--%@--\r\n", expectedBoundary, expectedBoundary];
-  NSUInteger expectedLength = [expectedResultString length];
+  NSUInteger expectedLength = expectedResultString.length;
 
   // Generate the boundary and the input stream.
   NSInputStream *stream = nil;
   NSString *boundary = nil;
-  unsigned long long length = -1;
+  unsigned long long length = ULONG_MAX;
 
 
   // Generate the boundary and the data.
@@ -161,7 +161,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   [doc addPartWithHeaders:h2 body:b2];
   [doc addPartWithHeaders:h3 body:b3];
 
-  NSString *expectedResultTemplate =
+  NSString *const expectedResultTemplate =
      @"\r\n--%@\r\n"
       "hfaz: baz\r\n"
       "hfoo: bar\r\n"
@@ -178,7 +178,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       "\r\n--%@--\r\n";
 
   NSString *boundary = nil;
-  unsigned long long length = -1;
+  unsigned long long length = ULONG_MAX;
 
   // Generate the boundary and the data.
   dispatch_data_t data;
@@ -264,9 +264,9 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   NSInputStream *stream = nil;
   NSString *boundary = nil;
-  unsigned long long length = -1;
+  unsigned long long length = ULONG_MAX;
 
-  NSString *expectedResultTemplate =
+  NSString *const expectedResultTemplate =
      @"\r\n--%@\r\n"
       "hfaz: baz\r\n"
       "hfoo: bar\r\n"
@@ -285,7 +285,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   NSString *expectedResultString =
       [NSString stringWithFormat:expectedResultTemplate,
-       birdy, birdy, birdy, birdy];
+       birdy, birdy, birdy];
 
   [self doDataTestForDispatchData:data
                    expectedString:expectedResultString];
@@ -322,7 +322,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   [doc addPartWithHeaders:h2 body:b2];
   [doc addPartWithHeaders:h3 body:b3];
 
-  NSString *expectedResultTemplate =
+  NSString *const expectedResultTemplate =
      @"\r\n--%@\r\n"
       "hfaz: baz\r\n"
       "hfoo: bar\r\n"
@@ -341,7 +341,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   // Generate the boundary and the data.
   dispatch_data_t data;
   NSString *boundary = nil;
-  unsigned long long length = -1;
+  unsigned long long length = ULONG_MAX;
 
   [doc generateDispatchData:&data
                      length:&length
@@ -460,7 +460,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   // Test an empty needle.
   //
-  // Note that [[NSData data] bytes] is nil, so we use a mutable data to get
+  // Note that [NSData data].bytes is nil, so we use a mutable data to get
   // a non-nil buffer pointer.
   haystackData = DataForTestWithLength(1000);
 
@@ -572,7 +572,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       repeatedTargetData
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @0, @306, @412 ];
   expectedBlockNums = @[ @0, @4, @4 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -589,7 +589,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       pawPlusTestBlock,
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @100 ];
   expectedBlockNums = @[ @0 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -608,7 +608,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   XCTAssertEqualObjects(offsets, [NSArray array]);
   XCTAssertEqualObjects(foundBlockNumbers, [NSArray array]);
-  
+
   // Target spans second and third blocks.
   fullBuffer = [self concatenatedDispatchDataWithDatas:@[
       DataForTestWithLength(100),
@@ -616,7 +616,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       pawPlusTestBlock,
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @200 ];
   expectedBlockNums = @[ @1 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -630,7 +630,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       catpawPlusTestBlock
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @100, @206, @312 ];
   expectedBlockNums = @[ @0, @1, @3 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -651,7 +651,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       catpawTargetData,
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @200, @306 ];
   expectedBlockNums = @[ @1, @4 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -664,7 +664,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       testPlusCatBlock,
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   XCTAssertEqualObjects(offsets, [NSArray array]);
   XCTAssertEqualObjects(foundBlockNumbers, [NSArray array]);
 
@@ -684,7 +684,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       pawTargetData
   ]];
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   XCTAssertEqualObjects(offsets, [NSArray array]);
   XCTAssertEqualObjects(foundBlockNumbers, [NSArray array]);
 
@@ -699,7 +699,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       blockWithOverlap,
   ]];
   search((NSData *)fullBuffer, catscatsTargetData, &offsets, &foundBlockNumbers);
-  
+
   expectedOffsets = @[ @100 ];
   expectedBlockNums = @[ @0 ];
   XCTAssertEqualObjects(offsets, expectedOffsets);
@@ -728,7 +728,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   char *empty = "";
   fullBuffer = dispatch_data_create(empty, 0, nil, nil);
   search((NSData *)fullBuffer, catpawTargetData, &offsets, &foundBlockNumbers);
-  
+
   XCTAssertEqualObjects(offsets, [NSArray array]);
   XCTAssertEqualObjects(foundBlockNumbers, [NSArray array]);
 }
@@ -751,12 +751,12 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 }
 
 - (void)testPartParsing_SinglePart {
-  NSString *docTemplate = (@"\r\n--%@\r\n"
-                           @"cat-breed: Maine Coon\r\n"
-                           @"dog-breed: German Shepherd\r\n"
-                           @"\r\n"
-                           @"Go Spot, go!"
-                           @"\r\n--%@--\r\n");
+  NSString *const docTemplate = (@"\r\n--%@\r\n"
+                                 @"cat-breed: Maine Coon\r\n"
+                                 @"dog-breed: German Shepherd\r\n"
+                                 @"\r\n"
+                                 @"Go Spot, go!"
+                                 @"\r\n--%@--\r\n");
   NSString *docBoundary = @"END_OF_PART";
   NSString *docString = [NSString stringWithFormat:docTemplate, docBoundary, docBoundary];
   NSData *docData = [docString dataUsingEncoding:NSUTF8StringEncoding];
@@ -774,10 +774,10 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 }
 
 - (void)testPartParsing_SinglePart_WithoutHeaders {
-  NSString *docTemplate = (@"\r\n--%@\r\n"
-                           @"\r\n"
-                           @"Go Spot, go!"
-                           @"\r\n--%@--\r\n");
+  NSString *const docTemplate = (@"\r\n--%@\r\n"
+                                 @"\r\n"
+                                 @"Go Spot, go!"
+                                 @"\r\n--%@--\r\n");
   NSString *docBoundary = @"END_OF_PART";
   NSString *docString = [NSString stringWithFormat:docTemplate, docBoundary, docBoundary];
   NSData *docData = [docString dataUsingEncoding:NSUTF8StringEncoding];
@@ -793,11 +793,11 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 }
 
 - (void)testPartParsing_SinglePart_EmptyBody {
-  NSString *docTemplate = (@"\r\n--%@\r\n"
-                           @"cat-breed: Maine Coon\r\n"
-                           @"dog-breed: German Shepherd\r\n"
-                           @"\r\n"
-                           @"\r\n--%@--\r\n");
+  NSString *const docTemplate = (@"\r\n--%@\r\n"
+                                 @"cat-breed: Maine Coon\r\n"
+                                 @"dog-breed: German Shepherd\r\n"
+                                 @"\r\n"
+                                 @"\r\n--%@--\r\n");
   NSString *docBoundary = @"END_OF_PART";
   NSString *docString = [NSString stringWithFormat:docTemplate, docBoundary, docBoundary];
   NSData *docData = [docString dataUsingEncoding:NSUTF8StringEncoding];
@@ -814,9 +814,9 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 }
 
 - (void)testPartParsing_SinglePart_WithoutHeadersOrBody {
-  NSString *docTemplate = (@"\r\n--%@\r\n"
-                           @"\r\n"
-                           @"\r\n--%@--\r\n");
+  NSString *const docTemplate = (@"\r\n--%@\r\n"
+                                 @"\r\n"
+                                 @"\r\n--%@--\r\n");
   NSString *docBoundary = @"END_OF_PART";
   NSString *docString = [NSString stringWithFormat:docTemplate, docBoundary, docBoundary];
   NSData *docData = [docString dataUsingEncoding:NSUTF8StringEncoding];
@@ -830,16 +830,16 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 }
 
 - (void)testPartParsing_TwoParts {
-  NSString *docTemplate = (@"this should be ignored \r\n--%@\r\n"
-                           @"cat-breed: Maine Coon\r\n"
-                           @"dog-breed: German Shepherd\r\n"
-                           @"\r\n"
-                           @"Go Spot, go!"
-                           @"\r\n--%@\r\n"
-                           @"Horse-breed: Friesian\r\n"
-                           @"\r\n"
-                           @"Hi ho, Silver\nAway!\r\nThat's all, folks."
-                           @"\r\n--%@--\r\n this should be ignored");
+  NSString *const docTemplate = (@"this should be ignored \r\n--%@\r\n"
+                                 @"cat-breed: Maine Coon\r\n"
+                                 @"dog-breed: German Shepherd\r\n"
+                                 @"\r\n"
+                                 @"Go Spot, go!"
+                                 @"\r\n--%@\r\n"
+                                 @"Horse-breed: Friesian\r\n"
+                                 @"\r\n"
+                                 @"Hi ho, Silver\nAway!\r\nThat's all, folks."
+                                 @"\r\n--%@--\r\n this should be ignored");
   NSString *docBoundary = @"END_OF_PART";
   NSString *docString = [NSString stringWithFormat:docTemplate,
                          docBoundary, docBoundary, docBoundary];
@@ -848,7 +848,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   NSArray *parts = [GTMMIMEDocument MIMEPartsWithBoundary:docBoundary
                                                      data:docData];
   XCTAssertEqual(parts.count, (NSUInteger)2);
-  
+
   NSDictionary *expectedHeaders0 = @{ @"cat-breed" : @"Maine Coon",
                                      @"dog-breed" : @"German Shepherd" };
   NSData *expectedBody0 = [@"Go Spot, go!" dataUsingEncoding:NSUTF8StringEncoding];

@@ -88,7 +88,7 @@
                                                     chunkSize:75000
                                                fetcherService:_service];
   fetcher.uploadData = nil;
-  [fetcher setUploadDataLength:expectedRange.length
+  [fetcher setUploadDataLength:(int64_t)expectedRange.length
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
       NSRange providingRange = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
@@ -266,7 +266,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
                                                                         fetcherService:_service];
-  [fetcher setUploadDataLength:smallData.length
+  [fetcher setUploadDataLength:(int64_t)smallData.length
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
@@ -317,7 +317,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
                                                                         fetcherService:_service];
-  [fetcher setUploadDataLength:smallData.length
+  [fetcher setUploadDataLength:(int64_t)smallData.length
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
     // Fail to provide NSData.
@@ -804,7 +804,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
                                                                         fetcherService:_service];
-  [fetcher setUploadDataLength:bigData.length
+  [fetcher setUploadDataLength:(int64_t)bigData.length
                       provider:^(int64_t offset, int64_t length,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
