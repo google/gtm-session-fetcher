@@ -93,6 +93,8 @@ GTM_ASSUME_NONNULL_END
 @property(assign, atomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
 #endif
 
+@property(atomic, readwrite, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
+
 @end
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
@@ -135,7 +137,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   BOOL _wasCreatedFromBackgroundSession;
   BOOL _didCreateSessionIdentifier;
   NSString *_sessionIdentifierUUID;
-  BOOL _useBackgroundSession;
+  BOOL _userRequestedBackgroundSession;
+  BOOL _usingBackgroundSession;
   NSMutableData * GTM_NULLABLE_TYPE _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;  // immutable after construction
@@ -424,6 +427,10 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     return;
   }
 
+  // We'll respect the user's request for a background session (unless this is
+  // an upload fetcher, which does its initial request foreground.)
+  self.usingBackgroundSession = self.useBackgroundSession && [self canFetchWithBackgroundSession];
+
   NSURL *bodyFileURL = self.bodyFileURL;
   if (bodyFileURL) {
     NSError *fileCheckError;
@@ -445,7 +452,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       GTMSessionMonitorSynchronized(self);
 
       _sessionIdentifier = nil;
-      _useBackgroundSession = NO;
+      _usingBackgroundSession = NO;
     }  // @synchronized(self)
   }
 
@@ -513,7 +520,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
   BOOL isRecreatingSession = (self.sessionIdentifier != nil) && (fetchRequest == nil);
 
-  self.canShareSession = !isRecreatingSession && !self.useBackgroundSession;
+  self.canShareSession = !isRecreatingSession && !self.usingBackgroundSession;
 
   if (!self.session && self.canShareSession) {
     self.session = [_service sessionForFetcherCreation];
@@ -525,7 +532,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (!self.session) {
     // Create a session.
     if (!_configuration) {
-      if (priorSessionIdentifier || self.useBackgroundSession) {
+      if (priorSessionIdentifier || self.usingBackgroundSession) {
         NSString *sessionIdentifier = priorSessionIdentifier;
         if (!sessionIdentifier) {
           sessionIdentifier = [self createSessionIdentifierWithMetadata:nil];
@@ -556,7 +563,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         _configuration =
             [NSURLSessionConfiguration backgroundSessionConfiguration:sessionIdentifier];
 #endif
-        self.useBackgroundSession = YES;
+        self.usingBackgroundSession = YES;
         self.canShareSession = NO;
       } else {
         _configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
@@ -789,7 +796,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if GTM_BACKGROUND_TASK_FETCHING
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (!_useBackgroundSession) {
+  if (!_usingBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
     UIApplication *app = [UIApplication sharedApplication];
@@ -1215,7 +1222,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
     GTMSESSION_ASSERT_DEBUG(!_session, @"Unable to set session identifier after session created");
     _sessionIdentifier = [sessionIdentifier copy];
-    _useBackgroundSession = YES;
+    _usingBackgroundSession = YES;
     _canShareSession = NO;
     [self restoreDefaultStateForSessionIdentifierMetadata];
   }  // @synchronized(self)
@@ -1439,6 +1446,11 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   }
 }
 
+
+- (BOOL)canFetchWithBackgroundSession {
+  // Subclasses may override.
+  return YES;
+}
 
 // Returns YES if this is in the process of fetching a URL, or waiting to
 // retry, or waiting for authorization, or waiting to be issued by the
@@ -2431,7 +2443,7 @@ didCompleteWithError:(NSError *)error {
   // For background redirects, no delegate method is called, so we cannot restore a stripped
   // Authorization header, so if a 403 was generated due to a missing OAuth header, set the current
   // request's URL to the redirected URL, so we in effect restore the Authorization header.
-  if ((status == 403) && _useBackgroundSession) {
+  if ((status == 403) && self.usingBackgroundSession) {
     NSURL *redirectURL = [self.response URL];
     NSMutableURLRequest *request = self.mutableRequest;
     if (![request.URL isEqual:redirectURL]) {
@@ -3024,7 +3036,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             sessionUserInfo = _sessionUserInfo,
             taskDescription = _taskDescription,
             taskPriority = _taskPriority,
-            useBackgroundSession = _useBackgroundSession,
+            useBackgroundSession = _userRequestedBackgroundSession,
+            usingBackgroundSession = _usingBackgroundSession,
             canShareSession = _canShareSession,
             completionHandler = _completionHandler,
             credential = _credential,
@@ -3217,10 +3230,13 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (BOOL)useBackgroundSession {
+  // This reflects if the user requested a background session, not necessarily
+  // if one was created. That is tracked with _usingBackgroundSession.
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    return _useBackgroundSession;
+    return _userRequestedBackgroundSession;
   }  // @synchronized(self)
 }
 
@@ -3228,7 +3244,23 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    _useBackgroundSession = flag;
+    _userRequestedBackgroundSession = flag;
+  }  // @synchronized(self)
+}
+
+- (BOOL)isUsingBackgroundSession {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _usingBackgroundSession;
+  }  // @synchronized(self)
+}
+
+- (void)setUsingBackgroundSession:(BOOL)flag {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _usingBackgroundSession = flag;
   }  // @synchronized(self)
 }
 

@@ -339,7 +339,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     // the fetcher in the wrong array
     fetcher.serviceHost = host;
 
-    BOOL shouldRunNow = (fetcher.useBackgroundSession
+    BOOL shouldRunNow = (fetcher.usingBackgroundSession
                          || _maxRunningFetchersPerHost == 0
                          || _maxRunningFetchersPerHost >
                          [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]);
@@ -780,7 +780,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 + (NSUInteger)numberOfNonBackgroundSessionFetchers:(NSArray *)fetchers {
   NSUInteger sum = 0;
   for (GTMSessionFetcher *fetcher in fetchers) {
-    if (!fetcher.useBackgroundSession) {
+    if (!fetcher.usingBackgroundSession) {
       ++sum;
     }
   }

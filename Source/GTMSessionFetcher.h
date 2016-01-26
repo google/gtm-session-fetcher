@@ -723,6 +723,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // A new session identifier will be created by the fetcher.
 @property(assign) BOOL useBackgroundSession;
 
+// Indicates if the fetcher was started using a background session.
+@property(atomic, readonly, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
+
 // Indicates if uploads should use an upload task.  This is always set for file or stream-provider
 // bodies, but may be set explicitly for NSData bodies.
 @property(assign) BOOL useUploadTask;

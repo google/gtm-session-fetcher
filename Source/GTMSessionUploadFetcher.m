@@ -1625,6 +1625,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }  // @synchronized(self
 }
 
+- (BOOL)canFetchWithBackgroundSession {
+  // The initial upload fetcher is always a foreground session; the
+  // useBackgroundSession property will apply only to chunk fetchers,
+  // not to queries.
+  return NO;
+}
+
 - (NSDictionary *)responseHeaders {
   GTMSessionCheckNotSynchronized(self);
   // Overrides the superclass
