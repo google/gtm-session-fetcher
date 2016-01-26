@@ -210,7 +210,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   //
   // These tests check behavior with NULL parameters.
   //
-  NSUInteger expectedLength = length;
+  NSUInteger expectedLength = (NSUInteger)length;
   NSString *expectedBoundary = boundary;
 
   // Generate the length and boundary only via data request.
