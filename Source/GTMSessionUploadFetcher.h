@@ -76,7 +76,7 @@ typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t leng
                                chunkSize:(int64_t)chunkSize
                           fetcherService:(GTM_NULLABLE GTMSessionFetcherService *)fetcherServiceOrNil;
 
-+ (instancetype)uploadFetcherWithLocation:(NSURL *)uploadLocationURL
++ (instancetype)uploadFetcherWithLocation:(NSURL * GTM_NULLABLE_TYPE)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
                            fetcherService:(GTM_NULLABLE GTMSessionFetcherService *)fetcherServiceOrNil;

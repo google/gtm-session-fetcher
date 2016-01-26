@@ -541,7 +541,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // queue before calling this function.
 //
 // Failure is indicated by a returned data value of nil.
-NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
+NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 
 #ifdef __cplusplus
 }  // extern "C"

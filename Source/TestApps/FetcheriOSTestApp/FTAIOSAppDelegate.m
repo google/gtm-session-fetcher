@@ -314,8 +314,8 @@ static NSUInteger const kPostDataSize = 512 * 1024;
     message = [NSString stringWithFormat:@"Failure: %@", [error localizedDescription]];
   } else {
     NSData *downloadedData = [NSData dataWithContentsOfURL:downloadFileURL];
-    NSData *actualData =
-        [NSData dataWithContentsOfURL:[NSURL URLWithString:kDownloadTestURLString]];
+    NSURL *downloadURL = [NSURL URLWithString:kDownloadTestURLString];
+    NSData *actualData = [NSData dataWithContentsOfURL:downloadURL];
     didSucceed = [downloadedData isEqual:actualData];
     if (didSucceed) {
       message = [NSString stringWithFormat:@"Data is correct"];
@@ -346,8 +346,9 @@ static NSUInteger const kPostDataSize = 512 * 1024;
         [self uploadCompletedWithError:error];
     };
   } else {
+    NSURL *requestURL = [NSURL URLWithString:kUploadTestURLString];
     NSMutableURLRequest *request =
-        [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kUploadTestURLString]
+        [NSMutableURLRequest requestWithURL:requestURL
                                 cachePolicy:NSURLRequestReloadIgnoringCacheData
                             timeoutInterval:60*60];
     NSURL *bigFileURL = [self bigFileToUploadURL];

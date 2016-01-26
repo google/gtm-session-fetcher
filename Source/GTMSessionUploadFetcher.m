@@ -152,7 +152,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return fetcher;
 }
 
-+ (instancetype)uploadFetcherWithLocation:(NSURL *)uploadLocationURL
++ (instancetype)uploadFetcherWithLocation:(NSURL * GTM_NULLABLE_TYPE)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
                            fetcherService:(GTMSessionFetcherService *)fetcherService {
@@ -480,7 +480,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)setLocationURL:(NSURL *)location
+- (void)setLocationURL:(NSURL * GTM_NULLABLE_TYPE)location
         uploadMIMEType:(NSString *)uploadMIMEType
              chunkSize:(int64_t)chunkSize {
   @synchronized(self) {

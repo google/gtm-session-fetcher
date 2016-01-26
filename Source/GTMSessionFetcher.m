@@ -274,7 +274,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (self) {
     if (![NSURLSession class]) {
       Class oldFetcherClass = NSClassFromString(@"GTMHTTPFetcher");
-      if (oldFetcherClass) {
+      if (oldFetcherClass && request) {
         self = [[oldFetcherClass alloc] initWithRequest:(NSURLRequest *)request];
       } else {
         self = nil;
@@ -847,7 +847,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   }
 }
 
-NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
+NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
   NSMutableData *data = [NSMutableData data];
 
   [inputStream open];
@@ -3551,7 +3551,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     if (_policy == NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain) {
       NSString *mainHost = [mainDocumentURL host];
       NSString *associatedHost = [URL host];
-      if (![associatedHost hasSuffix:mainHost]) {
+      if (!mainHost || ![associatedHost hasSuffix:mainHost]) {
         return;
       }
     }
@@ -3789,7 +3789,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str) {
   // Reference http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html
   // and http://www-archive.mozilla.org/build/user-agent-strings.html
 
-  if (str == nil) return nil;
+  if (str == nil) return @"";
 
   NSMutableString *result = [NSMutableString stringWithString:str];
 
