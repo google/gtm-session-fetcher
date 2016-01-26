@@ -18,30 +18,35 @@
 #endif
 
 #import "GTMMIMEDocument.h"
-#import "GTMGatherInputStream.h"
 
-// memsrch
+// Avoid a hard dependency on GTMGatherInputStream.
+#ifndef GTM_GATHERINPUTSTREAM_DECLARED
+#define GTM_GATHERINPUTSTREAM_DECLARED
+
+@interface GTMGatherInputStream : NSInputStream <NSStreamDelegate>
+
++ (NSInputStream *)streamWithArray:(NSArray *)dataArray GTM_NONNULL((1));
+
+@end
+#endif  // GTM_GATHERINPUTSTREAM_DECLARED
+
+// FindBytes
 //
 // Helper routine to search for the existence of a set of bytes (needle) within
-// a presumed larger set of bytes (haystack).
+// a presumed larger set of bytes (haystack). Can find the first part of the
+// needle at the very end of the haystack.
 //
-static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
-                    const unsigned char *haystack, NSUInteger haystack_len);
+// Returns the needle length on complete success, the number of bytes matched
+// if a partial needle was found at the end of the haystack, and 0 on failure.
+static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
+                            const unsigned char *haystack, NSUInteger haystackLen,
+                            NSUInteger *foundOffset);
 
-@interface GTMMIMEPart : NSObject {
+@implementation GTMMIMEDocumentPart {
+  NSDictionary *_headers;
   NSData *_headerData;  // Header content including the ending "\r\n".
-  NSData *_bodyData;    // The body data.
+  NSData *_bodyData;
 }
-
-+ (instancetype)partWithHeaders:(NSDictionary *)headers body:(NSData *)body;
-- (instancetype)initWithHeaders:(NSDictionary *)headers body:(NSData *)body;
-- (BOOL)containsBytes:(const unsigned char *)bytes length:(NSUInteger)length;
-- (NSData *)header;
-- (NSData *)body;
-- (NSUInteger)length;
-@end
-
-@implementation GTMMIMEPart
 
 + (instancetype)partWithHeaders:(NSDictionary *)headers body:(NSData *)body {
   return [[self alloc] initWithHeaders:headers body:body];
@@ -51,53 +56,27 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   self = [super init];
   if (self) {
     _bodyData = body;
-
-    // Generate the header data by coalescing the dictionary as lines of "key: value\r\n".
-    NSMutableString* headerString = [NSMutableString string];
-
-    // Sort the header keys so we have a deterministic order for unit testing.
-    SEL sortSel = @selector(caseInsensitiveCompare:);
-    NSArray *sortedKeys = [[headers allKeys] sortedArrayUsingSelector:sortSel];
-
-    for (NSString *key in sortedKeys) {
-      NSString* value = [headers objectForKey:key];
-
-#if DEBUG
-      // Look for troublesome characters in the header keys & values.
-      static NSCharacterSet *badChars = nil;
-      if (!badChars) {
-        badChars = [NSCharacterSet characterSetWithCharactersInString:@":\r\n"];
-      }
-
-      NSRange badRange = [key rangeOfCharacterFromSet:badChars];
-      NSAssert1(badRange.location == NSNotFound, @"invalid key: %@", key);
-
-      badRange = [value rangeOfCharacterFromSet:badChars];
-      NSAssert1(badRange.location == NSNotFound, @"invalid value: %@", value);
-#endif
-
-      [headerString appendFormat:@"%@: %@\r\n", key, value];
-    }
-    // Headers end with an extra blank line.
-    [headerString appendString:@"\r\n"];
-
-    _headerData = [headerString dataUsingEncoding:NSUTF8StringEncoding];
+    _headers = headers;
   }
   return self;
 }
 
-// Returns true if the parts contents contain the given set of bytes.
+// Returns true if the part's header or data contain the given set of bytes.
 //
 // NOTE: We assume that the 'bytes' we are checking for do not contain "\r\n",
 // so we don't need to check the concatenation of the header and body bytes.
 - (BOOL)containsBytes:(const unsigned char *)bytes length:(NSUInteger)length {
-
-  // This uses custom memsrch() rather than strcpy because the encoded data may contain null values.
-  return memsrch(bytes, length, [_headerData bytes], [_headerData length]) ||
-         memsrch(bytes, length, [_bodyData bytes],   [_bodyData length]);
+  // This uses custom search code rather than strcpy because the encoded data may contain
+  // null values.
+  NSData *headerData = self.headerData;
+  return (FindBytes(bytes, length, headerData.bytes, headerData.length, NULL) == length ||
+          FindBytes(bytes, length, _bodyData.bytes,  _bodyData.length, NULL) == length);
 }
 
-- (NSData *)header {
+- (NSData *)headerData {
+  if (!_headerData) {
+    _headerData = [GTMMIMEDocument dataWithHeaders:_headers];
+  }
   return _headerData;
 }
 
@@ -110,14 +89,25 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
 }
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"%@ %p (header %tu bytes, body %tu bytes)",
-          [self class], self, [_headerData length], [_bodyData length]];
+  return [NSString stringWithFormat:@"%@ %p (headers %tu keys, body %tu bytes)",
+          [self class], self, _headers.count, _bodyData.length];
+}
+
+- (BOOL)isEqual:(GTMMIMEDocumentPart *)other {
+  if (self == other) return YES;
+  if (![other isKindOfClass:[GTMMIMEDocumentPart class]]) return NO;
+  return ((_bodyData == other->_bodyData || [_bodyData isEqual:other->_bodyData])
+          && (_headers == other->_headers || [_headers isEqual:other->_headers]));
+}
+
+- (NSUInteger)hash {
+  return _bodyData.hash | _headers.hash;
 }
 
 @end
 
 @implementation GTMMIMEDocument {
-  NSMutableArray *_parts;         // Contains an ordered set of MimeParts.
+  NSMutableArray *_parts;         // Ordered array of GTMMIMEDocumentParts.
   unsigned long long _length;     // Length in bytes of the document.
   NSString *_boundary;
   u_int32_t _randomSeed;          // For testing.
@@ -140,9 +130,11 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
           [self class], self, [_parts count]];
 }
 
+#pragma mark - Joining Parts
+
 // Adds a new part to this mime document with the given headers and body.
 - (void)addPartWithHeaders:(NSDictionary *)headers body:(NSData *)body {
-  GTMMIMEPart* part = [GTMMIMEPart partWithHeaders:headers body:body];
+  GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers body:body];
   [_parts addObject:part];
   _boundary = nil;
 }
@@ -187,7 +179,7 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
     const void *dataBytes = [data bytes];
     NSUInteger dataLen = [data length];
 
-    for (GTMMIMEPart *part in _parts) {
+    for (GTMMIMEDocumentPart *part in _parts) {
       didCollide = [part containsBytes:dataBytes length:dataLen];
       if (didCollide) break;
     }
@@ -209,9 +201,10 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   _boundary = [str copy];
 }
 
-- (void)generateInputStream:(NSInputStream **)outStream
-                     length:(unsigned long long *)outLength
-                   boundary:(NSString **)outBoundary {
+// Internal method.
+- (void)generateDataArray:(NSMutableArray *)dataArray
+                   length:(unsigned long long *)outLength
+                 boundary:(NSString **)outBoundary {
 
   // The input stream is of the form:
   //   --boundary
@@ -232,12 +225,11 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   NSData *endBoundaryData = [endBoundary dataUsingEncoding:NSUTF8StringEncoding];
 
   // Now we add them all in proper order to our dataArray.
-  NSMutableArray *dataArray = [NSMutableArray array];
   unsigned long long length = 0;
 
-  for (GTMMIMEPart *part in _parts) {
+  for (GTMMIMEDocumentPart *part in _parts) {
     [dataArray addObject:mainBoundaryData];
-    [dataArray addObject:[part header]];
+    [dataArray addObject:[part headerData]];
     [dataArray addObject:[part body]];
 
     length += [part length] + [mainBoundaryData length];
@@ -247,34 +239,359 @@ static BOOL memsrch(const unsigned char *needle, NSUInteger needle_len,
   length += [endBoundaryData length];
 
   if (outLength)   *outLength = length;
-  if (outStream)   *outStream = [GTMGatherInputStream streamWithArray:dataArray];
   if (outBoundary) *outBoundary = boundary;
+}
+
+- (void)generateInputStream:(NSInputStream **)outStream
+                     length:(unsigned long long *)outLength
+                   boundary:(NSString **)outBoundary {
+  NSMutableArray *dataArray = outStream ? [NSMutableArray array] : nil;
+  [self generateDataArray:dataArray
+                   length:outLength
+                 boundary:outBoundary];
+
+  if (outStream) {
+    Class streamClass = NSClassFromString(@"GTMGatherInputStream");
+    NSAssert(streamClass != nil, @"GTMGatherInputStream not available.");
+
+    *outStream = [streamClass streamWithArray:dataArray];
+  }
+}
+
+- (void)generateDispatchData:(dispatch_data_t *)outDispatchData
+                      length:(unsigned long long *)outLength
+                    boundary:(NSString **)outBoundary {
+  NSMutableArray *dataArray = outDispatchData ? [NSMutableArray array] : nil;
+  [self generateDataArray:dataArray
+                   length:outLength
+                 boundary:outBoundary];
+
+  if (outDispatchData) {
+    // Create an empty data accumulator.
+    dispatch_data_t dataAccumulator;
+
+    dispatch_queue_t bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+
+    for (NSData *partData in dataArray) {
+      __block NSData *immutablePartData = [partData copy];
+      dispatch_data_t newDataPart =
+          dispatch_data_create(immutablePartData.bytes, immutablePartData.length, bgQueue, ^{
+        // We want the data retained until this block executes.
+        immutablePartData = nil;
+      });
+
+      if (dataAccumulator == nil) {
+        // First part.
+        dataAccumulator = newDataPart;
+      } else {
+        // Append the additional part.
+        dataAccumulator = dispatch_data_create_concat(dataAccumulator, newDataPart);
+      }
+    }
+    *outDispatchData = dataAccumulator;
+  }
+}
+
++ (NSData *)dataWithHeaders:(NSDictionary *)headers {
+  // Generate the header data by coalescing the dictionary as lines of "key: value\r\n".
+  NSMutableString* headerString = [NSMutableString string];
+
+  // Sort the header keys so we have a deterministic order for unit testing.
+  SEL sortSel = @selector(caseInsensitiveCompare:);
+  NSArray *sortedKeys = [[headers allKeys] sortedArrayUsingSelector:sortSel];
+
+  for (NSString *key in sortedKeys) {
+    NSString *value = [headers objectForKey:key];
+
+#if DEBUG
+    // Look for troublesome characters in the header keys & values.
+    static NSCharacterSet *badChars = nil;
+    if (!badChars) {
+      badChars = [NSCharacterSet characterSetWithCharactersInString:@":\r\n"];
+    }
+
+    NSRange badRange = [key rangeOfCharacterFromSet:badChars];
+    NSAssert1(badRange.location == NSNotFound, @"invalid key: %@", key);
+
+    badRange = [value rangeOfCharacterFromSet:badChars];
+    NSAssert1(badRange.location == NSNotFound, @"invalid value: %@", value);
+#endif
+
+    [headerString appendFormat:@"%@: %@\r\n", key, value];
+  }
+  // Headers end with an extra blank line.
+  [headerString appendString:@"\r\n"];
+
+  NSData *result = [headerString dataUsingEncoding:NSUTF8StringEncoding];
+  return result;
+}
+
+#pragma mark - Separating Parts
+
++ (NSArray *)MIMEPartsWithBoundary:(NSString *)boundary
+                              data:(NSData *)fullDocumentData {
+  // In MIME documents, the boundary is preceded by CRLF and two dashes, and followed
+  // at the end by two dashes.
+  NSData *boundaryData = [boundary dataUsingEncoding:NSUTF8StringEncoding];
+  NSUInteger boundaryLength = boundaryData.length;
+
+  NSMutableArray *foundBoundaryOffsets;
+  [self searchData:fullDocumentData
+       targetBytes:boundaryData.bytes
+      targetLength:boundaryLength
+      foundOffsets:&foundBoundaryOffsets];
+
+  // According to rfc1341, ignore anything before the first boundary, or after the last, though two
+  // dashes are expected to follow the last boundary.
+  if (foundBoundaryOffsets.count < 2) {
+    return nil;
+  }
+
+  // Wrap the full document data with a dispatch_data_t for more efficient slicing
+  // and dicing.
+  dispatch_data_t dataWrapper;
+  if ([fullDocumentData conformsToProtocol:@protocol(OS_dispatch_data)]) {
+    dataWrapper = (dispatch_data_t)fullDocumentData;
+  } else {
+    // A no-op self invocation on fullDocumentData will keep it retained until the block is invoked.
+    dispatch_queue_t bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dataWrapper = dispatch_data_create(fullDocumentData.bytes,
+                                       fullDocumentData.length,
+                                       bgQueue, ^{ [fullDocumentData self]; });
+  }
+  NSMutableArray *parts;
+  NSInteger previousBoundaryOffset = -1;
+  NSInteger partCounter = -1;
+  for (NSNumber *currentBoundaryOffset in foundBoundaryOffsets) {
+    ++partCounter;
+    if (previousBoundaryOffset == -1) {
+      // This is the first boundary.
+      previousBoundaryOffset = currentBoundaryOffset.integerValue;
+      continue;
+    } else {
+      // Create a part data subrange between the previous boundary and this one.
+      //
+      // The last four bytes before a boundary are CRLF--.
+      // The first two bytes following a boundary are either CRLF or, for the last boundary, --.
+      NSInteger previousPartDataStartOffset = previousBoundaryOffset + boundaryLength + 2;
+      NSInteger previousPartDataEndOffset = currentBoundaryOffset.integerValue - 4;
+      NSInteger previousPartDataLength = previousPartDataEndOffset - previousPartDataStartOffset;
+
+      if (previousPartDataLength < 2) {
+        // The preceding part was too short to be useful.
+#if DEBUG
+        NSLog(@"MIME part %zd has %zd bytes", partCounter - 1, previousPartDataLength);
+#endif
+      } else {
+        if (!parts) parts = [NSMutableArray array];
+
+        dispatch_data_t partData =
+            dispatch_data_create_subrange(dataWrapper,
+                                          previousPartDataStartOffset, previousPartDataLength);
+        // Scan the part data for the separator between headers and body. After the CRLF,
+        // either the headers start immediately, or there's another CRLF and there are no headers.
+        //
+        // We need to map the part data to get the first two bytes. (Or we could cast it to
+        // NSData and get the bytes pointer of that.)  If we're concerned that a single part
+        // data may be expensive to map, we could make a subrange here for just the first two bytes,
+        // and map that two-byte subrange.
+        const void *partDataBuffer;
+        size_t partDataBufferSize;
+        dispatch_data_t mappedPartData NS_VALID_UNTIL_END_OF_SCOPE =
+            dispatch_data_create_map(partData, &partDataBuffer, &partDataBufferSize);
+        dispatch_data_t bodyData;
+        NSDictionary *headers;
+        BOOL hasAnotherCRLF = (((char *)partDataBuffer)[0] == '\r'
+                               && ((char *)partDataBuffer)[1] == '\n');
+        mappedPartData = nil;
+
+        if (hasAnotherCRLF) {
+          // There are no headers; skip the CRLF to get to the body, and leave headers nil.
+          bodyData = dispatch_data_create_subrange(partData, 2, previousPartDataLength - 2);
+        } else {
+          // There are part headers. They are separated from body data by CRLFCRLF.
+          NSArray *crlfOffsets;
+          [self searchData:(NSData *)partData
+               targetBytes:"\r\n\r\n"
+              targetLength:4
+              foundOffsets:&crlfOffsets];
+          if (crlfOffsets.count == 0) {
+#if DEBUG
+            // We could not distinguish body and headers.
+            NSLog(@"MIME part %zd has lacks a header separator: %@", partCounter - 1,
+                  [[NSString alloc] initWithData:(NSData *)partData encoding:NSUTF8StringEncoding]);
+#endif
+          } else {
+            NSInteger headerSeparatorOffset = ((NSNumber *)crlfOffsets.firstObject).integerValue;
+            dispatch_data_t headerData =
+                dispatch_data_create_subrange(partData, 0, headerSeparatorOffset);
+            headers = [self headersWithData:(NSData *)headerData];
+
+            bodyData = dispatch_data_create_subrange(partData, headerSeparatorOffset + 4,
+                previousPartDataLength - (headerSeparatorOffset + 4));
+          }  // crlfOffsets.count == 0
+        }  // hasAnotherCRLF
+        GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
+                                                                    body:(NSData *)bodyData];
+        [parts addObject:part];
+      }  //  previousPartDataLength < 2
+      previousBoundaryOffset = currentBoundaryOffset.integerValue;
+    }
+  }
+  return parts;
+}
+
+// Efficiently search the supplied data for the target bytes.
+//
+// This uses enumerateByteRangesUsingBlock: to scan for bytes. It can find
+// the target even if it spans multiple separate byte ranges.
+//
+// Returns an array of found byte offset values, as NSNumbers.
++ (void)searchData:(NSData *)data
+       targetBytes:(const void *)targetBytes
+      targetLength:(NSUInteger)targetLength
+      foundOffsets:(NSArray **)outFoundOffsets {
+  NSMutableArray *foundOffsets = [NSMutableArray array];
+  SearchDataForBytes(data, targetBytes, targetLength, foundOffsets, NULL);
+  *outFoundOffsets = foundOffsets;
+}
+
+
+// This version of searchData: also returns the block numbers (0-based) where the
+// target was found, used for testing that the supplied dispatch_data buffer
+// has not been flattened.
++ (void)searchData:(NSData *)data
+       targetBytes:(const void *)targetBytes
+      targetLength:(NSUInteger)targetLength
+      foundOffsets:(NSArray **)outFoundOffsets
+ foundBlockNumbers:(NSArray **)outFoundBlockNumbers {
+  NSMutableArray *foundOffsets = [NSMutableArray array];
+  NSMutableArray *foundBlockNumbers = [NSMutableArray array];
+
+  SearchDataForBytes(data, targetBytes, targetLength, foundOffsets, foundBlockNumbers);
+  *outFoundOffsets = foundOffsets;
+  *outFoundBlockNumbers = foundBlockNumbers;
+}
+
+void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger targetLength,
+                        NSMutableArray *foundOffsets, NSMutableArray *foundBlockNumbers) {
+  __block NSUInteger priorPartialMatchAmount = 0;
+  __block NSInteger priorPartialMatchStartingBlockNumber = -1;
+  __block NSInteger blockNumber = -1;
+
+  [data enumerateByteRangesUsingBlock:^(const void *bytes,
+                                        NSRange byteRange,
+                                        BOOL *stop) {
+    // Search for the first character in the current range.
+    const void *ptr = bytes;
+    NSInteger remainingInCurrentRange = byteRange.length;
+    ++blockNumber;
+
+    if (priorPartialMatchAmount > 0) {
+      NSUInteger amountRemainingToBeMatched = targetLength - priorPartialMatchAmount;
+      NSUInteger remainingFoundOffset;
+      NSUInteger amountMatched = FindBytes(targetBytes + priorPartialMatchAmount,
+                                           amountRemainingToBeMatched,
+                                           ptr, remainingInCurrentRange, &remainingFoundOffset);
+      if (amountMatched == 0 || remainingFoundOffset > 0) {
+        // No match of the rest of the prior partial match in this range.
+      } else if (amountMatched < amountRemainingToBeMatched) {
+        // Another partial match; we're done with this range.
+        priorPartialMatchAmount = priorPartialMatchAmount + amountMatched;
+        return;
+      } else {
+        // The offset is in an earlier range.
+        NSUInteger offset = byteRange.location - priorPartialMatchAmount;
+        [foundOffsets addObject:@(offset)];
+        [foundBlockNumbers addObject:@(priorPartialMatchStartingBlockNumber)];
+        priorPartialMatchStartingBlockNumber = -1;
+      }
+      priorPartialMatchAmount = 0;
+    }
+
+    while (remainingInCurrentRange > 0) {
+      NSUInteger offsetFromPtr;
+      NSUInteger amountMatched = FindBytes(targetBytes, targetLength,
+                                           ptr, remainingInCurrentRange, &offsetFromPtr);
+      if (amountMatched == 0) {
+        // No match in this range.
+        return;
+      }
+      if (amountMatched < targetLength) {
+        // Found a partial target. If there's another range, we'll check for the rest.
+        priorPartialMatchAmount = amountMatched;
+        priorPartialMatchStartingBlockNumber = blockNumber;
+        return;
+      }
+      // Found the full target.
+      NSUInteger globalOffset = byteRange.location + (ptr - bytes) + offsetFromPtr;
+
+      [foundOffsets addObject:@(globalOffset)];
+      [foundBlockNumbers addObject:@(blockNumber)];
+
+      ptr += targetLength + offsetFromPtr;
+      remainingInCurrentRange -= (targetLength + offsetFromPtr);
+    }
+  }];
+}
+
+// Internal method only for testing; this calls through the static method.
++ (NSUInteger)findBytesWithNeedle:(const unsigned char *)needle
+                     needleLength:(NSUInteger)needleLength
+                         haystack:(const unsigned char *)haystack
+                   haystackLength:(NSUInteger)haystackLength
+                      foundOffset:(NSUInteger *)foundOffset {
+  return FindBytes(needle, needleLength, haystack, haystackLength, foundOffset);
+}
+
+// Utility method to parse header bytes into an NSDictionary.
++ (NSDictionary *)headersWithData:(NSData *)data {
+  NSString *headersString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+  if (!headersString) return nil;
+
+  NSMutableDictionary *headers = [NSMutableDictionary dictionary];
+  NSScanner *scanner = [NSScanner scannerWithString:headersString];
+  // The scanner is skipping leading whitespace and newline characters by default.
+  NSCharacterSet *newlineCharacters = [NSCharacterSet newlineCharacterSet];
+  NSString *key;
+  NSString *value;
+  while ([scanner scanUpToString:@":" intoString:&key]
+         && [scanner scanString:@":" intoString:NULL]
+         && [scanner scanUpToCharactersFromSet:newlineCharacters intoString:&value]) {
+    [headers setObject:value forKey:key];
+    // Discard the trailing newline.
+    [scanner scanCharactersFromSet:newlineCharacters intoString:NULL];
+  }
+  return headers;
 }
 
 @end
 
-
-// memsrch - Return YES if needle is found in haystack, else NO.
-static BOOL memsrch(const unsigned char* needle, NSUInteger needleLen,
-                    const unsigned char* haystack, NSUInteger haystackLen) {
-  // This is a simple approach.  We start off by assuming that both memchr() and
-  // memcmp are implemented efficiently on the given platform.  We search for an
-  // instance of the first char of our needle in the haystack.  If the remaining
-  // size could fit our needle, then we memcmp to see if it occurs at this point
-  // in the haystack.  If not, we move on to search for the first char again,
-  // starting from the next character in the haystack.
+// Return how much of the needle was found in the haystack.
+//
+// If the result is less than needleLen, then the beginning of the needle
+// was found at the end of the haystack.
+static NSUInteger FindBytes(const unsigned char* needle, NSUInteger needleLen,
+                            const unsigned char* haystack, NSUInteger haystackLen,
+                            NSUInteger *foundOffset) {
   const unsigned char *ptr = haystack;
-  NSUInteger remain = haystackLen;
-  while ((ptr = memchr(ptr, needle[0], remain)) != 0) {
-    remain = haystackLen - (NSUInteger)(ptr - haystack);
-    if (remain < needleLen) {
-      return NO;
-    }
-    if (memcmp(ptr, needle, needleLen) == 0) {
-      return YES;
+  NSInteger remain = haystackLen;
+  // Assume memchr is an efficient way to find a match for the first
+  // byte of the needle, and memcmp is an efficient way to compare a
+  // range of bytes.
+  while (remain > 0 && (ptr = memchr(ptr, needle[0], remain)) != 0) {
+    // The first character is present.
+    NSUInteger offset = (NSUInteger)(ptr - haystack);
+    remain = haystackLen - offset;
+
+    NSUInteger amountToCompare = MIN((NSUInteger)remain, needleLen);
+    if (memcmp(ptr, needle, amountToCompare) == 0) {
+      if (foundOffset) *foundOffset = offset;
+      return amountToCompare;
     }
     ptr++;
     remain--;
   }
-  return NO;
+  if (foundOffset) *foundOffset = 0;
+  return 0;
 }

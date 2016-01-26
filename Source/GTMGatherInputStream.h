@@ -36,11 +36,17 @@
   #endif
 #endif
 
+// Avoid multiple declaration of this class.
+//
+// Note: This should match the declaration of GTMGatherInputStream in GTMMIMEDocument.m
+
+#ifndef GTM_GATHERINPUTSTREAM_DECLARED
+#define GTM_GATHERINPUTSTREAM_DECLARED
 
 @interface GTMGatherInputStream : NSInputStream <NSStreamDelegate>
 
 + (NSInputStream *)streamWithArray:(NSArray *)dataArray GTM_NONNULL((1));
 
-- (instancetype)initWithArray:(NSArray *)dataArray GTM_NONNULL((1));
-
 @end
+
+#endif  // GTM_GATHERINPUTSTREAM_DECLARED
