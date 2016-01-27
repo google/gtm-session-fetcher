@@ -38,8 +38,8 @@ static NSString *const kEtag = @"GoodETag";
 @implementation NSString (GTMHTTPAuthorization)
 
 - (BOOL)hasCaseInsensitivePrefix:(NSString *)prefix {
-  NSUInteger prefixLength = [prefix length];
-  if ([self length] < prefixLength) return NO;
+  NSUInteger prefixLength = prefix.length;
+  if (self.length < prefixLength) return NO;
 
   NSComparisonResult hasPrefixResult =
       [self compare:prefix options:NSCaseInsensitiveSearch range:NSMakeRange(0, prefixLength)];
@@ -112,7 +112,7 @@ static NSString *const kEtag = @"GoodETag";
   NSData* data = [self dataUsingEncoding:NSUTF8StringEncoding];
 
   unsigned char MD5Digest[CC_MD5_DIGEST_LENGTH];
-  CC_MD5([data bytes], (CC_LONG)[data length], MD5Digest);
+  CC_MD5(data.bytes, (CC_LONG)data.length, MD5Digest);
   NSMutableString *MD5DigestString = [NSMutableString stringWithCapacity:2 * CC_MD5_DIGEST_LENGTH];
   for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i) {
     [MD5DigestString appendFormat:@"%02x", (unsigned int)MD5Digest[i]];
@@ -239,7 +239,7 @@ static NSString *const kEtag = @"GoodETag";
   // Fill an NSData.
   NSMutableData *data = [NSMutableData dataWithLength:length];
 
-  unsigned char *bytes = [data mutableBytes];
+  unsigned char *bytes = data.mutableBytes;
   for (NSUInteger idx = 0; idx < length; idx++) {
     bytes[idx] = (unsigned char)((idx + 1) % 256);
   }
@@ -272,11 +272,11 @@ static NSString *const kEtag = @"GoodETag";
 
   _lastHTTPAuthenticationType = kGTMHTTPAuthenticationTypeInvalid;
 
-  NSURL *requestURL = [request URL];
-  NSString *requestPath = [requestURL path];
+  NSURL *requestURL = request.URL;
+  NSString *requestPath = requestURL.path;
   NSString *requestPathExtension = [requestPath pathExtension];
   NSString *query = [requestURL query];
-  NSData *requestBodyData = [request body];
+  NSData *requestBodyData = request.body;
   NSString *requestMethod = request.method;
 
   NSDictionary *requestHeaders = [request allHeaderFieldValues];
@@ -324,7 +324,7 @@ static NSString *const kEtag = @"GoodETag";
 
     BOOL isResumable = [xUploadProtocol isEqual:@"resumable"];
     BOOL isStartingUpload = [xUploadCommand isEqual:@"start"];
-    BOOL hasContentType = [xUploadContentType length] > 0;
+    BOOL hasContentType = xUploadContentType.length > 0;
     if (!isResumable || !isStartingUpload || !hasContentType) {
       NSLog(@"Missing expected upload header.");
       return sendResponse(503, nil, nil);
@@ -349,7 +349,7 @@ static NSString *const kEtag = @"GoodETag";
     responseHeaders[@"X-Goog-Upload-URL"] = fullLocation;
     responseHeaders[@"X-Goog-Upload-Control-URL"] = fullLocation;
     responseHeaders[@"X-Goog-Upload-Status"] = @"active";
-    if ([uploadGranularityRequest length] > 0) {
+    if (uploadGranularityRequest.length > 0) {
       responseHeaders[@"X-Goog-Upload-Chunk-Granularity"] = uploadGranularityRequest;
     }
 
@@ -541,7 +541,7 @@ static NSString *const kEtag = @"GoodETag";
     NSData *expectedData = [[self class] generatedBodyDataWithLength:(NSUInteger)expectedLen];
     if (![requestBodyData isEqual:expectedData]) {
       NSLog(@"Mismatched request body data (actual %d bytes, expected %d bytes)",
-            (int)[requestBodyData length], expectedLen);
+            (int)requestBodyData.length, expectedLen);
       return sendResponse(500, nil, nil);
     }
   }
@@ -567,7 +567,7 @@ static NSString *const kEtag = @"GoodETag";
     return sendResponse(statusCode, responseData, _defaultContentType);
   }
 
-  if ([cookies length] > 0) {
+  if (cookies.length > 0) {
     responseHeaders[@"FoundCookies"] = cookies;
   }
   NSString *cookieToSet = [NSString stringWithFormat:@"TestCookie=%@", [requestPath lastPathComponent]];
@@ -618,7 +618,7 @@ static NSString *const kEtag = @"GoodETag";
     // we found the param name; find the end of the parameter
     NSCharacterSet *endSet = [NSCharacterSet characterSetWithCharactersInString:@"&\n"];
     NSUInteger startOfParam = paramNameRange.location + paramNameRange.length;
-    NSRange endSearchRange = NSMakeRange(startOfParam, [query length] - startOfParam);
+    NSRange endSearchRange = NSMakeRange(startOfParam, query.length - startOfParam);
     NSRange endRange = [query rangeOfCharacterFromSet:endSet
                                               options:0
                                                 range:endSearchRange];
@@ -658,13 +658,13 @@ static NSString *const kEtag = @"GoodETag";
 - (NSURL *)redirectURLForRequest:(GTMHTTPRequestMessage *)request
                       fromServer:(GTMHTTPServer *)server {
   if ((server != _server) || !_redirectServer) return nil;
-  NSURL *originalURL = [request URL];
+  NSURL *originalURL = request.URL;
   if (!originalURL) return nil;
 
   NSURLComponents *urlComponents =
       [[NSURLComponents alloc] initWithURL:originalURL resolvingAgainstBaseURL:YES];
   urlComponents.port = @(_redirectServer.port);
-  NSURL *redirectURL = [urlComponents URL];
+  NSURL *redirectURL = urlComponents.URL;
   return redirectURL;
 }
 
@@ -693,10 +693,10 @@ static NSString *const kEtag = @"GoodETag";
       if (![authorization hasCaseInsensitivePrefix:kBasicAuthPrefix]) return NO;
 
       NSString *basicAuthCredentials =
-          [[authorization substringFromIndex:[kBasicAuthPrefix length]] stringByTrimmingWhitespace];
+          [[authorization substringFromIndex:kBasicAuthPrefix.length] stringByTrimmingWhitespace];
       basicAuthCredentials = [basicAuthCredentials base64DecodedString];
       NSArray *credentialComponents = [basicAuthCredentials componentsSeparatedByString:@":"];
-      if ([credentialComponents count] < 2) return NO;
+      if (credentialComponents.count < 2) return NO;
 
       NSString *authUsername = credentialComponents[0];
       NSString *authPassword = credentialComponents[1];
@@ -708,13 +708,13 @@ static NSString *const kEtag = @"GoodETag";
       if (![authorization hasCaseInsensitivePrefix:kDigestAuthPrefix]) return NO;
 
       NSString *authCredentialsString =
-          [authorization substringFromIndex:[kDigestAuthPrefix length]];
+          [authorization substringFromIndex:kDigestAuthPrefix.length];
       NSDictionary *digestAuthCredentials =
           [authCredentialsString allDigestAuthorizationHeaderFields];
       NSString *username = digestAuthCredentials[@"username"];
       if (![_username isEqual:username]) return NO;
 
-      NSString *urlString = [[request URL] relativeString];
+      NSString *urlString = [request.URL relativeString];
       NSString *authUri = digestAuthCredentials[@"uri"];
       if (![urlString isEqual:authUri]) return NO;
 
@@ -766,7 +766,7 @@ static NSString *const kEtag = @"GoodETag";
                byRangeHeader:(NSString *)rangeHeader
        outContentRangeHeader:(NSString * __autoreleasing *)outContentRangeHeader {
   NSAssert([rangeHeader hasPrefix:@"bytes="], @"Invalid Range: %@", rangeHeader);
-  rangeHeader = [rangeHeader substringFromIndex:[@"bytes=" length]];
+  rangeHeader = [rangeHeader substringFromIndex:@"bytes=".length];
   NSArray *byteRangeStrings = [rangeHeader componentsSeparatedByString:@","];
   NSRange contentRange = NSMakeRange(0, 0);
 
@@ -785,15 +785,15 @@ static NSString *const kEtag = @"GoodETag";
     if ([byteRangeString hasPrefix:@"-"]) {
       // Final number of bytes
       byteRange.length = (NSUInteger)[[byteRangeString substringFromIndex:1] integerValue];
-      byteRange.location = [responseData length] - byteRange.length;
+      byteRange.location = responseData.length - byteRange.length;
     } else if ([byteRangeString hasSuffix:@"-"]) {
       // Final bytes beginning at offset
-      NSRange offsetRange = NSMakeRange(0, ([byteRangeString length] - 1));
+      NSRange offsetRange = NSMakeRange(0, (byteRangeString.length - 1));
       byteRange.location = (NSUInteger)[[byteRangeString substringWithRange:offsetRange] integerValue];
-      byteRange.length = [responseData length] - byteRange.location;
+      byteRange.length = responseData.length - byteRange.location;
     } else {
       NSArray *byteOffsets = [byteRangeString componentsSeparatedByString:@"-"];
-      NSAssert([byteOffsets count] == 2,
+      NSAssert(byteOffsets.count == 2,
                @"Unexpected number of values in byte range, %@", byteRangeString);
       byteRange.location = (NSUInteger)[byteOffsets[0] integerValue];
       byteRange.length = (NSUInteger)[byteOffsets[1] integerValue] + 1 - byteRange.location;
@@ -810,7 +810,7 @@ static NSString *const kEtag = @"GoodETag";
       [NSString stringWithFormat:@"bytes %llu-%llu/%llu",
                                  (unsigned long long)contentRange.location,
                                  (unsigned long long)(NSMaxRange(contentRange) - 1),
-                                 (unsigned long long)[responseData length]];
+                                 (unsigned long long)responseData.length];
   return [responseData subdataWithRange:contentRange];
 }
 

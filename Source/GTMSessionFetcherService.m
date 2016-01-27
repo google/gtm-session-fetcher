@@ -184,7 +184,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   }
 
   NSString *userAgent = self.userAgent;
-  if ([userAgent length] > 0
+  if (userAgent.length > 0
       && [request valueForHTTPHeaderField:@"User-Agent"] == nil) {
     [fetcher.mutableRequest setValue:userAgent
                   forHTTPHeaderField:@"User-Agent"];
@@ -297,7 +297,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    NSString *host = [[[fetcher mutableRequest] URL] host];
+    NSString *host = fetcher.mutableRequest.URL.host;
     if (host == nil) {
       return NO;
     }
@@ -313,15 +313,15 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    NSURL *requestURL = [[fetcher mutableRequest] URL];
-    NSString *host = [requestURL host];
+    NSURL *requestURL = fetcher.mutableRequest.URL;
+    NSString *host = requestURL.host;
 
     // Addresses "file:///path" case where localhost is the implicit host.
-    if ([host length] == 0 && [requestURL isFileURL]) {
+    if (host.length == 0 && [requestURL isFileURL]) {
       host = @"localhost";
     }
 
-    if ([host length] == 0) {
+    if (host.length == 0) {
       // Data URIs legitimately have no host, reject other hostless URLs.
       GTMSESSION_ASSERT_DEBUG([[requestURL scheme] isEqual:@"data"], @"%@ lacks host", fetcher);
       return YES;
@@ -339,7 +339,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     // the fetcher in the wrong array
     fetcher.serviceHost = host;
 
-    BOOL shouldRunNow = (fetcher.useBackgroundSession
+    BOOL shouldRunNow = (fetcher.usingBackgroundSession
                          || _maxRunningFetchersPerHost == 0
                          || _maxRunningFetchersPerHost >
                          [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]);
@@ -461,7 +461,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     NSMutableArray *delayedForHost = [_delayedFetchersByHost objectForKey:host];
     [delayedForHost removeObject:fetcher];
 
-    while ([delayedForHost count] > 0
+    while (delayedForHost.count > 0
            && [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]
               < _maxRunningFetchersPerHost) {
       // Start another delayed fetcher running, scanning for the minimum
@@ -487,12 +487,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       }
     }
 
-    if ([runningForHost count] == 0) {
+    if (runningForHost.count == 0) {
       // None left; remove the empty array
       [_runningFetchersByHost removeObjectForKey:host];
     }
 
-    if ([delayedForHost count] == 0) {
+    if (delayedForHost.count == 0) {
       [_delayedFetchersByHost removeObjectForKey:host];
     }
   }  // @synchronized(self)
@@ -520,7 +520,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     NSUInteger sum = 0;
     for (NSString *host in _runningFetchersByHost) {
       NSArray *fetchers = [_runningFetchersByHost objectForKey:host];
-      sum += [fetchers count];
+      sum += fetchers.count;
     }
     return sum;
   }
@@ -533,7 +533,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     NSUInteger sum = 0;
     for (NSString *host in _delayedFetchersByHost) {
       NSArray *fetchers = [_delayedFetchersByHost objectForKey:host];
-      sum += [fetchers count];
+      sum += fetchers.count;
     }
     return sum;
   }
@@ -552,30 +552,30 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     [_runningFetchersByHost enumerateKeysAndObjectsUsingBlock:accumulateFetchers];
     [_delayedFetchersByHost enumerateKeysAndObjectsUsingBlock:accumulateFetchers];
 
-    GTMSESSION_ASSERT_DEBUG([allFetchers count] == [[NSSet setWithArray:allFetchers] count],
+    GTMSESSION_ASSERT_DEBUG(allFetchers.count == [NSSet setWithArray:allFetchers].count,
                             @"Fetcher appears multiple times\n running: %@\n delayed: %@",
                             _runningFetchersByHost, _delayedFetchersByHost);
 
-    return [allFetchers count] > 0 ? allFetchers : nil;
+    return allFetchers.count > 0 ? allFetchers : nil;
   }
 }
 
 - (NSArray *)issuedFetchersWithRequestURL:(NSURL *)requestURL {
-  NSString *host = [requestURL host];
-  if ([host length] == 0) return nil;
+  NSString *host = requestURL.host;
+  if (host.length == 0) return nil;
 
   NSURL *targetURL = [requestURL absoluteURL];
 
   NSArray *allFetchers = [self issuedFetchers];
-  NSIndexSet *indexes = [allFetchers indexesOfObjectsPassingTest:^BOOL(id fetcher,
+  NSIndexSet *indexes = [allFetchers indexesOfObjectsPassingTest:^BOOL(GTMSessionFetcher *fetcher,
                                                                        NSUInteger idx,
                                                                        BOOL *stop) {
-      NSURL *fetcherURL = [[[fetcher mutableRequest] URL] absoluteURL];
+      NSURL *fetcherURL = [fetcher.mutableRequest.URL absoluteURL];
       return [fetcherURL isEqual:targetURL];
   }];
 
   NSArray *result = nil;
-  if ([indexes count] > 0) {
+  if (indexes.count > 0) {
     result = [allFetchers objectsAtIndexes:indexes];
   }
   return result;
@@ -597,10 +597,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
     // Remove fetchers from the delayed list to avoid fetcherDidStop: from
     // starting more fetchers running as a side effect of stopping one
-    delayedFetchersByHost = [_delayedFetchersByHost allValues];
+    delayedFetchersByHost = _delayedFetchersByHost.allValues;
     [_delayedFetchersByHost removeAllObjects];
 
-    runningFetchersByHost = [_runningFetchersByHost allValues];
+    runningFetchersByHost = _runningFetchersByHost.allValues;
     [_runningFetchersByHost removeAllObjects];
   }
 
@@ -780,7 +780,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 + (NSUInteger)numberOfNonBackgroundSessionFetchers:(NSArray *)fetchers {
   NSUInteger sum = 0;
   for (GTMSessionFetcher *fetcher in fetchers) {
-    if (!fetcher.useBackgroundSession) {
+    if (!fetcher.usingBackgroundSession) {
       ++sum;
     }
   }
@@ -822,11 +822,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   BOOL shouldSpinRunLoop = [NSThread isMainThread];
   const NSTimeInterval kSpinInterval = 0.001;
   BOOL didTimeOut = NO;
-  while (([self numberOfFetchers] > 0 || [_stoppedFetchersToWaitFor count] > 0)) {
+  while (([self numberOfFetchers] > 0 || _stoppedFetchersToWaitFor.count > 0)) {
     didTimeOut = [giveUpDate timeIntervalSinceNow] < 0;
     if (didTimeOut) break;
 
-    GTMSessionFetcher *stoppedFetcher = [_stoppedFetchersToWaitFor firstObject];
+    GTMSessionFetcher *stoppedFetcher = _stoppedFetchersToWaitFor.firstObject;
     if (stoppedFetcher) {
       [_stoppedFetchersToWaitFor removeObject:stoppedFetcher];
       [stoppedFetcher waitForCompletionWithTimeout:10.0 * kSpinInterval];
@@ -898,7 +898,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   return [NSString stringWithFormat:@"%@ %p %@ %@",
           [self class], self,
           _session ?: @"<no session>",
-          [_taskToFetcherMap count] > 0 ? _taskToFetcherMap : @"<no tasks>"];
+          _taskToFetcherMap.count > 0 ? _taskToFetcherMap : @"<no tasks>"];
 }
 
 // This method should be called inside of a @synchronized(self) block.
@@ -927,7 +927,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    NSUInteger numberOfTasks = [_taskToFetcherMap count];
+    NSUInteger numberOfTasks = _taskToFetcherMap.count;
     if (numberOfTasks == 0) {
       service = _parentService;
     }
@@ -1000,10 +1000,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     // When fetching with a testBlock, though, the task completed delegate
     // method may not be invoked, requiring cleanup here.
     NSArray *tasks = [_taskToFetcherMap allKeysForObject:fetcher];
-    GTMSESSION_ASSERT_DEBUG([tasks count] <= 1, @"fetcher task not unmapped: %@", tasks);
+    GTMSESSION_ASSERT_DEBUG(tasks.count <= 1, @"fetcher task not unmapped: %@", tasks);
     [_taskToFetcherMap removeObjectsForKeys:tasks];
 
-    if ([_taskToFetcherMap count] == 0) {
+    if (_taskToFetcherMap.count == 0) {
       [self startDiscardTimer];
     }
   }

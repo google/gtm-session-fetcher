@@ -68,7 +68,7 @@
     if (numRead == 0) break;
 
     // Append the read chunk to our buffer.
-    [readData appendBytes:buffer length:numRead];
+    [readData appendBytes:buffer length:(NSUInteger)numRead];
   }
   [monitorStream close];
 

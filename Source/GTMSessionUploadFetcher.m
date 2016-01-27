@@ -152,7 +152,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return fetcher;
 }
 
-+ (instancetype)uploadFetcherWithLocation:(NSURL *)uploadLocationURL
++ (instancetype)uploadFetcherWithLocation:(NSURL * GTM_NULLABLE_TYPE)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
                            fetcherService:(GTMSessionFetcherService *)fetcherService {
@@ -460,7 +460,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [mutableRequest setValue:lengthNum.stringValue
         forHTTPHeaderField:kGTMSessionHeaderXGoogUploadContentLength];
 
-  NSString *method = [mutableRequest HTTPMethod];
+  NSString *method = mutableRequest.HTTPMethod;
   if (method == nil || [method caseInsensitiveCompare:@"GET"] == NSOrderedSame) {
     [mutableRequest setHTTPMethod:@"POST"];
   }
@@ -480,7 +480,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)setLocationURL:(NSURL *)location
+- (void)setLocationURL:(NSURL * GTM_NULLABLE_TYPE)location
         uploadMIMEType:(NSString *)uploadMIMEType
              chunkSize:(int64_t)chunkSize {
   @synchronized(self) {
@@ -512,7 +512,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     GTMSessionMonitorSynchronized(self);
 
     if (_uploadData) {
-      result = (int64_t)[_uploadData length];
+      result = (int64_t)_uploadData.length;
     } else {
       if (_uploadFileLength == -1) {
         if (_uploadFileHandle) {
@@ -606,7 +606,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
   @catch (NSException *exception) {
     GTMSESSION_ASSERT_DEBUG(NO, @"uploadFileHandle failed to read, %@", exception);
-    error = [self uploadChunkUnavailableErrorWithDescription:[exception description]];
+    error = [self uploadChunkUnavailableErrorWithDescription:exception.description];
   }
   // The response always re-dispatches to the main thread, so we skip doing that here.
   response(resultData, error);
@@ -847,8 +847,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // This assert typically happens because the upload create/edit link URL was
   // not supplied with the request, and the server is thus expecting a non-
   // resumable request/response.
-  if ([[self downloadedData] length] > 0) {
-    NSData *downloadedData = [self downloadedData];
+  if (self.downloadedData.length > 0) {
+    NSData *downloadedData = self.downloadedData;
     NSString *str = [[NSString alloc] initWithData:downloadedData
                                           encoding:NSUTF8StringEncoding];
     #pragma unused(str)
@@ -1272,7 +1272,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // copy the user-agent from the original connection
   NSURLRequest *origRequest = self.mutableRequest;
   NSString *userAgent = [origRequest valueForHTTPHeaderField:@"User-Agent"];
-  if ([userAgent length] > 0) {
+  if (userAgent.length > 0) {
     [chunkRequest setValue:userAgent forHTTPHeaderField:@"User-Agent"];
   }
   // To avoid timeouts when debugging, copy the timeout of the initial fetcher.
@@ -1360,7 +1360,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   BOOL needsQuery = (!hasKnownChunkSize && !isUploadStatusStopped);
 
   if (error || needsQuery) {
-    NSInteger status = [error code];
+    NSInteger status = error.code;
 
     // Status 4xx indicates a bad offset in the Google upload protocol. However, do not retry status
     // 404 per spec, nor if the upload size appears to have been zero (since the server will just
@@ -1623,6 +1623,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       }
     }
   }  // @synchronized(self
+}
+
+- (BOOL)canFetchWithBackgroundSession {
+  // The initial upload fetcher is always a foreground session; the
+  // useBackgroundSession property will apply only to chunk fetchers,
+  // not to queries.
+  return NO;
 }
 
 - (NSDictionary *)responseHeaders {

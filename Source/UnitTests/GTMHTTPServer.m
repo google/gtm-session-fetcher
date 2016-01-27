@@ -70,8 +70,8 @@ static NSString *kResponseOffset = @"ResponseOffset";
     NSAssert(NO, @"Chunk already written");
     return NO;
   }
-  const char *charPtrBegin = [data bytes];
-  const char *charPtrEnd = charPtrBegin + [data length];
+  const char *charPtrBegin = data.bytes;
+  const char *charPtrEnd = charPtrBegin + data.length;
   for (const char *charPtr = charPtrBegin; charPtrBegin < charPtrEnd; charPtrBegin = charPtr) {
     if (_chunkLengthToRead == 0) {
       // charPtr should now point to the next chunk length, delimited by \r\n.
@@ -327,8 +327,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 - (void)stop {
-  while ([_connections count] > 0) {
-    NSMutableDictionary *connDict = [_connections lastObject];
+  while (_connections.count > 0) {
+    NSMutableDictionary *connDict = _connections.lastObject;
     [self closeConnection:connDict];
   }
   if (_runLoopSource) {
@@ -344,7 +344,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 - (NSUInteger)activeRequestCount {
-  return [_connections count];
+  return _connections.count;
 }
 
 - (NSString *)description {
@@ -432,13 +432,13 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
         NSNumber *responseOffset = connDict[kResponseOffset];
         NSUInteger offset = [responseOffset unsignedIntegerValue];
         NSData *response = connDict[kResponse];
-        NSUInteger responseLength = [response length];
+        NSUInteger responseLength = response.length;
         if (offset >= responseLength) {
           [self closeConnection:connDict];
           return;
         }
         NSUInteger kMaxWriteDataChunkSize = 32768;
-        const uint8_t *buffer = [response bytes];
+        const uint8_t *buffer = response.bytes;
         NSUInteger maxLength = MIN((responseLength - offset), kMaxWriteDataChunkSize);
         NSInteger bytesWritten = [outputStream write:&buffer[offset]
                                            maxLength:maxLength];
@@ -557,7 +557,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
     return YES;
   }
   NSData *body = self.body;
-  NSUInteger bodyLength = [body length];
+  NSUInteger bodyLength = body.length;
   if (contentLength > (int64_t)bodyLength) {
     return NO;
   }
@@ -570,7 +570,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 - (BOOL)appendData:(NSData *)data {
-  CFIndex dataLength = (CFIndex)[data length];
+  CFIndex dataLength = (CFIndex)data.length;
   if (dataLength == 0) {
     return NO;
   }
@@ -581,7 +581,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
     }
   } else {
     // Not currently handling a Chunked encode, so pass data to system handler.
-    Boolean didAppend = CFHTTPMessageAppendBytes(_message, [data bytes], (CFIndex)[data length]);
+    Boolean didAppend = CFHTTPMessageAppendBytes(_message, data.bytes, (CFIndex)data.length);
     NSAssert(didAppend, @"Failed to append bytes to request message");
     if (!didAppend) {
       return NO;
@@ -599,10 +599,10 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
         }
       } else {
         int64_t contentLength = [self contentLength];
-        NSUInteger bodyLength = [body length];
+        NSUInteger bodyLength = body.length;
         if (contentLength < (int64_t)bodyLength) {
           // We got extra (probably someone trying to pipeline on us), trim the extra data.
-          NSData *newBody = [NSData dataWithBytes:[body bytes] length:(NSUInteger)contentLength];
+          NSData *newBody = [NSData dataWithBytes:body.bytes length:(NSUInteger)contentLength];
           [self setBody:newBody];
           NSLog(@"Got %lu extra bytes on http request, ignoring them",
                      (unsigned long)(bodyLength - (unsigned long)contentLength));
@@ -707,14 +707,14 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 
 - (void)setBody:(NSData *)body {
   NSAssert(body != nil, @"Invalid response body");
-  NSUInteger bodyLength = [body length];
+  NSUInteger bodyLength = body.length;
   CFHTTPMessageSetBody(_message, (__bridge CFDataRef)body);
   NSString *bodyLenStr = [NSString stringWithFormat:@"%lu", (unsigned long)bodyLength];
   [self setValue:bodyLenStr forHeaderField:@"Content-Length"];
 }
 
 - (void)setValue:(NSString*)value forHeaderField:(NSString*)headerField {
-  if ([headerField length] == 0) return;
+  if (headerField.length == 0) return;
   if (value == nil) {
     value = @"";
   }
@@ -757,7 +757,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
     }
     if (body) {
       self.body = body;
-      if ([contentType length] == 0) {
+      if (contentType.length == 0) {
         contentType = @"text/html";
       }
       [self setValue:contentType forHeaderField:@"Content-Type"];

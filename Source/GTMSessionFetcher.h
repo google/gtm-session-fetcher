@@ -230,7 +230,7 @@
 //
 //  myFetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
 //                           GTMSessionFetcherRetryResponse response) {
-//    // Perhaps examine [error domain] and [error code], or [fetcher retryCount]
+//    // Perhaps examine error.domain and error.code, or fetcher.retryCount
 //    //
 //    // Respond with YES to start the retry timer, NO to proceed to the failure
 //    // callback, or suggestedWillRetry to get default behavior for the
@@ -541,7 +541,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // queue before calling this function.
 //
 // Failure is indicated by a returned data value of nil.
-NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
+NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -722,6 +722,9 @@ NSData *GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 // Indicate that a newly created session should be a background session.
 // A new session identifier will be created by the fetcher.
 @property(assign) BOOL useBackgroundSession;
+
+// Indicates if the fetcher was started using a background session.
+@property(atomic, readonly, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
 
 // Indicates if uploads should use an upload task.  This is always set for file or stream-provider
 // bodies, but may be set explicitly for NSData bodies.

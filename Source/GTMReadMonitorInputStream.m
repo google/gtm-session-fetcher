@@ -113,8 +113,8 @@
 }
 
 - (void)invokeReadSelectorWithBuffer:(NSData *)data {
-  const void *buffer = [data bytes];
-  int64_t length = (int64_t)[data length];
+  const void *buffer = data.bytes;
+  int64_t length = (int64_t)data.length;
 
   id argSelf = self;
   NSMethodSignature *signature = [_readDelegate methodSignatureForSelector:_readSelector];
