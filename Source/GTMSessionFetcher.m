@@ -969,22 +969,26 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
     // Simulate receipt of redirection.
     if (_willRedirectBlock) {
-      [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          _willRedirectBlock((NSHTTPURLResponse *)response, _request,
-                             ^(NSURLRequest *redirectRequest) {
-              // For simulation, we'll assume the app will just continue.
-          });
+          if (_willRedirectBlock) {
+            _willRedirectBlock((NSHTTPURLResponse *)response, _request,
+                               ^(NSURLRequest *redirectRequest) {
+                // For simulation, we'll assume the app will just continue.
+            });
+          }
       }];
     }
 
     // Simulate receipt of an initial response.
     if (_didReceiveResponseBlock) {
-      [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+          if (_didReceiveResponseBlock) {
+            _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
               // For simulation, we'll assume the disposition is to continue.
-          });
+            });
+          }
       }];
     }
 
@@ -995,7 +999,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                        int64_t totalBytesSent,
                                                        int64_t totalBytesExpectedToSend) {
           // This is invoked on the callback queue unless stopped.
-          _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
+          if (_sendProgressBlock) {
+            _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
+          }
       }];
     }
 
@@ -1007,7 +1013,10 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                          int64_t totalBytesDownloaded,
                                                          int64_t totalBytesExpectedToDownload) {
           // This is invoked on the callback queue unless stopped.
-          _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded, totalBytesExpectedToDownload);
+          if (_downloadProgressBlock) {
+            _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
+                                   totalBytesExpectedToDownload);
+          }
         }];
       }
 
@@ -1024,7 +1033,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       if (_accumulateDataBlock) {
         if (responseData) {
           [self invokeOnCallbackQueueUnlessStopped:^{
-            _accumulateDataBlock(responseData);
+            if (_accumulateDataBlock) {
+              _accumulateDataBlock(responseData);
+            }
           }];
         }
       } else {
@@ -1037,7 +1048,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                          int64_t totalBytesReceived,
                                                          int64_t totalBytesExpectedToReceive) {
           // This is invoked on the callback queue unless stopped.
-           _receivedProgressBlock(bytesReceived, totalBytesReceived);
+          if (_receivedProgressBlock) {
+            _receivedProgressBlock(bytesReceived, totalBytesReceived);
+          }
          }];
       }
 
@@ -1046,11 +1059,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
         NSCachedURLResponse *cachedResponse =
             [[NSCachedURLResponse alloc] initWithResponse:response
                                                      data:responseData];
-        [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+        [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                             block:^{
-            _willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
-                // The app may provide an alternative response, or nil to defeat caching.
-            });
+            if (_willCacheURLResponseBlock) {
+              _willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
+                  // The app may provide an alternative response, or nil to defeat caching.
+              });
+           }
         }];
       }
     }
@@ -2086,11 +2101,11 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                                         block:(void (^)(void))block {
   GTMSessionCheckSynchronized(self);
 
-  [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:afterStopped
+  [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:afterStopped
                                                       block:block];
 }
 
-- (void)invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:(BOOL)afterStopped
+- (void)invokeOnCallbackUnsynchronizedQueueAfterUserStopped:(BOOL)afterStopped
                                                       block:(void (^)(void))block {
   // testBlock simulation code may not be synchronizing when this is invoked.
   [self invokeOnCallbackQueue:_callbackQueue
