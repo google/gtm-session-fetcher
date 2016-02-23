@@ -1760,7 +1760,14 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @implementation GTMSessionFetcher (GTMSessionUploadFetcherMethods)
 
 - (GTMSessionUploadFetcher *)parentUploadFetcher {
-  return [self propertyForKey:kGTMSessionUploadFetcherChunkParentKey];
+  NSValue *property = [self propertyForKey:kGTMSessionUploadFetcherChunkParentKey];
+  if (!property) return nil;
+
+  GTMSessionUploadFetcher *uploadFetcher = property.nonretainedObjectValue;
+
+  GTMSESSION_ASSERT_DEBUG([uploadFetcher isKindOfClass:[GTMSessionUploadFetcher class]],
+                          @"Unexpected parent upload fetcher class: %@", [uploadFetcher class]);
+  return uploadFetcher;
 }
 
 @end
