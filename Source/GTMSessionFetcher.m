@@ -1366,6 +1366,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 }
 
 - (void)failToBeginFetchWithError:(NSError *)error {
+  GTMSessionCheckNotSynchronized(self);
+
   if (error == nil) {
     error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                 code:GTMSessionFetcherErrorDownloadFailed
@@ -1374,11 +1376,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
   [self invokeFetchCallbacksOnCallbackQueueWithData:nil
                                               error:error];
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    [self releaseCallbacks];
-  }  // @synchronized(self)
+  [self releaseCallbacks];
 
   [_service fetcherDidStop:self];
 
@@ -1530,12 +1528,25 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 }
 
 - (void)releaseCallbacks {
-  GTMSessionCheckSynchronized(self);
+  // Avoid releasing blocks in the sync section since objects dealloc'd by
+  // the blocks being released may call back into the fetcher or fetcher
+  // service.
+  dispatch_queue_t holdCallbackQueue;
+  GTMSessionFetcherCompletionHandler holdCompletionHandler;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    holdCallbackQueue = _callbackQueue;
+    holdCompletionHandler = _completionHandler;
+
+    _callbackQueue = nil;
+    _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
+  }
 
   // After the fetcher starts, this is called in a @synchronized(self) block.
-  _callbackQueue = nil;
+  holdCallbackQueue = nil;
+  holdCompletionHandler = nil;
 
-  _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   self.configurationBlock = nil;
   self.didReceiveResponseBlock = nil;
   self.willRedirectBlock = nil;
@@ -1669,13 +1680,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     GTMSessionMonitorSynchronized(self);
 
     [_authorizer stopAuthorizationForRequest:_request];
-
-    if (shouldReleaseCallbacks) {
-      [self releaseCallbacks];
-
-      self.authorizer = nil;
-    }
   }  // @synchronized(self)
+
+  if (shouldReleaseCallbacks) {
+    [self releaseCallbacks];
+
+    self.authorizer = nil;
+  }
 
   [service fetcherDidStop:self];
 

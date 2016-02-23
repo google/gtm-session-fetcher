@@ -945,18 +945,19 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
           handler(data, error);
       }];
     }
-
-    [self releaseUploadAndBaseCallbacks];
   }  // @synchronized(self)
+
+  [self releaseUploadAndBaseCallbacks];
 }
 
 - (void)releaseUploadAndBaseCallbacks {
-  // Should be called in @synchronized(self)
-  GTMSessionCheckSynchronized(self);
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
 
-  _delegateCallbackQueue = nil;
-  _delegateCompletionHandler = nil;
-  _uploadDataProvider = nil;
+    _delegateCallbackQueue = nil;
+    _delegateCompletionHandler = nil;
+    _uploadDataProvider = nil;
+  }
 
   // Release the base class's callbacks, too, if needed.
   [self releaseCallbacks];
@@ -975,11 +976,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
 
   if (shouldReleaseCallbacks) {
-    @synchronized(self) {
-      GTMSessionMonitorSynchronized(self);
-
-      [self releaseUploadAndBaseCallbacks];
-    }
+    [self releaseUploadAndBaseCallbacks];
   }
 }
 
