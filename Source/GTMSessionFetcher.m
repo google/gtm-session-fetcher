@@ -1055,7 +1055,10 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
     NSInteger status = error ? error.code : 200;
-    [self shouldRetryNowForStatus:status error:error response:^(BOOL shouldRetry) {
+    [self shouldRetryNowForStatus:status
+                            error:error
+                 forceAssumeRetry:NO
+                         response:^(BOOL shouldRetry) {
         [self finishWithError:error shouldRetry:shouldRetry];
     }];
   }];
@@ -2432,6 +2435,7 @@ didCompleteWithError:(NSError *)error {
                            [self class], self, session, task, error);
 
   NSInteger status = self.statusCode;
+  BOOL forceAssumeRetry = NO;
   BOOL succeeded = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -2458,18 +2462,19 @@ didCompleteWithError:(NSError *)error {
     return;
   }
   // For background redirects, no delegate method is called, so we cannot restore a stripped
-  // Authorization header, so if a 403 was generated due to a missing OAuth header, set the current
-  // request's URL to the redirected URL, so we in effect restore the Authorization header.
+  // Authorization header, so if a 403 ("Forbidden") was generated due to a missing OAuth 2 header,
+  // set the current request's URL to the redirected URL, so we in effect restore the Authorization
+  // header.
   if ((status == 403) && self.usingBackgroundSession) {
     NSURL *redirectURL = self.response.URL;
     NSMutableURLRequest *request = self.mutableRequest;
     if (![request.URL isEqual:redirectURL]) {
-      NSString *authorizationHeader =
-          [request.allHTTPHeaderFields objectForKey:@"Authorization"];
+      NSString *authorizationHeader = [request.allHTTPHeaderFields objectForKey:@"Authorization"];
       if (authorizationHeader != nil) {
-        [request setURL:redirectURL];
-        [self retryFetch];
-        return;
+        request.URL = redirectURL;
+        // Avoid assuming the session is still valid.
+        self.session = nil;
+        forceAssumeRetry = YES;
       }
     }
   }
@@ -2482,7 +2487,10 @@ didCompleteWithError:(NSError *)error {
   }
 
   // Failed.
-  [self shouldRetryNowForStatus:status error:error response:^(BOOL shouldRetry) {
+  [self shouldRetryNowForStatus:status
+                          error:error
+               forceAssumeRetry:forceAssumeRetry
+                       response:^(BOOL shouldRetry) {
     [self finishWithError:error shouldRetry:shouldRetry];
   }];
 }
@@ -2522,6 +2530,10 @@ didCompleteWithError:(NSError *)error {
   // may begin before the prior session sends the didBecomeInvalid delegate message.
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@",
                            [self class], self, session, error);
+  if (session == (NSURLSession *)self.session) {
+    GTM_LOG_SESSION_DELEGATE(@"  Unexpected retained invalid session: %@", session);
+    self.session = nil;
+  }
 }
 
 - (void)finishWithError:(NSError * GTM_NULLABLE_TYPE)error shouldRetry:(BOOL)shouldRetry {
@@ -2711,6 +2723,7 @@ didCompleteWithError:(NSError *)error {
 // authorizer may be able to fix.
 - (void)shouldRetryNowForStatus:(NSInteger)status
                           error:(NSError *)error
+               forceAssumeRetry:(BOOL)forceAssumeRetry
                        response:(GTMSessionFetcherRetryResponse)response {
   // Determine if a refreshed authorizer may avoid an authorization error
   BOOL willRetry = NO;
@@ -2754,7 +2767,7 @@ didCompleteWithError:(NSError *)error {
         }
       }
     }
-    BOOL canRetry = shouldRetryForAuthRefresh || shouldDoRetry;
+    BOOL canRetry = shouldRetryForAuthRefresh || forceAssumeRetry || shouldDoRetry;
     if (canRetry) {
       NSDictionary *userInfo = nil;
       if (_downloadedData.length > 0) {
@@ -2767,6 +2780,7 @@ didCompleteWithError:(NSError *)error {
         error = statusError;
       }
       willRetry = shouldRetryForAuthRefresh ||
+                  forceAssumeRetry ||
                   [self isRetryError:error] ||
                   ((error != statusError) && [self isRetryError:statusError]);
 
