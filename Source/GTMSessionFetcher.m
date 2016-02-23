@@ -926,11 +926,18 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
           error = readError;
         }
 
-        // No body URL or stream provider.
-        [self simulateDataCallbacksForTestBlockWithBodyData:_bodyData
-                                                   response:response
-                                               responseData:responseData
-                                                      error:error];
+        // No stream provider.
+
+        // In real fetches, nothing happens until the run loop spins, so apps have leeway to
+        // set callbacks after they call beginFetch. We'll mirror that fetcher behavior by
+        // delaying callbacks here at least to the next spin of the run loop.  That keeps
+        // immediate, synchronous setting of callback blocks after beginFetch working in tests.
+        dispatch_async(dispatch_get_main_queue(), ^{
+          [self simulateDataCallbacksForTestBlockWithBodyData:_bodyData
+                                                     response:response
+                                                 responseData:responseData
+                                                        error:error];
+        });
       }
     });
 }
@@ -1055,12 +1062,16 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
     NSInteger status = error ? error.code : 200;
-    [self shouldRetryNowForStatus:status
-                            error:error
-                 forceAssumeRetry:NO
-                         response:^(BOOL shouldRetry) {
-        [self finishWithError:error shouldRetry:shouldRetry];
-    }];
+    if (status >= 200 && status <= 399) {
+      [self finishWithError:nil shouldRetry:NO];
+    } else {
+      [self shouldRetryNowForStatus:status
+                              error:error
+                   forceAssumeRetry:NO
+                           response:^(BOOL shouldRetry) {
+          [self finishWithError:error shouldRetry:shouldRetry];
+      }];
+    }
   }];
 }
 
