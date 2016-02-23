@@ -1531,8 +1531,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   // Avoid releasing blocks in the sync section since objects dealloc'd by
   // the blocks being released may call back into the fetcher or fetcher
   // service.
-  dispatch_queue_t holdCallbackQueue;
-  GTMSessionFetcherCompletionHandler holdCompletionHandler;
+  dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
+  GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1543,7 +1543,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   }
 
-  // After the fetcher starts, this is called in a @synchronized(self) block.
+  // Set local callback pointers to nil here rather than let them release at the end of the scope
+  // to make any problems due to the blocks being released be a bit more obvious in a stack trace.
   holdCallbackQueue = nil;
   holdCompletionHandler = nil;
 
