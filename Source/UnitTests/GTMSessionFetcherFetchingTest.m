@@ -2071,6 +2071,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [_uploadChunkCommands addObject:command];
       [_uploadChunkOffsets addObject:@(offset)];
       [_uploadChunkLengths addObject:@(length)];
+
+      NSAssert([[fetcher parentUploadFetcher] isKindOfClass:[GTMSessionUploadFetcher class]],
+               @"Unexpected parent");
     }
   } else {
     ++_fetchStopped;

@@ -369,6 +369,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
   NSMutableArray *parts;
   NSInteger previousBoundaryOffset = -1;
   NSInteger partCounter = -1;
+  NSInteger numberOfPartsWithHeaders = 0;
   for (NSNumber *currentBoundaryOffset in foundBoundaryOffsets) {
     ++partCounter;
     if (previousBoundaryOffset == -1) {
@@ -426,7 +427,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
           if (crlfOffsets.count == 0) {
 #if DEBUG
             // We could not distinguish body and headers.
-            NSLog(@"MIME part %zd has lacks a header separator: %@", partCounter - 1,
+            NSLog(@"MIME part %zd lacks a header separator: %@", partCounter - 1,
                   [[NSString alloc] initWithData:(NSData *)partData encoding:NSUTF8StringEncoding]);
 #endif
           } else {
@@ -437,6 +438,8 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 
             bodyData = dispatch_data_create_subrange(partData, (size_t)headerSeparatorOffset + 4,
                 (size_t)(previousPartDataLength - (headerSeparatorOffset + 4)));
+
+            numberOfPartsWithHeaders++;
           }  // crlfOffsets.count == 0
         }  // hasAnotherCRLF
         GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
@@ -446,6 +449,23 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
       previousBoundaryOffset = currentBoundaryOffset.integerValue;
     }
   }
+#if DEBUG
+  // In debug builds, warn if a reasonably long document lacks any CRLF characters.
+  if (numberOfPartsWithHeaders == 0) {
+    NSUInteger length = fullDocumentData.length;
+    if (length > 20) {  // Reasonably long.
+      NSMutableArray *foundCRLFs;
+      [self searchData:fullDocumentData
+           targetBytes:"\r\n"
+          targetLength:2
+          foundOffsets:&foundCRLFs];
+      if (foundCRLFs.count == 0) {
+        // Parts were logged above (due to lacking header separators.)
+        NSLog(@"Warning: MIME document lacks any headers (may have wrong line endings)");
+      }
+    }
+  }
+#endif  // DEBUG
   return parts;
 }
 

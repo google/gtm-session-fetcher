@@ -926,11 +926,18 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
           error = readError;
         }
 
-        // No body URL or stream provider.
-        [self simulateDataCallbacksForTestBlockWithBodyData:_bodyData
-                                                   response:response
-                                               responseData:responseData
-                                                      error:error];
+        // No stream provider.
+
+        // In real fetches, nothing happens until the run loop spins, so apps have leeway to
+        // set callbacks after they call beginFetch. We'll mirror that fetcher behavior by
+        // delaying callbacks here at least to the next spin of the run loop.  That keeps
+        // immediate, synchronous setting of callback blocks after beginFetch working in tests.
+        dispatch_async(dispatch_get_main_queue(), ^{
+          [self simulateDataCallbacksForTestBlockWithBodyData:_bodyData
+                                                     response:response
+                                                 responseData:responseData
+                                                        error:error];
+        });
       }
     });
 }
@@ -962,22 +969,26 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
     // Simulate receipt of redirection.
     if (_willRedirectBlock) {
-      [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          _willRedirectBlock((NSHTTPURLResponse *)response, _request,
-                             ^(NSURLRequest *redirectRequest) {
-              // For simulation, we'll assume the app will just continue.
-          });
+          if (_willRedirectBlock) {
+            _willRedirectBlock((NSHTTPURLResponse *)response, _request,
+                               ^(NSURLRequest *redirectRequest) {
+                // For simulation, we'll assume the app will just continue.
+            });
+          }
       }];
     }
 
     // Simulate receipt of an initial response.
     if (_didReceiveResponseBlock) {
-      [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+          if (_didReceiveResponseBlock) {
+            _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
               // For simulation, we'll assume the disposition is to continue.
-          });
+            });
+          }
       }];
     }
 
@@ -988,7 +999,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                        int64_t totalBytesSent,
                                                        int64_t totalBytesExpectedToSend) {
           // This is invoked on the callback queue unless stopped.
-          _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
+          if (_sendProgressBlock) {
+            _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
+          }
       }];
     }
 
@@ -1000,7 +1013,10 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                          int64_t totalBytesDownloaded,
                                                          int64_t totalBytesExpectedToDownload) {
           // This is invoked on the callback queue unless stopped.
-          _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded, totalBytesExpectedToDownload);
+          if (_downloadProgressBlock) {
+            _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
+                                   totalBytesExpectedToDownload);
+          }
         }];
       }
 
@@ -1017,7 +1033,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       if (_accumulateDataBlock) {
         if (responseData) {
           [self invokeOnCallbackQueueUnlessStopped:^{
-            _accumulateDataBlock(responseData);
+            if (_accumulateDataBlock) {
+              _accumulateDataBlock(responseData);
+            }
           }];
         }
       } else {
@@ -1030,7 +1048,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                          int64_t totalBytesReceived,
                                                          int64_t totalBytesExpectedToReceive) {
           // This is invoked on the callback queue unless stopped.
-           _receivedProgressBlock(bytesReceived, totalBytesReceived);
+          if (_receivedProgressBlock) {
+            _receivedProgressBlock(bytesReceived, totalBytesReceived);
+          }
          }];
       }
 
@@ -1039,11 +1059,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
         NSCachedURLResponse *cachedResponse =
             [[NSCachedURLResponse alloc] initWithResponse:response
                                                      data:responseData];
-        [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:YES
+        [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                             block:^{
-            _willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
-                // The app may provide an alternative response, or nil to defeat caching.
-            });
+            if (_willCacheURLResponseBlock) {
+              _willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
+                  // The app may provide an alternative response, or nil to defeat caching.
+              });
+           }
         }];
       }
     }
@@ -1055,9 +1077,16 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
     NSInteger status = error ? error.code : 200;
-    [self shouldRetryNowForStatus:status error:error response:^(BOOL shouldRetry) {
-        [self finishWithError:error shouldRetry:shouldRetry];
-    }];
+    if (status >= 200 && status <= 399) {
+      [self finishWithError:nil shouldRetry:NO];
+    } else {
+      [self shouldRetryNowForStatus:status
+                              error:error
+                   forceAssumeRetry:NO
+                           response:^(BOOL shouldRetry) {
+          [self finishWithError:error shouldRetry:shouldRetry];
+      }];
+    }
   }];
 }
 
@@ -1366,6 +1395,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 }
 
 - (void)failToBeginFetchWithError:(NSError *)error {
+  GTMSessionCheckNotSynchronized(self);
+
   if (error == nil) {
     error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                 code:GTMSessionFetcherErrorDownloadFailed
@@ -1374,11 +1405,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
   [self invokeFetchCallbacksOnCallbackQueueWithData:nil
                                               error:error];
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    [self releaseCallbacks];
-  }  // @synchronized(self)
+  [self releaseCallbacks];
 
   [_service fetcherDidStop:self];
 
@@ -1530,12 +1557,26 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 }
 
 - (void)releaseCallbacks {
-  GTMSessionCheckSynchronized(self);
+  // Avoid releasing blocks in the sync section since objects dealloc'd by
+  // the blocks being released may call back into the fetcher or fetcher
+  // service.
+  dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
+  GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
 
-  // After the fetcher starts, this is called in a @synchronized(self) block.
-  _callbackQueue = nil;
+    holdCallbackQueue = _callbackQueue;
+    holdCompletionHandler = _completionHandler;
 
-  _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
+    _callbackQueue = nil;
+    _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
+  }
+
+  // Set local callback pointers to nil here rather than let them release at the end of the scope
+  // to make any problems due to the blocks being released be a bit more obvious in a stack trace.
+  holdCallbackQueue = nil;
+  holdCompletionHandler = nil;
+
   self.configurationBlock = nil;
   self.didReceiveResponseBlock = nil;
   self.willRedirectBlock = nil;
@@ -1669,13 +1710,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     GTMSessionMonitorSynchronized(self);
 
     [_authorizer stopAuthorizationForRequest:_request];
-
-    if (shouldReleaseCallbacks) {
-      [self releaseCallbacks];
-
-      self.authorizer = nil;
-    }
   }  // @synchronized(self)
+
+  if (shouldReleaseCallbacks) {
+    [self releaseCallbacks];
+
+    self.authorizer = nil;
+  }
 
   [service fetcherDidStop:self];
 
@@ -2060,11 +2101,11 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                                         block:(void (^)(void))block {
   GTMSessionCheckSynchronized(self);
 
-  [self invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:afterStopped
+  [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:afterStopped
                                                       block:block];
 }
 
-- (void)invokeOnCallbackUnsyncrhonizedQueueAfterUserStopped:(BOOL)afterStopped
+- (void)invokeOnCallbackUnsynchronizedQueueAfterUserStopped:(BOOL)afterStopped
                                                       block:(void (^)(void))block {
   // testBlock simulation code may not be synchronizing when this is invoked.
   [self invokeOnCallbackQueue:_callbackQueue
@@ -2420,6 +2461,7 @@ didCompleteWithError:(NSError *)error {
                            [self class], self, session, task, error);
 
   NSInteger status = self.statusCode;
+  BOOL forceAssumeRetry = NO;
   BOOL succeeded = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -2446,18 +2488,19 @@ didCompleteWithError:(NSError *)error {
     return;
   }
   // For background redirects, no delegate method is called, so we cannot restore a stripped
-  // Authorization header, so if a 403 was generated due to a missing OAuth header, set the current
-  // request's URL to the redirected URL, so we in effect restore the Authorization header.
+  // Authorization header, so if a 403 ("Forbidden") was generated due to a missing OAuth 2 header,
+  // set the current request's URL to the redirected URL, so we in effect restore the Authorization
+  // header.
   if ((status == 403) && self.usingBackgroundSession) {
     NSURL *redirectURL = self.response.URL;
     NSMutableURLRequest *request = self.mutableRequest;
     if (![request.URL isEqual:redirectURL]) {
-      NSString *authorizationHeader =
-          [request.allHTTPHeaderFields objectForKey:@"Authorization"];
+      NSString *authorizationHeader = [request.allHTTPHeaderFields objectForKey:@"Authorization"];
       if (authorizationHeader != nil) {
-        [request setURL:redirectURL];
-        [self retryFetch];
-        return;
+        request.URL = redirectURL;
+        // Avoid assuming the session is still valid.
+        self.session = nil;
+        forceAssumeRetry = YES;
       }
     }
   }
@@ -2470,7 +2513,10 @@ didCompleteWithError:(NSError *)error {
   }
 
   // Failed.
-  [self shouldRetryNowForStatus:status error:error response:^(BOOL shouldRetry) {
+  [self shouldRetryNowForStatus:status
+                          error:error
+               forceAssumeRetry:forceAssumeRetry
+                       response:^(BOOL shouldRetry) {
     [self finishWithError:error shouldRetry:shouldRetry];
   }];
 }
@@ -2510,6 +2556,10 @@ didCompleteWithError:(NSError *)error {
   // may begin before the prior session sends the didBecomeInvalid delegate message.
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@",
                            [self class], self, session, error);
+  if (session == (NSURLSession *)self.session) {
+    GTM_LOG_SESSION_DELEGATE(@"  Unexpected retained invalid session: %@", session);
+    self.session = nil;
+  }
 }
 
 - (void)finishWithError:(NSError * GTM_NULLABLE_TYPE)error shouldRetry:(BOOL)shouldRetry {
@@ -2699,6 +2749,7 @@ didCompleteWithError:(NSError *)error {
 // authorizer may be able to fix.
 - (void)shouldRetryNowForStatus:(NSInteger)status
                           error:(NSError *)error
+               forceAssumeRetry:(BOOL)forceAssumeRetry
                        response:(GTMSessionFetcherRetryResponse)response {
   // Determine if a refreshed authorizer may avoid an authorization error
   BOOL willRetry = NO;
@@ -2742,7 +2793,7 @@ didCompleteWithError:(NSError *)error {
         }
       }
     }
-    BOOL canRetry = shouldRetryForAuthRefresh || shouldDoRetry;
+    BOOL canRetry = shouldRetryForAuthRefresh || forceAssumeRetry || shouldDoRetry;
     if (canRetry) {
       NSDictionary *userInfo = nil;
       if (_downloadedData.length > 0) {
@@ -2755,6 +2806,7 @@ didCompleteWithError:(NSError *)error {
         error = statusError;
       }
       willRetry = shouldRetryForAuthRefresh ||
+                  forceAssumeRetry ||
                   [self isRetryError:error] ||
                   ((error != statusError) && [self isRetryError:statusError]);
 
