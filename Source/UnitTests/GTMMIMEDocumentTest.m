@@ -866,6 +866,26 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   XCTAssertEqualObjects(part1.body, expectedBody1);
 }
 
+- (void)testPartParsing_InvalidDoc {
+  // Doc with plain newlines rather than the required CRLF line breaks.
+  NSString *const docTemplate = (@"\n--%@\n"
+                                 @"cat-breed: Maine Coon\n"
+                                 @"dog-breed: German Shepherd\n"
+                                 @"\n"
+                                 @"Go Spot, go!"
+                                 @"\n--%@--\n");
+  NSString *docBoundary = @"END_OF_PART";
+  NSString *docString = [NSString stringWithFormat:docTemplate, docBoundary, docBoundary];
+  NSData *docData = [docString dataUsingEncoding:NSUTF8StringEncoding];
+
+  NSArray *parts = [GTMMIMEDocument MIMEPartsWithBoundary:docBoundary
+                                                     data:docData];
+  XCTAssertEqual(parts.count, (NSUInteger)1);
+  GTMMIMEDocumentPart *part0 = parts[0];
+  XCTAssertNil(part0.headers);
+  XCTAssertNil(part0.body);
+}
+
 @end
 
 // Utility method to create a buffer of predictable bytes.
