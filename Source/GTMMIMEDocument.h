@@ -34,13 +34,33 @@
   #endif
 #endif
 
+#ifndef GTM_DECLARE_GENERICS
+  #if __has_feature(objc_generics) \
+    && ((!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+      || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
+    #define GTM_DECLARE_GENERICS 1
+  #else
+    #define GTM_DECLARE_GENERICS 0
+  #endif
+#endif
+
+#ifndef GTM_NSArrayOf
+  #if GTM_DECLARE_GENERICS
+    #define GTM_NSArrayOf(value) NSArray<value>
+    #define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
+  #else
+    #define GTM_NSArrayOf(value) NSArray
+    #define GTM_NSDictionaryOf(key, value) NSDictionary
+  #endif // GTM_DECLARE_GENERICS
+#endif  // GTM_NSArrayOf
+
 
 // GTMMIMEDocumentPart represents a part of a MIME document.
 //
 // +[GTMMIMEDocument MIMEPartsWithBoundary:data:] returns an array of these.
 @interface GTMMIMEDocumentPart : NSObject
 
-@property(nonatomic, readonly) NSDictionary *headers;
+@property(nonatomic, readonly) GTM_NSDictionaryOf(NSString *, NSString *) *headers;
 @property(nonatomic, readonly) NSData *headerData;
 @property(nonatomic, readonly) NSData *body;
 @property(nonatomic, readonly) NSUInteger length;
@@ -64,7 +84,7 @@
 // Adds a new part to this mime document with the given headers and body.
 // The headers keys and values should be NSStrings.
 // Adding a part may cause the boundary string to change.
-- (void)addPartWithHeaders:(NSDictionary *)headers
+- (void)addPartWithHeaders:(GTM_NSDictionaryOf(NSString *, NSString *) *)headers
                       body:(NSData *)body GTM_NONNULL((1,2));
 
 // An inputstream that can be used to efficiently read the contents of the MIME document.
@@ -85,7 +105,7 @@
                     boundary:(NSString **)outBoundary;
 
 // Utility method for making a header section, including trailing newlines.
-+ (NSData *)dataWithHeaders:(NSDictionary *)headers;
++ (NSData *)dataWithHeaders:(GTM_NSDictionaryOf(NSString *, NSString *) *)headers;
 
 #pragma mark - Methods for Parsing a MIME Document
 
@@ -93,8 +113,8 @@
 //
 // Returns an array of GTMMIMEDocumentParts.  Returns nil if no part can
 // be found.
-+ (NSArray *)MIMEPartsWithBoundary:(NSString *)boundary
-                              data:(NSData *)fullDocumentData;
++ (GTM_NSArrayOf(GTMMIMEDocumentPart *) *)MIMEPartsWithBoundary:(NSString *)boundary
+                                                           data:(NSData *)fullDocumentData;
 
 // Utility method for efficiently searching possibly discontiguous NSData
 // for occurrences of target byte. This method does not "flatten" an NSData
@@ -105,10 +125,10 @@
 + (void)searchData:(NSData *)data
        targetBytes:(const void *)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(NSArray **)outFoundOffsets;
+      foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets;
 
 // Utility method to parse header bytes into an NSDictionary.
-+ (NSDictionary *)headersWithData:(NSData *)data;
++ (GTM_NSDictionaryOf(NSString *, NSString *) *)headersWithData:(NSData *)data;
 
 // ------ UNIT TESTING ONLY BELOW ------
 
@@ -124,7 +144,7 @@
 + (void)searchData:(NSData *)data
        targetBytes:(const void *)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(NSArray **)outFoundOffsets
- foundBlockNumbers:(NSArray **)outFoundBlockNumbers;
+      foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets
+ foundBlockNumbers:(GTM_NSArrayOf(NSNumber *) **)outFoundBlockNumbers;
 
 @end
