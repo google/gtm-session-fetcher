@@ -3093,6 +3093,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             configuration = _configuration,
             configurationBlock = _configurationBlock,
             sessionTask = _sessionTask,
+            wasCreatedFromBackgroundSession = _wasCreatedFromBackgroundSession,
             sessionUserInfo = _sessionUserInfo,
             taskDescription = _taskDescription,
             taskPriority = _taskPriority,

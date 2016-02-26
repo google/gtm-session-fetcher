@@ -1897,6 +1897,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @end
 
 @implementation TestAuthorizer
+@synthesize async = _async,
+            expired = _expired,
+            willFailWithError = _willFailWithError;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
@@ -1983,6 +1986,20 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @implementation FetcherNotificationsCounter {
   NSDate *_counterCreationDate;
 }
+@synthesize fetchStarted = _fetchStarted,
+            fetchStopped = _fetchStopped,
+            fetchCompletionInvoked = _fetchCompletionInvoked,
+            uploadChunkFetchStarted = _uploadChunkFetchStarted,
+            uploadChunkFetchStopped = _uploadChunkFetchStopped,
+            retryDelayStarted = _retryDelayStarted,
+            retryDelayStopped = _retryDelayStopped,
+            uploadLocationObtained = _uploadLocationObtained,
+            uploadChunkRequestPaths = _uploadChunkRequestPaths,
+            uploadChunkCommands = _uploadChunkCommands,
+            uploadChunkOffsets = _uploadChunkOffsets,
+            uploadChunkLengths = _uploadChunkLengths,
+            fetchersStartedDescriptions = _fetchersStartedDescriptions,
+            fetchersStoppedDescriptions = _fetchersStoppedDescriptions;
 
 - (instancetype)init {
   self = [super init];

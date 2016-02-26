@@ -100,6 +100,13 @@
 		8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
 		8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
 		8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
+		F4EEF1D21C7F42730024673D /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		F4EEF1D31C7F42730024673D /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		F4EEF1D41C7F42730024673D /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		F4EEF1D51C7F42730024673D /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		F4EEF1D61C7F42730024673D /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		F4EEF1D71C7F42730024673D /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		F4EEF1D81C7F42730024673D /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -576,7 +583,7 @@
 		4F5566A81862981000D6D62C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0710;
+				LastUpgradeCheck = 0720;
 				ORGANIZATIONNAME = Google;
 				TargetAttributes = {
 					4F5566C71862981000D6D62C = {
@@ -680,7 +687,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F6F7EA818D6B3CE00CA4B4C /* FTAAppDelegate.m in Sources */,
+				F4EEF1D41C7F42730024673D /* GTMReadMonitorInputStream.m in Sources */,
 				4F6F7EAB18D6B3D900CA4B4C /* main.m in Sources */,
+				F4EEF1D71C7F42730024673D /* GTMSessionFetcherService.m in Sources */,
+				F4EEF1D81C7F42730024673D /* GTMSessionUploadFetcher.m in Sources */,
+				F4EEF1D21C7F42730024673D /* GTMGatherInputStream.m in Sources */,
+				F4EEF1D31C7F42730024673D /* GTMMIMEDocument.m in Sources */,
+				F4EEF1D51C7F42730024673D /* GTMSessionFetcher.m in Sources */,
+				F4EEF1D61C7F42730024673D /* GTMSessionFetcherLogging.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -811,6 +825,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = app;
 			};
@@ -823,6 +838,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
 				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = app;
 			};
@@ -846,6 +862,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NULLABLE_TO_NONNULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
@@ -913,6 +930,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NULLABLE_TO_NONNULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_MISSING_PROPERTY_SYNTHESIS = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_SUSPICIOUS_IMPLICIT_CONVERSION = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
@@ -972,6 +990,7 @@
 					"$(inherited)",
 				);
 				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = xctest;
@@ -989,6 +1008,7 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = "GTMSESSION_ASSERT_AS_LOG=1";
 				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = xctest;
@@ -1101,7 +1121,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
-					"$(SDKROOT)/Developer/Library/Frameworks",
 					"$(inherited)",
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
@@ -1113,6 +1132,7 @@
 				);
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1128,7 +1148,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				FRAMEWORK_SEARCH_PATHS = (
-					"$(SDKROOT)/Developer/Library/Frameworks",
 					"$(inherited)",
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
@@ -1136,6 +1155,7 @@
 				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1149,7 +1169,6 @@
 				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/FetcheriOSTestApp.app/FetcheriOSTestApp";
 				CLANG_ENABLE_MODULES = YES;
 				FRAMEWORK_SEARCH_PATHS = (
-					"$(SDKROOT)/Developer/Library/Frameworks",
 					"$(inherited)",
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
@@ -1162,6 +1181,7 @@
 				);
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1176,7 +1196,6 @@
 				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/FetcheriOSTestApp.app/FetcheriOSTestApp";
 				CLANG_ENABLE_MODULES = YES;
 				FRAMEWORK_SEARCH_PATHS = (
-					"$(SDKROOT)/Developer/Library/Frameworks",
 					"$(inherited)",
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
@@ -1185,6 +1204,7 @@
 				GCC_PREPROCESSOR_DEFINITIONS = "GTMSESSION_ASSERT_AS_LOG=1";
 				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestAppTests-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

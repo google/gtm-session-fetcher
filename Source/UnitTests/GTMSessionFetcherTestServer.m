@@ -145,6 +145,9 @@ static NSString *const kEtag = @"GoodETag";
   long long _uploadBytesReceived;
 }
 
+@synthesize defaultContentType = _defaultContentType,
+            lastHTTPAuthenticationType = _lastHTTPAuthenticationType;
+
 - (instancetype)initWithDocRoot:(NSString *)docRoot {
   self = [super init];
   if (self) {
