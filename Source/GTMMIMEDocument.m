@@ -55,6 +55,12 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
   NSData *_bodyData;
 }
 
+@synthesize headers = _headers,
+            headerData = _headerData,
+            body = _bodyData;
+
+@dynamic length;
+
 + (instancetype)partWithHeaders:(NSDictionary *)headers body:(NSData *)body {
   return [[self alloc] initWithHeaders:headers body:body];
 }
@@ -478,7 +484,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 + (void)searchData:(NSData *)data
        targetBytes:(const void *)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(NSArray **)outFoundOffsets {
+      foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets {
   NSMutableArray *foundOffsets = [NSMutableArray array];
   SearchDataForBytes(data, targetBytes, targetLength, foundOffsets, NULL);
   *outFoundOffsets = foundOffsets;
@@ -491,8 +497,8 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 + (void)searchData:(NSData *)data
        targetBytes:(const void *)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(NSArray **)outFoundOffsets
- foundBlockNumbers:(NSArray **)outFoundBlockNumbers {
+      foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets
+ foundBlockNumbers:(GTM_NSArrayOf(NSNumber *) **)outFoundBlockNumbers {
   NSMutableArray *foundOffsets = [NSMutableArray array];
   NSMutableArray *foundBlockNumbers = [NSMutableArray array];
 
