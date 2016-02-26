@@ -55,6 +55,12 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
   NSData *_bodyData;
 }
 
+@synthesize headers = _headers,
+            headerData = _headerData,
+            body = _bodyData;
+
+@dynamic length;
+
 + (instancetype)partWithHeaders:(NSDictionary *)headers body:(NSData *)body {
   return [[self alloc] initWithHeaders:headers body:body];
 }

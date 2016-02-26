@@ -121,7 +121,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             maxRetryInterval = _maxRetryInterval,
             minRetryInterval = _minRetryInterval,
             properties = _properties,
-            unusedSessionTimeout = _unusedSessionTimeout;
+            unusedSessionTimeout = _unusedSessionTimeout,
+            testBlock = _testBlock;
 
 - (instancetype)init {
   self = [super init];
@@ -877,6 +878,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   NSTimer *_discardTimer;
   NSTimeInterval _discardInterval;
 }
+
+@synthesize discardInterval = _discardInterval,
+            session = _session,
+            sessionCreationSemaphore = _sessionCreationSemaphore;
 
 - (instancetype)init {
   [self doesNotRecognizeSelector:_cmd];

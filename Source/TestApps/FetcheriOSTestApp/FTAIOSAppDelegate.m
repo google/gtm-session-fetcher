@@ -94,6 +94,8 @@ static NSUInteger const kPostDataSize = 512 * 1024;
 
 @implementation FTAIOSAppRootViewController
 
+@synthesize progressView = _progressView;
+
 - (void)displayProgress:(float)progress {
   _progressView.progress = progress;
 }
@@ -106,6 +108,8 @@ static NSUInteger const kPostDataSize = 512 * 1024;
   UIAlertView *__weak _outOfProcessUploadCompletedAlertView;
 #endif
 }
+
+@synthesize window = _window;
 
 #pragma mark - UIApplicationDelegate
 
