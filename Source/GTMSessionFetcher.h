@@ -270,8 +270,14 @@
   #endif
 #endif
 
-// Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG is defined.)
+// Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG
+// or NS_BLOCK_ASSERTIONS are defined.)
 #ifndef GTMSESSION_ASSERT_DEBUG
+  #if DEBUG && !defined(NS_BLOCK_ASSERTIONS) && !GTMSESSION_ASSERT_AS_LOG
+    #undef GTMSESSION_ASSERT_AS_LOG
+    #define GTMSESSION_ASSERT_AS_LOG 1
+  #endif
+
   #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
     #define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
   #elif DEBUG
