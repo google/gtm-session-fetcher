@@ -168,12 +168,28 @@
 // cookieStorage property:
 //   myFetcher.cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
 //
-// To ignore cookies entirely, make a temporary cookie storage object:
+// To ignore existing cookies and only have cookies related to the single fetch
+// be applied, make a temporary cookie storage object:
 //   myFetcher.cookieStorage = [[GTMSessionCookieStorage alloc] init];
 //
-// If the fetcher is created from a GTMHTTPFetcherService object
+// Note: cookies set while following redirects will be sent to the server, as
+// the redirects are followed by the fetcher.
+//
+// To completely disable cookies, similar to setting cookieStorageMethod to
+// kGTMHTTPFetcherCookieStorageMethodNone, adjust the session configuration
+// appropriately in the fetcher or fetcher service:
+//  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
+//                                 NSURLSessionConfiguration *config) {
+//    config.HTTPCookieAcceptPolicy = NSHTTPCookieAcceptPolicyNever;
+//    config.HTTPShouldSetCookies = NO;
+//  };
+//
+// If the fetcher is created from a GTMSessionFetcherService object
 // then the cookie storage mechanism is set to use the cookie storage in the
-// service object rather than the static storage.
+// service object rather than the static storage. Disabling cookies in the
+// session configuration set on a service object will disable cookies for all
+// fetchers created from that GTMSessionFetcherService object, since the session
+// configuration is propagated to the fetcher.
 //
 //
 // Monitoring data transfers.
@@ -254,8 +270,14 @@
   #endif
 #endif
 
-// Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG is defined.)
+// Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG
+// or NS_BLOCK_ASSERTIONS are defined.)
 #ifndef GTMSESSION_ASSERT_DEBUG
+  #if DEBUG && !defined(NS_BLOCK_ASSERTIONS) && !GTMSESSION_ASSERT_AS_LOG
+    #undef GTMSESSION_ASSERT_AS_LOG
+    #define GTMSESSION_ASSERT_AS_LOG 1
+  #endif
+
   #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
     #define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
   #elif DEBUG
@@ -587,7 +609,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @required
 // This protocol allows us to call the authorizer without requiring its sources
 // in this project.
-- (void)authorizeRequest:(NSMutableURLRequest *)request
+- (void)authorizeRequest:(NSMutableURLRequest * GTM_NULLABLE_TYPE)request
                 delegate:(id)delegate
        didFinishSelector:(SEL)sel;
 
@@ -762,10 +784,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(assign) BOOL allowInvalidServerCertificates;
 
 // Cookie storage object for this fetcher. If nil, the fetcher will use a static cookie
-// storage instance shared among fetchers.  If this fetcher was created by a fetcher service
-// object, it will be set to use the service object's cookie storage.  To have no cookies
-// sent or saved by this fetcher, set this property to use a temporary storage object:
-//   fetcher.cookieStorage = [[GTMSessionCookieStorage alloc] init];
+// storage instance shared among fetchers. If this fetcher was created by a fetcher service
+// object, it will be set to use the service object's cookie storage. See Cookies section above for
+// the full discussion.
 //
 // Because as of Jan 2014 standalone instances of NSHTTPCookieStorage do not actually
 // store any cookies (Radar 15735276) we use our own subclass, GTMSessionCookieStorage,

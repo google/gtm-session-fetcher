@@ -311,22 +311,24 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 - (BOOL)fetcherShouldBeginFetching:(GTMSessionFetcher *)fetcher {
   // Entry point from the fetcher
+  NSURL *requestURL = fetcher.mutableRequest.URL;
+  NSString *host = requestURL.host;
+
+  // Addresses "file:///path" case where localhost is the implicit host.
+  if (host.length == 0 && [requestURL isFileURL]) {
+    host = @"localhost";
+  }
+
+  if (host.length == 0) {
+    // Data URIs legitimately have no host, reject other hostless URLs.
+    GTMSESSION_ASSERT_DEBUG([[requestURL scheme] isEqual:@"data"], @"%@ lacks host", fetcher);
+    return YES;
+  }
+
+  BOOL shouldBeginResult;
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-
-    NSURL *requestURL = fetcher.mutableRequest.URL;
-    NSString *host = requestURL.host;
-
-    // Addresses "file:///path" case where localhost is the implicit host.
-    if (host.length == 0 && [requestURL isFileURL]) {
-      host = @"localhost";
-    }
-
-    if (host.length == 0) {
-      // Data URIs legitimately have no host, reject other hostless URLs.
-      GTMSESSION_ASSERT_DEBUG([[requestURL scheme] isEqual:@"data"], @"%@ lacks host", fetcher);
-      return YES;
-    }
 
     NSMutableArray *runningForHost = [_runningFetchersByHost objectForKey:host];
     if (runningForHost != nil
@@ -335,24 +337,25 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       return YES;
     }
 
-    // We'll save the host that serves as the key for this fetcher's array
-    // to avoid any chance of the underlying request changing, stranding
-    // the fetcher in the wrong array
-    fetcher.serviceHost = host;
-
     BOOL shouldRunNow = (fetcher.usingBackgroundSession
                          || _maxRunningFetchersPerHost == 0
                          || _maxRunningFetchersPerHost >
                          [[self class] numberOfNonBackgroundSessionFetchers:runningForHost]);
     if (shouldRunNow) {
       [self addRunningFetcher:fetcher forHost:host];
-      return YES;
+      shouldBeginResult = YES;
     } else {
       [self addDelayedFetcher:fetcher forHost:host];
-      return NO;
+      shouldBeginResult = NO;
     }
-  }
-  return YES;
+  }  // @synchronized(self)
+
+  // We'll save the host that serves as the key for this fetcher's array
+  // to avoid any chance of the underlying request changing, stranding
+  // the fetcher in the wrong array
+  fetcher.serviceHost = host;
+
+  return shouldBeginResult;
 }
 
 - (void)startFetcher:(GTMSessionFetcher *)fetcher {
@@ -752,7 +755,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   }
 }
 
-// This should be called inside a @synchronized(self) block.
+// This should be called inside a @synchronized(self) block except during dealloc.
 - (void)detachAuthorizer {
   // This method is called by the fetcher service's dealloc and setAuthorizer:
   // methods; do not override.

@@ -154,7 +154,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   dispatch_group_t _callbackGroup;  // read-only after creation
   NSOperationQueue *_delegateQueue;
 
-  id<GTMFetcherAuthorizationProtocol> _authorizer;
+  id<GTMFetcherAuthorizationProtocol> _authorizer;  // immutable after beginFetch
 
   // The service object that created and monitors this fetcher, if any.
   id<GTMSessionFetcherServiceProtocol> _service;  // immutable; set by the fetcher service upon creation
@@ -171,7 +171,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   NSTimeInterval _lastRetryInterval;
   NSDate *_initialBeginFetchDate;   // date that beginFetch was first invoked; immutable after initial beginFetch
   NSDate *_initialRequestDate;      // date of first request to the target server (ignoring auth)
-  BOOL _hasAttemptedAuthRefresh;
+  BOOL _hasAttemptedAuthRefresh;    // accessed only in shouldRetryNowForStatus:
 
   NSString *_comment;               // comment for log
   NSString *_log;
@@ -1444,11 +1444,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 #endif // GTM_BACKGROUND_TASK_FETCHING
 
 - (void)authorizeRequest {
+  GTMSessionCheckNotSynchronized(self);
+
   id authorizer = self.authorizer;
   SEL asyncAuthSel = @selector(authorizeRequest:delegate:didFinishSelector:);
   if ([authorizer respondsToSelector:asyncAuthSel]) {
     SEL callbackSel = @selector(authorizer:request:finishedWithError:);
-    [authorizer authorizeRequest:_request
+    [authorizer authorizeRequest:self.mutableRequest
                         delegate:self
                didFinishSelector:callbackSel];
   } else {
@@ -1483,9 +1485,18 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // retry, or waiting for authorization, or waiting to be issued by the
 // service object
 - (BOOL)isFetching {
-  if (_sessionTask != nil || _retryTimer != nil) return YES;
+  NSMutableURLRequest *request;
 
-  BOOL isAuthorizing = [_authorizer isAuthorizingRequest:_request];
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (_sessionTask != nil || _retryTimer != nil) return YES;
+
+    request = _request;
+    if (request == nil) return NO;
+  }
+
+  BOOL isAuthorizing = [_authorizer isAuthorizingRequest:request];
   if (isAuthorizing) return YES;
 
   BOOL isDelayed = [_service isDelayingFetcher:self];
@@ -1624,6 +1635,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   [self removePersistedBackgroundSessionFromDefaults];
 
   id<GTMSessionFetcherServiceProtocol> service;
+  NSMutableURLRequest *request;
 
   // If the task or the retry timer is all that's retaining the fetcher,
   // we want to be sure this instance survives stopping at least long enough for
@@ -1638,6 +1650,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     GTMSessionMonitorSynchronized(self);
 
     service = _service;
+    request = _request;
 
     if (_sessionTask) {
       // In case cancelling the task or session calls this recursively, we want
@@ -1706,11 +1719,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   // send the stopped notification
   [self sendStopNotificationIfNeeded];
 
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    [_authorizer stopAuthorizationForRequest:_request];
-  }  // @synchronized(self)
+  [_authorizer stopAuthorizationForRequest:request];
 
   if (shouldReleaseCallbacks) {
     [self releaseCallbacks];
@@ -2754,24 +2763,31 @@ didCompleteWithError:(NSError *)error {
   // Determine if a refreshed authorizer may avoid an authorization error
   BOOL willRetry = NO;
 
+  // We assume _authorizer is immutable after beginFetch, and _hasAttemptedAuthRefresh is modified
+  // only in this method, and this method is invoked on the serial delegate queue.
+  //
+  // We want to avoid calling the authorizer from inside a sync block.
+  BOOL isFirstAuthError = (_authorizer != nil
+                           && !_hasAttemptedAuthRefresh
+                           && status == GTMSessionFetcherStatusUnauthorized); // 401
+
+  BOOL hasPrimed = NO;
+  if (isFirstAuthError) {
+    if ([_authorizer respondsToSelector:@selector(primeForRefresh)]) {
+      hasPrimed = [_authorizer primeForRefresh];
+    }
+  }
+
+  BOOL shouldRetryForAuthRefresh = NO;
+  if (hasPrimed) {
+    shouldRetryForAuthRefresh = YES;
+    _hasAttemptedAuthRefresh = YES;
+    [self.mutableRequest setValue:nil forHTTPHeaderField:@"Authorization"];
+  }
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    BOOL shouldRetryForAuthRefresh = NO;
-    BOOL isFirstAuthError = (_authorizer != nil
-                             && !_hasAttemptedAuthRefresh
-                             && status == GTMSessionFetcherStatusUnauthorized); // 401
-
-    if (isFirstAuthError) {
-      if ([_authorizer respondsToSelector:@selector(primeForRefresh)]) {
-        BOOL hasPrimed = [_authorizer primeForRefresh];
-        if (hasPrimed) {
-          shouldRetryForAuthRefresh = YES;
-          _hasAttemptedAuthRefresh = YES;
-          [_request setValue:nil forHTTPHeaderField:@"Authorization"];
-        }
-      }
-    }
     BOOL shouldDoRetry = [self isRetryEnabledUnsynchronized];
     if (shouldDoRetry && ![self hasRetryAfterInterval]) {
 

@@ -117,14 +117,17 @@
   int64_t length = (int64_t)data.length;
 
   id argSelf = self;
-  NSMethodSignature *signature = [_readDelegate methodSignatureForSelector:_readSelector];
-  NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
-  [invocation setSelector:_readSelector];
-  [invocation setTarget:_readDelegate];
-  [invocation setArgument:&argSelf atIndex:2];
-  [invocation setArgument:&buffer atIndex:3];
-  [invocation setArgument:&length atIndex:4];
-  [invocation invoke];
+  id readDelegate = _readDelegate;
+  if (readDelegate) {
+    NSMethodSignature *signature = [readDelegate methodSignatureForSelector:_readSelector];
+    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+    [invocation setSelector:_readSelector];
+    [invocation setTarget:readDelegate];
+    [invocation setArgument:&argSelf atIndex:2];
+    [invocation setArgument:&buffer atIndex:3];
+    [invocation setArgument:&length atIndex:4];
+    [invocation invoke];
+  }
 }
 
 - (BOOL)getBuffer:(uint8_t **)buffer length:(NSUInteger *)len {
