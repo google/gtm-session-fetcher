@@ -603,7 +603,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @required
 // This protocol allows us to call the authorizer without requiring its sources
 // in this project.
-- (void)authorizeRequest:(NSMutableURLRequest *)request
+- (void)authorizeRequest:(NSMutableURLRequest * GTM_NULLABLE_TYPE)request
                 delegate:(id)delegate
        didFinishSelector:(SEL)sel;
 
