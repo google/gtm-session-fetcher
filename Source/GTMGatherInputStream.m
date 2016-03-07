@@ -139,8 +139,9 @@
 #pragma mark - NSStreamDelegate
 
 - (void)stream:(NSStream *)theStream handleEvent:(NSStreamEvent)streamEvent {
-  if (_delegate != self) {
-    [_delegate stream:self handleEvent:streamEvent];
+  id<NSStreamDelegate> delegate = _delegate;
+  if (delegate != self) {
+    [delegate stream:self handleEvent:streamEvent];
   }
 }
 
