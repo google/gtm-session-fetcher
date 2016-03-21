@@ -185,9 +185,11 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 #endif
 }
 
+#if !GTMSESSION_UNIT_TESTING
 + (void)load {
   [self fetchersForBackgroundSessions];
 }
+#endif
 
 + (instancetype)fetcherWithRequest:(GTM_NULLABLE NSURLRequest *)request {
   return [[self alloc] initWithRequest:request configuration:nil];
