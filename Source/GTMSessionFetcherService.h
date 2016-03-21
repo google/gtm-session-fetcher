@@ -63,6 +63,10 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, assign) NSTimeInterval minRetryInterval;
 @property(atomic, copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
 
+#if GTM_BACKGROUND_TASK_FETCHING
+@property(atomic, assign) BOOL skipBackgroundTask;
+#endif
+
 // A default useragent of GTMFetcherStandardUserAgentString(nil) will be given to each fetcher
 // created by this service unless the request already has a user-agent header set.
 // This default will be added starting with builds with the SDKs for OS X 10.11 and iOS 9.

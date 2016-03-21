@@ -21,13 +21,6 @@
 
 #import <sys/utsname.h>
 
-// For iOS, the fetcher can declare itself a background task to allow fetches to finish
-// up when the app leaves the foreground.  This is distinct from providing a background
-// configuration, which allows out-of-process uploads and downloads.
-#if TARGET_OS_IPHONE && !defined(GTM_BACKGROUND_TASK_FETCHING)
-#define GTM_BACKGROUND_TASK_FETCHING 1
-#endif
-
 GTM_ASSUME_NONNULL_BEGIN
 
 NSString *const kGTMSessionFetcherStartedNotification           = @"kGTMSessionFetcherStartedNotification";
@@ -805,7 +798,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if GTM_BACKGROUND_TASK_FETCHING
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (!_usingBackgroundSession) {
+  if (!self.skipBackgroundTask && !_usingBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
     UIApplication *app = [UIApplication sharedApplication];
@@ -3166,7 +3159,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 #endif
 
 #if GTM_BACKGROUND_TASK_FETCHING
-@synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier;
+@synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier,
+            skipBackgroundTask = _skipBackgroundTask;
 #endif
 
 

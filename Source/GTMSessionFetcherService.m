@@ -124,6 +124,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             unusedSessionTimeout = _unusedSessionTimeout,
             testBlock = _testBlock;
 
+#if GTM_BACKGROUND_TASK_FETCHING
+@synthesize skipBackgroundTask = _skipBackgroundTask;
+#endif
+
 - (instancetype)init {
   self = [super init];
   if (self) {
@@ -183,6 +187,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
   if (self.cookieStorageMethod >= 0) {
     [fetcher setCookieStorageMethod:self.cookieStorageMethod];
   }
+
+#if GTM_BACKGROUND_TASK_FETCHING
+  fetcher.skipBackgroundTask = self.skipBackgroundTask;
+#endif
 
   NSString *userAgent = self.userAgent;
   if (userAgent.length > 0

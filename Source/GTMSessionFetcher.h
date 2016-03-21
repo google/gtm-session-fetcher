@@ -345,6 +345,19 @@
   #endif // __has_feature(objc_generics)
 #endif  // GTM_NSArrayOf
 
+// For iOS, the fetcher can declare itself a background task to allow fetches
+// to finish when the app leaves the foreground.
+//
+// (This is unrelated to providing a background configuration, which allows
+// out-of-process uploads and downloads.)
+//
+// To disallow use of background tasks during fetches, the target should define
+// GTM_BACKGROUND_TASK_FETCHING to 0, or alternatively may set the
+// skipBackgroundTask property to YES.
+#if TARGET_OS_IPHONE && !defined(GTM_BACKGROUND_TASK_FETCHING)
+  #define GTM_BACKGROUND_TASK_FETCHING 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -908,6 +921,16 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 // Interval delay to precede next retry.
 @property(readonly) NSTimeInterval nextRetryInterval;
+
+#if GTM_BACKGROUND_TASK_FETCHING
+// Skip use of a UIBackgroundTask, thus requiring fetches to complete when the app is in the
+// foreground.
+//
+// Targets should define GTM_BACKGROUND_TASK_FETCHING to 0 to avoid use of a UIBackgroundTask
+// on iOS to allow fetches to complete in the background.  This property is available when
+// it's not practical to set the preprocessor define.
+@property(assign) BOOL skipBackgroundTask;
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 // Begin fetching the request
 //
