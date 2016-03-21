@@ -527,14 +527,17 @@ static NSString *gLoggingProcessName = nil;
   // now write the visible html elements
   NSString *copyableFileName = [NSString stringWithFormat:@"fetch_%d.txt", responseCounter];
 
+  NSDate *now = [NSDate date];
   // write the date & time, the comment, and the link to the plain-text (copyable) log
-  [outputHTML appendFormat:@"<b>%@ &nbsp;&nbsp;&nbsp;&nbsp; ", [NSDate date]];
+  [outputHTML appendFormat:@"<b>%@ &nbsp;&nbsp;&nbsp;&nbsp; ", now];
 
   NSString *comment = [self comment];
   if (comment.length > 0) {
     [outputHTML appendFormat:@"%@ &nbsp;&nbsp;&nbsp;&nbsp; ", comment];
   }
   [outputHTML appendFormat:@"</b><a href='%@'><i>request/response log</i></a><br>", copyableFileName];
+  NSTimeInterval elapsed = -self.initialBeginFetchDate.timeIntervalSinceNow;
+  [outputHTML appendFormat:@"elapsed: %5.3fsec<br>", elapsed];
 
   // write the request URL
   NSURLRequest *request = self.mutableRequest;
@@ -737,7 +740,7 @@ static NSString *gLoggingProcessName = nil;
   if (comment) {
     [copyable appendFormat:@"%@\n\n", comment];
   }
-  [copyable appendFormat:@"%@\n", [NSDate date]];
+  [copyable appendFormat:@"%@  elapsed: %5.3fsec\n", now, elapsed];
   if (redirectedFromURLString) {
     [copyable appendFormat:@"Redirected from %@\n", redirectedFromURLString];
   }
