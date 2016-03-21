@@ -407,6 +407,13 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                            userInfo:userInfo];
   };
 
+  // Catch delegate queue maxConcurrentOperationCount values other than 1, particularly
+  // NSOperationQueueDefaultMaxConcurrentOperationCount (-1), to avoid the additional complexity
+  // of simultaneous or out-of-order delegate callbacks.
+  GTMSESSION_ASSERT_DEBUG(_delegateQueue.maxConcurrentOperationCount == 1,
+                          @"delegate queue %@ should support one concurrent operation, not %zd",
+                          _delegateQueue.name, _delegateQueue.maxConcurrentOperationCount);
+
   if (!_initialBeginFetchDate) {
     // This ivar is set once here on the initial beginFetch so need not be synchronized.
     _initialBeginFetchDate = [[NSDate alloc] init];
