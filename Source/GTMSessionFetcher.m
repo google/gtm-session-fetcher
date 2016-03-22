@@ -21,13 +21,6 @@
 
 #import <sys/utsname.h>
 
-// For iOS, the fetcher can declare itself a background task to allow fetches to finish
-// up when the app leaves the foreground.  This is distinct from providing a background
-// configuration, which allows out-of-process uploads and downloads.
-#if TARGET_OS_IPHONE && !defined(GTM_BACKGROUND_TASK_FETCHING)
-#define GTM_BACKGROUND_TASK_FETCHING 1
-#endif
-
 GTM_ASSUME_NONNULL_BEGIN
 
 NSString *const kGTMSessionFetcherStartedNotification           = @"kGTMSessionFetcherStartedNotification";
@@ -185,9 +178,11 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 #endif
 }
 
+#if !GTMSESSION_UNIT_TESTING
 + (void)load {
   [self fetchersForBackgroundSessions];
 }
+#endif
 
 + (instancetype)fetcherWithRequest:(GTM_NULLABLE NSURLRequest *)request {
   return [[self alloc] initWithRequest:request configuration:nil];
@@ -404,6 +399,13 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                                code:code
                            userInfo:userInfo];
   };
+
+  // Catch delegate queue maxConcurrentOperationCount values other than 1, particularly
+  // NSOperationQueueDefaultMaxConcurrentOperationCount (-1), to avoid the additional complexity
+  // of simultaneous or out-of-order delegate callbacks.
+  GTMSESSION_ASSERT_DEBUG(_delegateQueue.maxConcurrentOperationCount == 1,
+                          @"delegate queue %@ should support one concurrent operation, not %zd",
+                          _delegateQueue.name, _delegateQueue.maxConcurrentOperationCount);
 
   if (!_initialBeginFetchDate) {
     // This ivar is set once here on the initial beginFetch so need not be synchronized.
@@ -796,7 +798,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if GTM_BACKGROUND_TASK_FETCHING
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (!_usingBackgroundSession) {
+  if (!self.skipBackgroundTask && !_usingBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
     UIApplication *app = [UIApplication sharedApplication];
@@ -3157,7 +3159,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 #endif
 
 #if GTM_BACKGROUND_TASK_FETCHING
-@synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier;
+@synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier,
+            skipBackgroundTask = _skipBackgroundTask;
 #endif
 
 

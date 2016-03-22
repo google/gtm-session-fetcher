@@ -24,15 +24,6 @@
             </BuildableReference>
          </TestableReference>
       </Testables>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "4F5566C71862981000D6D62C"
-            BuildableName = "FetcherMacTests.xctest"
-            BlueprintName = "FetcherMacTests"
-            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
       <AdditionalOptions>
       </AdditionalOptions>
    </TestAction>

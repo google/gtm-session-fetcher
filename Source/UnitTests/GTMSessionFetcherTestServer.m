@@ -314,6 +314,21 @@ static NSString *const kEtag = @"GoodETag";
     return sendResponse(resultStatus, data, @"application/json");
   }
 
+  // Echo request headers in response.
+  NSString *echoHeadersStr = [[self class] valueForParameter:@"echo-headers" query:query];
+  if (echoHeadersStr.boolValue) {
+    NSError *jsonError;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:requestHeaders
+                                                   options:0
+                                                     error:&jsonError];
+    if (jsonError) {
+      NSLog(@"Error creating JSON data from HTTP request headers: %@", jsonError);
+      return sendResponse(500, nil, nil);
+    } else {
+      return sendResponse(200, data, @"application/json");
+    }
+  }
+
   // Chunked (resumable) upload testing: initial location request.
   if ([requestPathExtension isEqual:@"location"]) {
     // This is a request for the upload location URI.

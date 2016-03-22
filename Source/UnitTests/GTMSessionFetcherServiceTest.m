@@ -628,4 +628,72 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:10 handler:nil];
 }
 
+// Test to ensure that the service's default user-agent does not override a user-agent set on the
+// request itself.
+- (void)testUserAgentFromRequest {
+  NSString *const kUserAgentHeader = @"User-Agent";
+  NSString *const kUserAgentValue = @"TestUserAgentFromRequest";
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+
+  service.allowLocalhostRequest = YES;
+
+  NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:validFileURL];
+
+  [request setValue:kUserAgentValue forHTTPHeaderField:kUserAgentHeader];
+
+  GTMSessionFetcher *fetcher = [service fetcherWithRequest:request];
+  NSMutableURLRequest *fetcherRequest = fetcher.mutableRequest;
+
+  NSString *userAgent = [fetcherRequest valueForHTTPHeaderField:kUserAgentHeader];
+  XCTAssertEqualObjects(userAgent, kUserAgentValue);
+}
+
+// Test to ensure that setting the service's default user-agent to nil, causes the service to use
+// the user-agent in the configuration.
+- (void)testUserAgentFromSessionConfiguration {
+  if (!_isServerRunning) return;
+
+  NSString *const kUserAgentHeader = @"User-Agent";
+  NSString *const kUserAgentValue = @"TestUserAgentFromSessionConfig";
+
+  // Build the session configuration to use, which includes the User-Agent header in the
+  // HTTPAdditionalHeaders property.
+  NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
+
+  config.HTTPAdditionalHeaders = @{ kUserAgentHeader : kUserAgentValue };
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+
+  // Clear the default user-agent.
+  service.userAgent = nil;
+  service.configuration = config;
+  service.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectReceiveResponse = [self expectationWithDescription:@"Received response"];
+  NSString *gettysburgPath = [_testServer localPathForFile:kValidFileName];
+  NSString *echoHeadersPath = [gettysburgPath stringByAppendingString:@"?echo-headers=true"];
+  NSURL *validFileURL = [_testServer localURLForFile:echoHeadersPath];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:validFileURL];
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    // fetchData should contain the JSON representation of the dictionary of HTTP headers that were
+    // sent with the request to the server.
+    XCTAssertNotNil(fetchData);
+    XCTAssertNil(fetchError);
+
+    NSError *jsonError;
+    NSDictionary *requestHeaders = [NSJSONSerialization JSONObjectWithData:fetchData
+                                                                   options:0
+                                                                     error:&jsonError];
+    NSString *userAgent = requestHeaders[kUserAgentHeader];
+
+    XCTAssertEqualObjects(userAgent, kUserAgentValue, @"%@", jsonError);
+
+    [expectReceiveResponse fulfill];
+  }];
+
+  [self waitForExpectationsWithTimeout:10 handler:nil];
+}
+
 @end

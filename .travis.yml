@@ -7,9 +7,11 @@ env:
   - MODE=iOS CFG=Release
 script:
   - ./.travis.sh "${MODE}" "${CFG}"
-before_install:
-  # Ensure xctool is up to date.
-  - brew update
-  - brew outdated xctool || brew upgrade xctool
+# xctool doesn't seem to support use of a framework linked to the tests:
+# https://github.com/facebook/xctool/blob/master/Common/XCToolUtil.m#L903
+#before_install:
+#  # Ensure xctool is up to date.
+#  - brew update
+#  - brew outdated xctool || brew upgrade xctool
 notifications:
   email: false

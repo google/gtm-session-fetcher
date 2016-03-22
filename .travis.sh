@@ -13,14 +13,19 @@ fi
 BUILD_MODE="$1"
 BUILD_CFG="$2"
 
+# xctool doesn't seem to support use of a framework linked to the tests:
+# https://github.com/facebook/xctool/blob/master/Common/XCToolUtil.m#L903
 CMD_BUILDER=(
-  xctool \
+  xcodebuild \
     -project Source/GTMSessionFetcherCore.xcodeproj
 )
 
 case "${BUILD_MODE}" in
   iOS)
-    CMD_BUILDER+=(-scheme "iOS Framework" -sdk iphonesimulator)
+    CMD_BUILDER+=(
+        -scheme "iOS Framework"
+        -destination "platform=iOS Simulator,name=iPhone 6,OS=latest"
+    )
     ;;
   OSX)
     CMD_BUILDER+=(-scheme "OS X Framework")
