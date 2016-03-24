@@ -1283,7 +1283,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     fetcher.useBackgroundSession = NO;
     fetcher.allowedInsecureSchemes = @[ @"http" ];
     [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertTrue(NO, @"Download not canceled");
+      XCTFail(@"Download not canceled");
     }];
     [fetcher stopFetching];
     XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
@@ -1337,19 +1337,23 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     });
     totalWritten = totalBytesWritten;
   };
+  XCTestExpectation *resumeDataExp = [self expectationWithDescription:@"resumeData returned"];
   NSData __block *resumeData = nil;
   fetcher.resumeDataBlock = ^(NSData *data){
+    XCTAssertNotNil(data);
     resumeData = data;
+    [resumeDataExp fulfill];
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    XCTAssertTrue(NO, @"initial download not canceled");
+    XCTFail(@"initial download not canceled");
   }];
 
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
   [self assertCallbacksReleasedForFetcher:fetcher];
 
-  XCTAssertNotNil(resumeData, @"resumeData not returned");
   fetcher = [GTMSessionFetcher fetcherWithDownloadResumeData:resumeData];
   fetcher.destinationFileURL = destFileURL;
   fetcher.downloadProgressBlock = ^(int64_t bytesWritten,

@@ -1775,6 +1775,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       [self forgetSessionIdentifierForFetcher];
       _configuration = nil;
     }
+
+    if (_canShareSession) {
+      // Force a grab of the current session from the fetcher service in case
+      // the service's old one has become invalid.
+      _session = nil;
+    }
+
     completionHandler = _completionHandler;
   }  // @synchronized(self)
 
