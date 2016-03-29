@@ -95,7 +95,6 @@
 		4FA8DB7C193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
 		4FA8DB7D193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
 		4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4FA8DB7A193D13A30071BC92 /* Security.framework */; };
-		4FB3C2E01CA09D4C002DC57B /* GTMSessionFetcherIOSUnitTest.framework in Copy Framework */ = {isa = PBXBuildFile; fileRef = 4F8F8DF11C8E55280043B251 /* GTMSessionFetcherIOSUnitTest.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4FB3C2E21CA09E0B002DC57B /* GTMSessionFetcherOSXUnitTest.framework in Copy Framework */ = {isa = PBXBuildFile; fileRef = 4F8F8DD61C8E54EC0043B251 /* GTMSessionFetcherOSXUnitTest.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		4FE52ABC18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
 		4FE52ABD18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
@@ -148,11 +147,10 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		4FB3C2DF1CA09D2C002DC57B /* Copy Framework */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				4FB3C2E01CA09D4C002DC57B /* GTMSessionFetcherIOSUnitTest.framework in Copy Framework */,
 			);
 			name = "Copy Framework";
 			runOnlyForDeploymentPostprocessing = 0;
