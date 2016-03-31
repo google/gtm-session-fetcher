@@ -1,7 +1,7 @@
 # This file specifies the Pod setup for GTMSessionFetcher. It enables developers 
 # to import GTMSessionFetcher via the CocoaPods dependency Manager.
 Pod::Spec.new do |s|
-  s.name        = 'GTMSessionFetcher'
+  s.name        = 'gtm-session-fetcher'
   s.version     = '1.1.0'
   s.authors     = 'Google Inc.'
   s.license     = { :type => 'Apache', :file => 'LICENSE' }
