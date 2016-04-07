@@ -168,6 +168,10 @@
 // cookieStorage property:
 //   myFetcher.cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
 //
+// To share cookies with other apps, use the method introduced in iOS 9/OS X 10.11:
+//   myFetcher.cookieStorage =
+//     [NSHTTPCookieStorage sharedCookieStorageForGroupContainerIdentifier:kMyCompanyContainedID];
+//
 // To ignore existing cookies and only have cookies related to the single fetch
 // be applied, make a temporary cookie storage object:
 //   myFetcher.cookieStorage = [[GTMSessionCookieStorage alloc] init];
@@ -1105,6 +1109,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Until we can just instantiate NSHTTPCookieStorage for local use, we'll
 // implement all the public methods ourselves.  This stores cookies only in
 // memory.  Additional methods are provided for testing.
+//
+// iOS 9/OS X 10.11 added +[NSHTTPCookieStorage sharedCookieStorageForGroupContainerIdentifier:]
+// which may also be used to create cookie storage.
 @interface GTMSessionCookieStorage : NSHTTPCookieStorage
 
 // Add the array off cookies to the storage, replacing duplicates.
