@@ -51,7 +51,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, strong, GTM_NULLABLE) NSURLSessionConfiguration *configuration;
 @property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherConfigurationBlock configurationBlock;
 @property(atomic, strong, GTM_NULLABLE) NSHTTPCookieStorage *cookieStorage;
-@property(atomic, strong, GTM_NULLABLE) dispatch_queue_t callbackQueue;
+@property(atomic, strong, GTM_NULL_RESETTABLE) dispatch_queue_t callbackQueue;
 @property(atomic, strong, GTM_NULLABLE) NSURLCredential *credential;
 @property(atomic, strong) NSURLCredential *proxyCredential;
 @property(atomic, copy, GTM_NULLABLE) GTM_NSArrayOf(NSString *) *allowedInsecureSchemes;
@@ -82,7 +82,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 // Delegate queue used by the session when calling back to the fetcher.  The default
 // is the main queue.  Changing this does not affect the queue used to call back to the
 // application; that is specified by the callbackQueue property above.
-@property(atomic, strong, GTM_NULLABLE) NSOperationQueue *sessionDelegateQueue;
+@property(atomic, strong, GTM_NULL_RESETTABLE) NSOperationQueue *sessionDelegateQueue;
 
 // When enabled, indicates the same session should be used by subsequent fetchers.
 //

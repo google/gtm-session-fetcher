@@ -109,8 +109,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             configurationBlock = _configurationBlock,
             cookieStorage = _cookieStorage,
             userAgent = _userAgent,
-            callbackQueue = _callbackQueue,
-            sessionDelegateQueue = _delegateQueue,
             credential = _credential,
             proxyCredential = _proxyCredential,
             allowedInsecureSchemes = _allowedInsecureSchemes,
@@ -139,6 +137,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
     _delegateDispatcher =
         [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
                                                            sessionDiscardInterval:_unusedSessionTimeout];
+    _callbackQueue = dispatch_get_main_queue();
+    _delegateQueue = [NSOperationQueue mainQueue];
 
     // Starting with the SDKs for OS X 10.11/iOS 9, the service has a default useragent.
     // Apps can remove this and get the default system "CFNetwork" useragent by setting the
@@ -162,14 +162,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             fetcherClass:(Class)fetcherClass {
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
                                                        configuration:self.configuration];
-  dispatch_queue_t callbackQueue = self.callbackQueue;
-  if (callbackQueue) {
-    fetcher.callbackQueue = callbackQueue;
-  }
-  NSOperationQueue *delegateQueue = self.sessionDelegateQueue;
-  if (delegateQueue) {
-    fetcher.sessionDelegateQueue = delegateQueue;
-  }
+  fetcher.callbackQueue = self.callbackQueue;
+  fetcher.sessionDelegateQueue = self.sessionDelegateQueue;
   fetcher.credential = self.credential;
   fetcher.proxyCredential = self.proxyCredential;
   fetcher.authorizer = self.authorizer;
@@ -781,6 +775,38 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       [_authorizer setFetcherService:nil];
     }
   }
+}
+
+- (dispatch_queue_t GTM_NONNULL_TYPE)callbackQueue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _callbackQueue;
+  }  // @synchronized(self)
+}
+
+- (void)setCallbackQueue:(dispatch_queue_t GTM_NULLABLE_TYPE)queue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _callbackQueue = queue ?: dispatch_get_main_queue();
+  }  // @synchronized(self)
+}
+
+- (NSOperationQueue * GTM_NONNULL_TYPE)sessionDelegateQueue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _delegateQueue;
+  }  // @synchronized(self)
+}
+
+- (void)setSessionDelegateQueue:(NSOperationQueue * GTM_NULLABLE_TYPE)queue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _delegateQueue = queue ?: [NSOperationQueue mainQueue];
+  }  // @synchronized(self)
 }
 
 - (NSOperationQueue *)delegateQueue {
