@@ -1080,6 +1080,7 @@
 					"-Wendif-labels",
 					"-Wno-unknown-pragmas",
 					"-Wno-unused-parameter",
+					"-Widiomatic-parentheses",
 				);
 			};
 			name = Debug;
@@ -1143,6 +1144,7 @@
 					"-Wendif-labels",
 					"-Wno-unknown-pragmas",
 					"-Wno-unused-parameter",
+					"-Widiomatic-parentheses",
 				);
 			};
 			name = Release;
