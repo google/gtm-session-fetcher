@@ -801,24 +801,25 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (!self.skipBackgroundTask && !_usingBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
-    UIApplication *app = [UIApplication sharedApplication];
+    id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
 #if DEBUG
     NSString *bgTaskName = [NSString stringWithFormat:@"%@-%@",
                             NSStringFromClass([self class]), fetchRequest.URL.host];
 #else
     NSString *bgTaskName = @"GTMSessionFetcher";
 #endif
-    self.backgroundTaskIdentifier = [app beginBackgroundTaskWithName:bgTaskName
-                                                   expirationHandler:^{
+    __block UIBackgroundTaskIdentifier bgTaskID = [app beginBackgroundTaskWithName:bgTaskName
+                                                                 expirationHandler:^{
       // Background task expiration callback - this block is always invoked by
       // UIApplication on the main thread.
-      UIBackgroundTaskIdentifier identifier = self.backgroundTaskIdentifier;
-      if (identifier != UIBackgroundTaskInvalid) {
-        [[UIApplication sharedApplication] endBackgroundTask:identifier];
-
-        self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+      if (bgTaskID != UIBackgroundTaskInvalid) {
+        if (bgTaskID == self.backgroundTaskIdentifier) {
+          self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+        }
+        [app endBackgroundTask:bgTaskID];
       }
     }];
+    self.backgroundTaskIdentifier = bgTaskID;
   }
 #endif
 
@@ -1433,14 +1434,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   // We'll wait on _callbackGroup to ensure that any callbacks in flight have executed,
   // and that we access backgroundTaskIdentifier on the main thread, as happens when the
   // task has expired.
-  dispatch_group_notify(_callbackGroup, dispatch_get_main_queue(), ^{
-    UIBackgroundTaskIdentifier identifier = self.backgroundTaskIdentifier;
-    if (identifier != UIBackgroundTaskInvalid) {
-      [[UIApplication sharedApplication] endBackgroundTask:identifier];
+  UIBackgroundTaskIdentifier bgTaskID = self.backgroundTaskIdentifier;
+  if (bgTaskID != UIBackgroundTaskInvalid) {
+    self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
 
-      self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
-    }
-  });
+    id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
+    [app endBackgroundTask:bgTaskID];
+  }
 }
 
 #endif // GTM_BACKGROUND_TASK_FETCHING
@@ -1833,6 +1833,32 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 #endif
   gGlobalTestBlock = [block copy];
 }
+
+#if TARGET_OS_IPHONE
+
+static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
+
++ (void)setSubstituteUIApplication:(nullable id<GTMUIApplicationProtocol>)app {
+  gSubstituteUIApp = app;
+}
+
++ (nullable id<GTMUIApplicationProtocol>)substituteUIApplication {
+  return gSubstituteUIApp;
+}
+
++ (nullable id<GTMUIApplicationProtocol>)fetcherUIApplication {
+  id<GTMUIApplicationProtocol> app = gSubstituteUIApp;
+  if (app) return app;
+
+  // Some projects use GTM_BACKGROUND_TASK_FETCHING to avoid compile-time references
+  // to UIApplication.
+#if GTM_BACKGROUND_TASK_FETCHING
+  return (id<GTMUIApplicationProtocol>) [UIApplication sharedApplication];
+#else
+  return nil;
+#endif
+}
+#endif //  TARGET_OS_IPHONE
 
 #pragma mark NSURLSession Delegate Methods
 
@@ -3169,7 +3195,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 @synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier,
             skipBackgroundTask = _skipBackgroundTask;
 #endif
-
 
 - (NSMutableURLRequest * GTM_NULLABLE_TYPE)mutableRequest {
   @synchronized(self) {
