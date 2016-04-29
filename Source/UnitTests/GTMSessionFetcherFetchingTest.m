@@ -894,6 +894,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
   [_testServer setRedirectEnabled:YES];
 
+  if (![_testServer isRedirectEnabled]) {
+    NSLog(@"*** skipping %@: redirectServer failed to start", [self currentTestName]);
+    return;
+  }
+
   //
   // Fetch our test file.  Ensure the body survives the redirection.
   //
@@ -1353,6 +1358,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   [self assertCallbacksReleasedForFetcher:fetcher];
+
+  if (resumeData == nil) {
+    // Sometimes NSURLSession decides it cannot resume; bail on the test.
+    NSLog(@"*** %@ received nil resumeData; skipping test", [self currentTestName]);
+    return;
+  }
 
   fetcher = [GTMSessionFetcher fetcherWithDownloadResumeData:resumeData];
   fetcher.destinationFileURL = destFileURL;
@@ -1857,10 +1868,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 #pragma mark - Utilities
 
-- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
+- (NSString *)currentTestName {
   NSInvocation *currentTestInvocation = self.invocation;
   NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
+  return testCaseName;
+}
 
+- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
   NSURLRequest *request = [self requestWithURLString:urlString];
   GTMSessionFetcher *fetcher;
   if (_fetcherService) {
@@ -1871,7 +1885,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNotNil(fetcher);
   fetcher.allowLocalhostRequest = YES;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
-  fetcher.comment = testCaseName;
+  fetcher.comment = [self currentTestName];
   return fetcher;
 }
 
