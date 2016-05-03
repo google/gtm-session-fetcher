@@ -23,6 +23,8 @@
 #import "GTMSessionFetcherLogging.h"
 #import "GTMSessionUploadFetcher.h"
 
+GTM_ASSUME_NONNULL_BEGIN
+
 extern NSString *const kGTMGettysburgFileName;
 
 @interface GTMSessionFetcherBaseTest : XCTestCase {
@@ -75,6 +77,32 @@ extern NSString *const kGTMGettysburgFileName;
 
 @end
 
+#if TARGET_OS_IPHONE
+
+// A fake of UIApplication that posts notifications when a background task begins
+// and ends.
+@class SubstituteUIApplicationTaskInfo;
+
+typedef void (^SubstituteUIApplicationExpirationCallback)
+    (NSUInteger numberOfBackgroundTasksToExpire,
+     NSArray <SubstituteUIApplicationTaskInfo *> * _Nullable tasksFailingToExpire);
+
+@interface SubstituteUIApplication : NSObject<GTMUIApplicationProtocol>
+
+- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
+                                        expirationHandler:(nullable dispatch_block_t)handler;
+- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)identifier;
+
+- (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler;
+
+@end
+
+extern NSString *const kSubUIAppBackgroundTaskBegan;
+extern NSString *const kSubUIAppBackgroundTaskEnded;
+
+#endif  // TARGET_OS_IPHONE
+
+
 @interface FetcherNotificationsCounter : NSObject
 @property(nonatomic) int fetchStarted;
 @property(nonatomic) int fetchStopped;
@@ -93,5 +121,10 @@ extern NSString *const kGTMGettysburgFileName;
 @property(nonatomic) NSMutableArray *fetchersStartedDescriptions; // of NSString
 @property(nonatomic) NSMutableArray *fetchersStoppedDescriptions; // of NSString
 
+@property(nonatomic) NSMutableArray *backgroundTasksStarted;  // of boxed UIBackgroundTaskIdentifier
+@property(nonatomic) NSMutableArray *backgroundTasksEnded;  // of boxed UIBackgroundTaskIdentifier
+
 @end
+
+GTM_ASSUME_NONNULL_END
 

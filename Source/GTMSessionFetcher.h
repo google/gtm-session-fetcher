@@ -664,6 +664,16 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @end
 #endif  // GTM_FETCHER_AUTHORIZATION_PROTOCOL
 
+#if TARGET_OS_IPHONE
+// A protocol for an alternative target for messages from GTMSessionFetcher to UIApplication.
+// Set the target using +[GTMSessionFetcher setSubstituteUIApplication:]
+@protocol GTMUIApplicationProtocol <NSObject>
+- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
+                                        expirationHandler:(void(^ __nullable)(void))handler;
+- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)identifier;
+@end
+#endif
+
 #pragma mark -
 
 // GTMSessionFetcher objects are used for async retrieval of an http get or post
@@ -1059,6 +1069,13 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
 
 + (void)setGlobalTestBlock:(GTM_NULLABLE GTMSessionFetcherTestBlock)block;
+
+#if TARGET_OS_IPHONE
+// For testing or to override UIApplication invocations, apps may specify an alternative
+// target for messages to UIApplication.
++ (void)setSubstituteUIApplication:(nullable id<GTMUIApplicationProtocol>)substituteUIApplication;
++ (nullable id<GTMUIApplicationProtocol>)substituteUIApplication;
+#endif  // TARGET_OS_IPHONE
 
 // Exposed for testing.
 + (GTMSessionCookieStorage *)staticCookieStorage;
