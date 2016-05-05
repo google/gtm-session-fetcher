@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# Since iOS needs to be forced over to the simulator for testing (to avoid
-# trying to sign), it works best to wrap the invokes of xctool.
-
 set -eu
 
 if [[ "$#" -ne 2 ]]; then
@@ -13,8 +10,6 @@ fi
 BUILD_MODE="$1"
 BUILD_CFG="$2"
 
-# xctool doesn't seem to support use of a framework linked to the tests:
-# https://github.com/facebook/xctool/blob/master/Common/XCToolUtil.m#L903
 CMD_BUILDER=(
   xcodebuild \
     -project Source/GTMSessionFetcherCore.xcodeproj
