@@ -1034,8 +1034,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Application callbacks are always called by the fetcher on the callbackQueue above,
 // not on this queue. Apps should generally not change this queue.
 //
-// The default delegate queue is the main queue. A nil value tells NSURLSession to
-// create a serial queue.
+// The default delegate queue is the main queue.
 //
 // This value is ignored after the session has been created, so this
 // property should be set in the fetcher service rather in the fetcher as it applies
