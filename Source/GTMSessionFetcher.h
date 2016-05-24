@@ -717,7 +717,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest;
 
 // Data used for resuming a download task.
-@property(strong, GTM_NULLABLE) NSData *downloadResumeData;
+@property(readonly, GTM_NULLABLE) NSData *downloadResumeData;
 
 // The configuration; this must be set before the fetch begins. If no configuration is
 // set or inherited from the fetcher service, then the fetcher uses an ephemeral config.
@@ -869,6 +869,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(copy, GTM_NULLABLE) GTMSessionFetcherBodyStreamProvider bodyStreamProvider;
 
 // Object to add authorization to the request, if needed.
+//
+// This may not be changed once beginFetch has been invoked.
 @property(strong, GTM_NULLABLE) id<GTMFetcherAuthorizationProtocol> authorizer;
 
 // The service object that created and monitors this fetcher, if any.

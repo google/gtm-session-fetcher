@@ -1729,6 +1729,14 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return self;
 }
 
+- (BOOL)isFetching {
+  // If there is an active chunk fetcher, then the upload fetcher is considered
+  // to still be fetching.
+  if (self.fetcherInFlight != nil) return YES;
+
+  return [super isFetching];
+}
+
 - (BOOL)waitForCompletionWithTimeout:(NSTimeInterval)timeoutInSeconds {
   NSDate *timeoutDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
 
