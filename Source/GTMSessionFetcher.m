@@ -2020,6 +2020,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didReceiveChallenge:%@",
                            [self class], self, session, task, challenge);
 
+  [self respondToChallenge:challenge
+         completionHandler:handler];
+}
+
+- (void)respondToChallenge:(NSURLAuthenticationChallenge *)challenge
+         completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
+                                     NSURLCredential * GTM_NULLABLE_TYPE credential))handler {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2050,59 +2057,9 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
           if (_allowInvalidServerCertificates) {
             callback(serverTrust, YES);
           } else {
-            // Retain the trust object to avoid a SecTrustEvaluate() crash on iOS 7.
-            CFRetain(serverTrust);
-
-            // Evaluate the certificate chain.
-            //
-            // The delegate queue may be the main thread. Trust evaluation could cause some
-            // blocking network activity, so we must evaluate async, as documented at
-            // https://developer.apple.com/library/ios/technotes/tn2232/
-            //
-            // We must also avoid multiple uses of the trust object, per docs:
-            // "It is not safe to call this function concurrently with any other function that uses
-            // the same trust management object, or to re-enter this function for the same trust
-            // management object."
-            //
-            // SecTrustEvaluateAsync both does sync execution of Evaluate and calls back on the
-            // queue passed to it, according to at sources in
-            // http://www.opensource.apple.com/source/libsecurity_keychain/libsecurity_keychain-55050.9/lib/SecTrust.cpp
-            // It would require a global serial queue to ensure the evaluate happens only on a
-            // single thread at a time, so we'll stick with using SecTrustEvaluate on a background
-            // thread.
-            dispatch_queue_t evaluateBackgroundQueue =
-                dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-            dispatch_async(evaluateBackgroundQueue, ^{
-              // It looks like the implementation of SecTrustEvaluate() on Mac grabs a global lock,
-              // so it may be redundant for us to also lock, but it's easy to synchronize here
-              // anyway.
-              SecTrustResultType trustEval = kSecTrustResultInvalid;
-              BOOL shouldAllow;
-              OSStatus trustError;
-              @synchronized([GTMSessionFetcher class]) {
-                trustError = SecTrustEvaluate(serverTrust, &trustEval);
-              }
-              if (trustError != errSecSuccess) {
-                GTMSESSION_LOG_DEBUG(@"Error %d evaluating trust for %@",
-                                     (int)trustError, _request);
-                shouldAllow = NO;
-              } else {
-                // Having a trust level "unspecified" by the user is the usual result, described at
-                //   https://developer.apple.com/library/mac/qa/qa1360
-                if (trustEval == kSecTrustResultUnspecified
-                    || trustEval == kSecTrustResultProceed) {
-                  shouldAllow = YES;
-                } else {
-                  shouldAllow = NO;
-                  GTMSESSION_LOG_DEBUG(@"Challenge SecTrustResultType %u for %@, properties: %@",
-                                       trustEval, _request.URL.host,
-                                       CFBridgingRelease(SecTrustCopyProperties(serverTrust)));
-                }
-              }
-              callback(serverTrust, shouldAllow);
-
-              CFRelease(serverTrust);
-            });
+            [[self class] evaluateServerTrust:serverTrust
+                                   forRequest:_request
+                            completionHandler:callback];
           }
         }
         return;
@@ -2134,6 +2091,64 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
       handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
     }
   }  // @synchronized(self)
+}
+
++ (void)evaluateServerTrust:(SecTrustRef)serverTrust
+                 forRequest:(NSURLRequest *)request
+          completionHandler:(void (^)(SecTrustRef trustRef, BOOL allow))handler {
+  // Retain the trust object to avoid a SecTrustEvaluate() crash on iOS 7.
+  CFRetain(serverTrust);
+
+  // Evaluate the certificate chain.
+  //
+  // The delegate queue may be the main thread. Trust evaluation could cause some
+  // blocking network activity, so we must evaluate async, as documented at
+  // https://developer.apple.com/library/ios/technotes/tn2232/
+  //
+  // We must also avoid multiple uses of the trust object, per docs:
+  // "It is not safe to call this function concurrently with any other function that uses
+  // the same trust management object, or to re-enter this function for the same trust
+  // management object."
+  //
+  // SecTrustEvaluateAsync both does sync execution of Evaluate and calls back on the
+  // queue passed to it, according to at sources in
+  // http://www.opensource.apple.com/source/libsecurity_keychain/libsecurity_keychain-55050.9/lib/SecTrust.cpp
+  // It would require a global serial queue to ensure the evaluate happens only on a
+  // single thread at a time, so we'll stick with using SecTrustEvaluate on a background
+  // thread.
+  dispatch_queue_t evaluateBackgroundQueue =
+    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+  dispatch_async(evaluateBackgroundQueue, ^{
+    // It looks like the implementation of SecTrustEvaluate() on Mac grabs a global lock,
+    // so it may be redundant for us to also lock, but it's easy to synchronize here
+    // anyway.
+    SecTrustResultType trustEval = kSecTrustResultInvalid;
+    BOOL shouldAllow;
+    OSStatus trustError;
+    @synchronized([GTMSessionFetcher class]) {
+      trustError = SecTrustEvaluate(serverTrust, &trustEval);
+    }
+    if (trustError != errSecSuccess) {
+      GTMSESSION_LOG_DEBUG(@"Error %d evaluating trust for %@",
+                           (int)trustError, request);
+      shouldAllow = NO;
+    } else {
+      // Having a trust level "unspecified" by the user is the usual result, described at
+      //   https://developer.apple.com/library/mac/qa/qa1360
+      if (trustEval == kSecTrustResultUnspecified
+          || trustEval == kSecTrustResultProceed) {
+        shouldAllow = YES;
+      } else {
+        shouldAllow = NO;
+        GTMSESSION_LOG_DEBUG(@"Challenge SecTrustResultType %u for %@, properties: %@",
+                             trustEval, request.URL.host,
+                             CFBridgingRelease(SecTrustCopyProperties(serverTrust)));
+      }
+    }
+    handler(serverTrust, shouldAllow);
+
+    CFRelease(serverTrust);
+  });
 }
 
 - (void)invokeOnCallbackQueueUnlessStopped:(void (^)(void))block {
