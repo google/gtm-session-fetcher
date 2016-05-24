@@ -507,6 +507,11 @@ typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamP
 typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
 typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
                                                          GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
+typedef void (^GTMSessionFetcherChallengeDispositionBlock)(NSURLSessionAuthChallengeDisposition disposition,
+                                                           NSURLCredential * GTM_NULLABLE_TYPE credential);
+typedef void (^GTMSessionFetcherChallengeBlock)(GTMSessionFetcher *fetcher,
+                                                NSURLAuthenticationChallenge *challenge,
+                                                GTMSessionFetcherChallengeDispositionBlock dispositionBlock);
 typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest * GTM_NULLABLE_TYPE redirectedRequest);
 typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectResponse,
                                                    NSURLRequest *redirectRequest,
@@ -861,10 +866,23 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(assign) NSInteger servicePriority;
 
 // The delegate's optional didReceiveResponse block may be used to inspect or alter
-// the session response.
+// the session task response.
 //
 // This is called on the callback queue.
 @property(copy, GTM_NULLABLE) GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
+
+// The delegate's optional challenge block may be used to inspect or alter
+// the session task challenge.
+//
+// If this block is not set, the fetcher's default behavior for the NSURLSessionTask
+// didReceiveChallenge: delegate method is to use the fetcher's respondToChallenge: method
+// which relies on the fetcher's credential and proxyCredential properties.
+//
+// Warning: This may be called repeatedly if the challenge fails. Check
+// challenge.previousFailureCount to identify repeated invocations.
+//
+// This is called on the callback queue.
+@property(copy, GTM_NULLABLE) GTMSessionFetcherChallengeBlock challengeBlock;
 
 // The delegate's optional willRedirect block may be used to inspect or alter
 // the redirection.

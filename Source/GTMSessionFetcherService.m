@@ -109,6 +109,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
             configurationBlock = _configurationBlock,
             cookieStorage = _cookieStorage,
             userAgent = _userAgent,
+            challengeBlock = _challengeBlock,
             credential = _credential,
             proxyCredential = _proxyCredential,
             allowedInsecureSchemes = _allowedInsecureSchemes,
@@ -164,6 +165,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
                                                        configuration:self.configuration];
   fetcher.callbackQueue = self.callbackQueue;
   fetcher.sessionDelegateQueue = self.sessionDelegateQueue;
+  fetcher.challengeBlock = self.challengeBlock;
   fetcher.credential = self.credential;
   fetcher.proxyCredential = self.proxyCredential;
   fetcher.authorizer = self.authorizer;

@@ -963,8 +963,11 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 - (void)simulateDataCallbacksForTestBlockWithBodyData:(NSData * GTM_NULLABLE_TYPE)bodyData
                                              response:(NSURLResponse *)response
-                                         responseData:(NSData *)responseData
-                                                error:(NSError *)error {
+                                         responseData:(NSData *)suppliedData
+                                                error:(NSError *)suppliedError {
+  __block NSData *responseData = suppliedData;
+  __block NSError *responseError = suppliedError;
+
   // This method does the test simulation of callbacks once the upload
   // and download data are known.
   @synchronized(self) {
@@ -980,6 +983,42 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                 // For simulation, we'll assume the app will just continue.
             });
           }
+      }];
+    }
+
+    // If the fetcher has a challenge block, simulate a challenge.
+    //
+    // It might be nice to eventually let the user determine which testBlock
+    // fetches get challenged rather than always executing the supplied
+    // challenge block.
+    if (_challengeBlock) {
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
+                                                          block:^{
+        if (_challengeBlock) {
+          NSURL *requestURL = _request.URL;
+          NSString *host = requestURL.host;
+          NSURLProtectionSpace *pspace =
+              [[NSURLProtectionSpace alloc] initWithHost:host
+                                                    port:requestURL.port.integerValue
+                                                protocol:requestURL.scheme
+                                                   realm:nil
+                                    authenticationMethod:NSURLAuthenticationMethodHTTPBasic];
+          id<NSURLAuthenticationChallengeSender> unusedSender =
+              (id<NSURLAuthenticationChallengeSender>)[NSNull null];
+          NSURLAuthenticationChallenge *challenge =
+              [[NSURLAuthenticationChallenge alloc] initWithProtectionSpace:pspace
+                                                         proposedCredential:nil
+                                                       previousFailureCount:0
+                                                            failureResponse:nil
+                                                                      error:nil
+                                                                     sender:unusedSender];
+          _challengeBlock(self, challenge, ^(NSURLSessionAuthChallengeDisposition disposition,
+                                             NSURLCredential * GTM_NULLABLE_TYPE credential){
+            // We could change the responseData and responseError based on the disposition,
+            // but it's easier for apps to just supply the expected data and error
+            // directly to the test block. So this simulation ignores the disposition.
+          });
+        }
       }];
     }
 
@@ -1029,7 +1068,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                          error:&writeError];
       if (writeError) {
         // Tell the test code that writing failed.
-        error = writeError;
+        responseError = writeError;
       }
     } else {
       // Simulate download to NSData progress.
@@ -1079,15 +1118,15 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   [queue addOperationWithBlock:^{
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
-    NSInteger status = error ? error.code : 200;
+    NSInteger status = responseError ? responseError.code : 200;
     if (status >= 200 && status <= 399) {
       [self finishWithError:nil shouldRetry:NO];
     } else {
       [self shouldRetryNowForStatus:status
-                              error:error
+                              error:responseError
                    forceAssumeRetry:NO
                            response:^(BOOL shouldRetry) {
-          [self finishWithError:error shouldRetry:shouldRetry];
+          [self finishWithError:responseError shouldRetry:shouldRetry];
       }];
     }
   }];
@@ -1592,6 +1631,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
   self.configurationBlock = nil;
   self.didReceiveResponseBlock = nil;
+  self.challengeBlock = nil;
   self.willRedirectBlock = nil;
   self.sendProgressBlock = nil;
   self.receivedProgressBlock = nil;
@@ -2020,8 +2060,25 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didReceiveChallenge:%@",
                            [self class], self, session, task, challenge);
 
-  [self respondToChallenge:challenge
-         completionHandler:handler];
+  GTMSessionFetcherChallengeBlock challengeBlock = self.challengeBlock;
+  if (challengeBlock) {
+    // The fetcher user has provided custom challenge handling.
+    //
+    // We will ultimately need to call back to NSURLSession's handler with the disposition value
+    // for this delegate method even if the user has stopped the fetcher.
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+
+      [self invokeOnCallbackQueueAfterUserStopped:YES
+                                            block:^{
+        challengeBlock(self, challenge, handler);
+      }];
+    }
+  } else {
+    // No challenge block was provided by the client.
+    [self respondToChallenge:challenge
+           completionHandler:handler];
+  }
 }
 
 - (void)respondToChallenge:(NSURLAuthenticationChallenge *)challenge
@@ -2093,6 +2150,9 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   }  // @synchronized(self)
 }
 
+// Validate the certificate chain.
+//
+// This may become a public method if it appears to be useful to users.
 + (void)evaluateServerTrust:(SecTrustRef)serverTrust
                  forRequest:(NSURLRequest *)request
           completionHandler:(void (^)(SecTrustRef trustRef, BOOL allow))handler {
@@ -2126,6 +2186,8 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     BOOL shouldAllow;
     OSStatus trustError;
     @synchronized([GTMSessionFetcher class]) {
+      GTMSessionMonitorSynchronized([GTMSessionFetcher class]);
+
       trustError = SecTrustEvaluate(serverTrust, &trustEval);
     }
     if (trustError != errSecSuccess) {
@@ -3182,6 +3244,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             downloadProgressBlock = _downloadProgressBlock,
             resumeDataBlock = _resumeDataBlock,
             didReceiveResponseBlock = _didReceiveResponseBlock,
+            challengeBlock = _challengeBlock,
             willRedirectBlock = _willRedirectBlock,
             sendProgressBlock = _sendProgressBlock,
             willCacheURLResponseBlock = _willCacheURLResponseBlock,
