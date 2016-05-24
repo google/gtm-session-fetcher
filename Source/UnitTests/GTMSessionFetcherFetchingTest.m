@@ -1488,9 +1488,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     totalWritten = totalBytesWritten;
   };
 
-  NSData __block *resumeData = nil;
+  // NSURLSession's invoking of the resume data block is too unreliable to create an
+  // expectation for use in continuous testing.
+  __block NSData *resumeData = nil;
+  __block BOOL wasResumeDataBlockCalled = NO;
   fetcher.resumeDataBlock = ^(NSData *data){
-    XCTAssertNotNil(data);
+    wasResumeDataBlockCalled = YES;
     resumeData = data;
   };
 
@@ -1510,7 +1513,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   if (resumeData == nil) {
     // Sometimes NSURLSession decides it cannot resume; bail on the test.
-    NSLog(@"*** %@ received nil resumeData; skipping test", [self currentTestName]);
+    if (!wasResumeDataBlockCalled) {
+      NSLog(@"*** %@ did not have its resumeDataBlock called; skipping test",
+            [self currentTestName]);
+    } else {
+      NSLog(@"*** %@ received nil resumeData; skipping test", [self currentTestName]);
+    }
     return;
   }
 
