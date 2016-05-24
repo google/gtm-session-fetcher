@@ -775,6 +775,27 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 // Indicate that a newly created session should be a background session.
 // A new session identifier will be created by the fetcher.
+//
+// Warning:  The only thing background sessions are for is rare download
+// of huge, batched files of data. And even just for those, there's a lot
+// of pain and hackery needed to get transfers to actually happen reliably
+// with background sessions.
+//
+// Don't try to upload or download in many background sessions, since the system
+// will impose an exponentially increasing time penalty to prevent the app from
+// getting too much background execution time.
+//
+// References:
+//
+//   "Moving to Fewer, Larger Transfers"
+//   https://forums.developer.apple.com/thread/14853
+//
+//   "NSURLSession’s Resume Rate Limiter"
+//   https://forums.developer.apple.com/thread/14854
+//
+//   "Background Session Task state persistence"
+//   https://forums.developer.apple.com/thread/11554
+//
 @property(assign) BOOL useBackgroundSession;
 
 // Indicates if the fetcher was started using a background session.
