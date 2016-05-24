@@ -507,6 +507,11 @@ typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamP
 typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
 typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
                                                          GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
+typedef void (^GTMSessionFetcherChallengeDispositionBlock)(NSURLSessionAuthChallengeDisposition disposition,
+                                                           NSURLCredential * GTM_NULLABLE_TYPE credential);
+typedef void (^GTMSessionFetcherChallengeBlock)(GTMSessionFetcher *fetcher,
+                                                NSURLAuthenticationChallenge *challenge,
+                                                GTMSessionFetcherChallengeDispositionBlock dispositionBlock);
 typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest * GTM_NULLABLE_TYPE redirectedRequest);
 typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectResponse,
                                                    NSURLRequest *redirectRequest,
@@ -712,7 +717,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest;
 
 // Data used for resuming a download task.
-@property(strong, GTM_NULLABLE) NSData *downloadResumeData;
+@property(readonly, GTM_NULLABLE) NSData *downloadResumeData;
 
 // The configuration; this must be set before the fetch begins. If no configuration is
 // set or inherited from the fetcher service, then the fetcher uses an ephemeral config.
@@ -770,6 +775,27 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 // Indicate that a newly created session should be a background session.
 // A new session identifier will be created by the fetcher.
+//
+// Warning:  The only thing background sessions are for is rare download
+// of huge, batched files of data. And even just for those, there's a lot
+// of pain and hackery needed to get transfers to actually happen reliably
+// with background sessions.
+//
+// Don't try to upload or download in many background sessions, since the system
+// will impose an exponentially increasing time penalty to prevent the app from
+// getting too much background execution time.
+//
+// References:
+//
+//   "Moving to Fewer, Larger Transfers"
+//   https://forums.developer.apple.com/thread/14853
+//
+//   "NSURLSession’s Resume Rate Limiter"
+//   https://forums.developer.apple.com/thread/14854
+//
+//   "Background Session Task state persistence"
+//   https://forums.developer.apple.com/thread/11554
+//
 @property(assign) BOOL useBackgroundSession;
 
 // Indicates if the fetcher was started using a background session.
@@ -843,6 +869,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(copy, GTM_NULLABLE) GTMSessionFetcherBodyStreamProvider bodyStreamProvider;
 
 // Object to add authorization to the request, if needed.
+//
+// This may not be changed once beginFetch has been invoked.
 @property(strong, GTM_NULLABLE) id<GTMFetcherAuthorizationProtocol> authorizer;
 
 // The service object that created and monitors this fetcher, if any.
@@ -861,10 +889,23 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(assign) NSInteger servicePriority;
 
 // The delegate's optional didReceiveResponse block may be used to inspect or alter
-// the session response.
+// the session task response.
 //
 // This is called on the callback queue.
 @property(copy, GTM_NULLABLE) GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
+
+// The delegate's optional challenge block may be used to inspect or alter
+// the session task challenge.
+//
+// If this block is not set, the fetcher's default behavior for the NSURLSessionTask
+// didReceiveChallenge: delegate method is to use the fetcher's respondToChallenge: method
+// which relies on the fetcher's credential and proxyCredential properties.
+//
+// Warning: This may be called repeatedly if the challenge fails. Check
+// challenge.previousFailureCount to identify repeated invocations.
+//
+// This is called on the callback queue.
+@property(copy, GTM_NULLABLE) GTMSessionFetcherChallengeBlock challengeBlock;
 
 // The delegate's optional willRedirect block may be used to inspect or alter
 // the redirection.

@@ -845,6 +845,68 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testHTTPAuthentication];
 }
 
+- (void)testHTTPAuthentication_ChallengeBlock {
+  if (!_isServerRunning) return;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  // Basic Authentication.
+  NSURLCredential *goodCredential =
+    [NSURLCredential credentialWithUser:@"frogman"
+                               password:@"padhopper"
+                            persistence:NSURLCredentialPersistenceNone];
+
+  [_testServer setHTTPAuthenticationType:kGTMHTTPAuthenticationTypeBasic
+                                username:goodCredential.user
+                                password:goodCredential.password];
+
+  //
+  // Fetch our test file from a server with HTTP Authentication.
+  //
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+
+  XCTestExpectation *calledChallengeDisposition = [self expectationWithDescription:@"challenged"];
+
+  // All we're testing is that the code path for use of the challenge block is exercised;
+  // actual behavior of the disposition is up to NSURLSession and the test server.
+  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+                             NSURLAuthenticationChallenge *challenge,
+                             GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
+    dispositionBlock(NSURLSessionAuthChallengeUseCredential, goodCredential);
+
+    [calledChallengeDisposition fulfill];
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
+                                                data:data
+                                               error:error];
+    XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+#if TARGET_OS_IPHONE
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
+- (void)testHTTPAuthentication_ChallengeBlock_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testHTTPAuthentication_ChallengeBlock];
+}
+
 - (void)testAuthorizerFetch {
   if (!_isServerRunning) return;
 
@@ -1488,9 +1550,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     totalWritten = totalBytesWritten;
   };
 
-  NSData __block *resumeData = nil;
+  // NSURLSession's invoking of the resume data block is too unreliable to create an
+  // expectation for use in continuous testing.
+  __block NSData *resumeData = nil;
+  __block BOOL wasResumeDataBlockCalled = NO;
   fetcher.resumeDataBlock = ^(NSData *data){
-    XCTAssertNotNil(data);
+    wasResumeDataBlockCalled = YES;
     resumeData = data;
   };
 
@@ -1510,7 +1575,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   if (resumeData == nil) {
     // Sometimes NSURLSession decides it cannot resume; bail on the test.
-    NSLog(@"*** %@ received nil resumeData; skipping test", [self currentTestName]);
+    if (!wasResumeDataBlockCalled) {
+      NSLog(@"*** %@ did not have its resumeDataBlock called; skipping test",
+            [self currentTestName]);
+    } else {
+      NSLog(@"*** %@ received nil resumeData; skipping test", [self currentTestName]);
+    }
     return;
   }
 
@@ -1777,6 +1847,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                 headerFields:@{ @"Aussie" : @"Shepherd" }];
   NSError *fakedResultError = nil;
 
+  __block NSURLAuthenticationChallenge *challengePresented;
+  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+                             NSURLAuthenticationChallenge *challenge,
+                             GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
+    challengePresented = challenge;
+
+    dispositionBlock(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+  };
+
   __block NSURLResponse *initialResponse;
   fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
                                       GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
@@ -1829,6 +1908,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
       XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
 
+      XCTAssertEqualObjects(challengePresented.protectionSpace.host, testURL.host);
       XCTAssertEqualObjects(initialResponse, fetcher.response);
 
       XCTAssertEqualObjects(proposedResponseToCache.response, fetcher.response);
