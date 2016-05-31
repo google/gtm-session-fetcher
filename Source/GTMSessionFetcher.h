@@ -329,6 +329,13 @@
   #endif  // __has_feature(nullability)
 #endif  // GTM_NULLABLE
 
+#if ((!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_12) \
+      || (TARGET_OS_IPHONE && defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0))
+#define GTMSESSION_DEPRECATE_ON_2016_SDKS __attribute__((deprecated))
+#else
+#define GTMSESSION_DEPRECATE_ON_2016_SDKS
+#endif
+
 #ifndef GTM_DECLARE_GENERICS
   #if __has_feature(objc_generics) \
     && ((!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
@@ -707,20 +714,40 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 + (GTM_NSArrayOf(GTMSessionFetcher *) *)fetchersForBackgroundSessions;
 
 // Designated initializer.
+//
+// Applications should create fetchers with a "fetcherWith..." method on a fetcher
+// service or a class method, not with this initializer.
+//
+// The configuration should typically be nil. Applications needing to customize
+// the configuration may do so by setting the configurationBlock property.
 - (instancetype)initWithRequest:(GTM_NULLABLE NSURLRequest *)request
                   configuration:(GTM_NULLABLE NSURLSessionConfiguration *)configuration;
 
-// The fetcher's request
+// The fetcher's request.  This may not be set after beginFetch has been invoked. The request
+// may change due to redirects.
+@property(strong, GTM_NULLABLE) NSURLRequest *request;
+
+// Set a header field value on the request. Header field value changes will not
+// affect a fetch after the fetch has begun.
+- (void)setRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field;
+
+// The fetcher's request (deprecated.)
 //
-// The underlying request is mutable and may be modified by the caller.  Request changes will not
-// affect a fetch after it has begun.
-@property(readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest;
+// Exposing a mutable object in the interface was convenient but a bad design decision due
+// to thread-safety requirements.  Clients should use the request property and
+// setRequestValue:forHTTPHeaderField: instead.
+@property(readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest GTMSESSION_DEPRECATE_ON_2016_SDKS;
 
 // Data used for resuming a download task.
 @property(readonly, GTM_NULLABLE) NSData *downloadResumeData;
 
 // The configuration; this must be set before the fetch begins. If no configuration is
 // set or inherited from the fetcher service, then the fetcher uses an ephemeral config.
+//
+// NOTE: This property should typically be nil. Applications needing to customize
+// the configuration should do so by setting the configurationBlock property.
+// That allows the fetcher to pick an appropriate base configuration, with the
+// application setting only the configuration properties it needs to customize.
 @property(strong, GTM_NULLABLE) NSURLSessionConfiguration *configuration;
 
 // A block the client may use to customize the configuration used to create the session.

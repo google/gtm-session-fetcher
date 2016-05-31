@@ -226,9 +226,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   // use background sessions.
   fetcher.useBackgroundSession = NO;
 
-  XCTAssertEqualObjects([fetcher.mutableRequest.allHTTPHeaderFields valueForKey:@"User-Agent"],
+  XCTAssertEqualObjects([fetcher.request.allHTTPHeaderFields valueForKey:@"User-Agent"],
                         @"UploadTest (GTMSUF/1)",
-                        @"%@", fetcher.mutableRequest.allHTTPHeaderFields);
+                        @"%@", fetcher.request.allHTTPHeaderFields);
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
@@ -281,9 +281,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
 
   NSString *expectedUserAgent = [NSString stringWithFormat:@"%@ (GTMSUF/1)",
                                  GTMFetcherStandardUserAgentString(nil)];
-  XCTAssertEqualObjects([fetcher.mutableRequest.allHTTPHeaderFields valueForKey:@"User-Agent"],
+  XCTAssertEqualObjects([fetcher.request.allHTTPHeaderFields valueForKey:@"User-Agent"],
                         expectedUserAgent,
-                        @"%@", fetcher.mutableRequest.allHTTPHeaderFields);
+                        @"%@", fetcher.request.allHTTPHeaderFields);
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
@@ -965,7 +965,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       // not the one with status=503 appended.
       NSURL *origURL = [fetcher propertyForKey:kOriginalURLKey];
 
-      [fetcher.activeFetcher.mutableRequest setURL:origURL];
+      NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
+      mutableRequest.URL = origURL;
       fetcher.uploadLocationURL = origURL;
 
       [fetcher setProperty:nil forKey:kOriginalURLKey];
@@ -1062,7 +1063,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.allowLocalhostRequest = YES;
 
   // Our test server looks for zero content length as a cue to prematurely stop the upload.
-  [fetcher.mutableRequest setValue:@"0" forHTTPHeaderField:@"X-Goog-Upload-Content-Length"];
+  [fetcher setRequestValue:@"0" forHTTPHeaderField:@"X-Goog-Upload-Content-Length"];
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {

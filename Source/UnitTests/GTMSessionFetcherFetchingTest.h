@@ -63,6 +63,14 @@ extern NSString *const kGTMGettysburgFileName;
 
 @end
 
+
+@interface GTMSessionFetcher (FetchingTest)
+// During testing only, we may want to modify the request being fetched
+// after beginFetch has been called.
+- (GTM_NULLABLE NSMutableURLRequest *)mutableRequestForTesting;
+@end
+
+
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMFetcherAuthorizationProtocol>
 

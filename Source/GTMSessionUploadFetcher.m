@@ -74,7 +74,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @property(readwrite, strong) NSData *downloadedData;
 - (void)releaseCallbacks;
 
-- (NSMutableURLRequest * GTM_NULLABLE_TYPE)mutableRequestUnsynchronized;
 - (NSInteger)statusCodeUnsynchronized;
 
 @end
@@ -444,7 +443,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   // Add our custom headers to the initial request indicating the data
   // type and total size to be delivered later in the chunk requests.
-  NSMutableURLRequest *mutableRequest = [self mutableRequestUnsynchronized];
+  NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
 
   GTMSESSION_ASSERT_DEBUG((mutableRequest == nil) != (_uploadLocationURL == nil),
                           @"Request and location are mutually exclusive");
@@ -478,6 +477,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     userAgent = [userAgent stringByAppendingFormat:@" %@", kUserAgentStub];
     [mutableRequest setValue:userAgent forHTTPHeaderField:@"User-Agent"];
   }
+  [self setRequest:mutableRequest];
 }
 
 - (void)setLocationURL:(NSURL * GTM_NULLABLE_TYPE)location
@@ -999,8 +999,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [queryFetcher setCommentWithFormat:@"%@ (query offset)",
    originalComment ? originalComment : @"upload"];
 
-  NSMutableURLRequest *queryRequest = queryFetcher.mutableRequest;
-  [queryRequest setValue:@"query" forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
+  [queryFetcher setRequestValue:@"query" forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
 
   self.fetcherInFlight = queryFetcher;
   [queryFetcher beginFetchWithDelegate:self
@@ -1058,8 +1057,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [cancelFetcher setCommentWithFormat:@"%@ (cancel)",
       originalComment ? originalComment : @"upload"];
 
-  NSMutableURLRequest *cancelRequest = cancelFetcher.mutableRequest;
-  [cancelRequest setValue:@"cancel" forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
+  [cancelFetcher setRequestValue:@"cancel" forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
 
   self.fetcherInFlight = cancelFetcher;
   [cancelFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
@@ -1086,7 +1084,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSessionFetcher *chunkFetcher = [self uploadFetcherWithProperties:props
                                                          isQueryFetch:NO];
   [self attachSendProgressBlockToChunkFetcher:chunkFetcher];
-  NSMutableURLRequest *chunkRequest = chunkFetcher.mutableRequest;
 
   BOOL isUploadingFileURL = (self.uploadFileURL != nil);
 
@@ -1144,9 +1141,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSString *lengthStr = @(thisChunkSize).stringValue;
   NSString *offsetStr = @(offset).stringValue;
 
-  [chunkRequest setValue:command forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
-  [chunkRequest setValue:lengthStr forHTTPHeaderField:@"Content-Length"];
-  [chunkRequest setValue:offsetStr forHTTPHeaderField:kGTMSessionHeaderXGoogUploadOffset];
+  [chunkFetcher setRequestValue:command forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
+  [chunkFetcher setRequestValue:lengthStr forHTTPHeaderField:@"Content-Length"];
+  [chunkFetcher setRequestValue:offsetStr forHTTPHeaderField:kGTMSessionHeaderXGoogUploadOffset];
 
   // Append the range of bytes in this chunk to the fetcher comment.
   NSString *baseComment = self.comment;
@@ -1218,6 +1215,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   self.chunkFetcher = chunkFetcher;
   self.fetcherInFlight = chunkFetcher;
 
+  // Update the last chunk request, including any request headers.
+  self.lastChunkRequest = chunkFetcher.request;
+
   [chunkFetcher beginFetchWithDelegate:self
                      didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
 }
@@ -1267,7 +1267,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [chunkRequest setHTTPMethod:@"PUT"];
 
   // copy the user-agent from the original connection
-  NSURLRequest *origRequest = self.mutableRequest;
+  NSURLRequest *origRequest = self.request;
   NSString *userAgent = [origRequest valueForHTTPHeaderField:@"User-Agent"];
   if (userAgent.length > 0) {
     [chunkRequest setValue:userAgent forHTTPHeaderField:@"User-Agent"];
@@ -1328,8 +1328,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     };
   }
 
-  // The chunk request becomes the fetcher's last request.
-  self.lastChunkRequest = chunkFetcher.mutableRequest;
   return chunkFetcher;
 }
 
@@ -1350,7 +1348,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   BOOL isUploadStatusStopped = (uploadStatus == kStatusFinal || uploadStatus == kStatusCancelled);
 
   int64_t previousContentLength =
-      [[chunkFetcher.mutableRequest valueForHTTPHeaderField:@"Content-Length"] longLongValue];
+      [[chunkFetcher.request valueForHTTPHeaderField:@"Content-Length"] longLongValue];
   // The Content-Length header may not be present if the chunk fetcher was recreated from
   // a background session.
   BOOL hasKnownChunkSize = (previousContentLength > 0);
@@ -1395,7 +1393,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                             [responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadStatus],
                             newOffset, self.currentOffset, previousContentLength,
                             [self fullUploadLength],
-                            chunkFetcher, chunkFetcher.mutableRequest.allHTTPHeaderFields,
+                            chunkFetcher, chunkFetcher.request.allHTTPHeaderFields,
                             responseHeaders);
 #endif
     if (isUploadStatusStopped) {

@@ -318,16 +318,14 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 
 #if DEBUG
     // Look for troublesome characters in the header keys & values.
-    static NSCharacterSet *badChars = nil;
-    if (!badChars) {
-      badChars = [NSCharacterSet characterSetWithCharactersInString:@":\r\n"];
-    }
+    NSCharacterSet *badKeyChars = [NSCharacterSet characterSetWithCharactersInString:@":\r\n"];
+    NSCharacterSet *badValueChars = [NSCharacterSet characterSetWithCharactersInString:@"\r\n"];
 
-    NSRange badRange = [key rangeOfCharacterFromSet:badChars];
-    NSAssert1(badRange.location == NSNotFound, @"invalid key: %@", key);
+    NSRange badRange = [key rangeOfCharacterFromSet:badKeyChars];
+    NSAssert(badRange.location == NSNotFound, @"invalid key: %@", key);
 
-    badRange = [value rangeOfCharacterFromSet:badChars];
-    NSAssert1(badRange.location == NSNotFound, @"invalid value: %@", value);
+    badRange = [value rangeOfCharacterFromSet:badValueChars];
+    NSAssert(badRange.location == NSNotFound, @"invalid value: %@", value);
 #endif
 
     [headerString appendFormat:@"%@: %@\r\n", key, value];
