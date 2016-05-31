@@ -111,6 +111,12 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 - (GTMSessionFetcher *)fetcherWithRequest:(NSURLRequest *)request;
 - (GTMSessionFetcher *)fetcherWithURL:(NSURL *)requestURL;
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)requestURLString;
+
+// Common method for fetcher creation.
+//
+// -fetcherWithRequest:fetcherClass: may be overridden to customize creation of
+// fetchers.  This is the ONLY method in the GTMSessionFetcher library intended to
+// be overridden.
 - (id)fetcherWithRequest:(NSURLRequest *)request
             fetcherClass:(Class)fetcherClass;
 

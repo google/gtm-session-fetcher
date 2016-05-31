@@ -159,6 +159,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
 
 #pragma mark Generate a new fetcher
 
+// Clients may override this method. Clients should not override any other library methods.
 - (id)fetcherWithRequest:(NSURLRequest *)request
             fetcherClass:(Class)fetcherClass {
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
