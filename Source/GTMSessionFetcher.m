@@ -80,7 +80,6 @@ GTM_ASSUME_NONNULL_END
 @interface GTMSessionFetcher ()
 
 @property(strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
-@property(strong, readwrite, GTM_NULLABLE) NSMutableURLRequest *mutableRequest;
 @property(strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
@@ -118,7 +117,7 @@ static BOOL IsLocalhost(NSString * GTM_NULLABLE_TYPE host) {
 static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 @implementation GTMSessionFetcher {
-  NSMutableURLRequest *_request; // may change due to redirects
+  NSMutableURLRequest *_request; // after beginFetch, changed only in delegate callbacks
   BOOL _useUploadTask;           // immutable after beginFetch
   NSURL *_bodyFileURL;           // immutable after beginFetch
   GTMSessionFetcherBodyStreamProvider _bodyStreamProvider;  // immutable after beginFetch
@@ -322,7 +321,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 }
 
 - (NSString *)description {
-  NSString *requestStr = self.mutableRequest.URL.description;
+  NSString *requestStr = self.request.URL.description;
   if (requestStr.length == 0) {
     if (self.downloadResumeData.length > 0) {
       requestStr = @"<download resume data>";
@@ -351,6 +350,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 // for the duration of the fetch connection.
 
 - (void)beginFetchWithCompletionHandler:(GTM_NULLABLE GTMSessionFetcherCompletionHandler)handler {
+  GTMSessionCheckNotSynchronized(self);
+
   _completionHandler = [handler copy];
 
   // The user may have called setDelegate: earlier if they want to use other
@@ -381,6 +382,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 - (void)beginFetchWithDelegate:(GTM_NULLABLE_TYPE id)target
              didFinishSelector:(GTM_NULLABLE_TYPE SEL)finishedSelector {
+  GTMSessionCheckNotSynchronized(self);
+
   GTMSessionFetcherCompletionHandler handler =  [self completionHandlerWithTarget:target
                                                                 didFinishSelector:finishedSelector];
   [self beginFetchWithCompletionHandler:handler];
@@ -389,8 +392,9 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 - (void)beginFetchMayDelay:(BOOL)mayDelay
               mayAuthorize:(BOOL)mayAuthorize {
   // This is the internal entry point for re-starting fetches.
+  GTMSessionCheckNotSynchronized(self);
 
-  NSMutableURLRequest *fetchRequest = self.mutableRequest;
+  NSMutableURLRequest *fetchRequest = _request;  // The request property is now externally immutable.
   NSURL *fetchRequestURL = fetchRequest.URL;
   NSString *priorSessionIdentifier = self.sessionIdentifier;
 
@@ -671,19 +675,20 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   BOOL needsUploadTask = (self.useUploadTask || self.bodyFileURL || self.bodyStreamProvider);
   if (_bodyData || self.bodyStreamProvider || fetchRequest.HTTPBodyStream) {
     if (isEffectiveHTTPGet) {
-      [fetchRequest setHTTPMethod:@"POST"];
+      fetchRequest.HTTPMethod = @"POST";
       isEffectiveHTTPGet = NO;
     }
 
     if (_bodyData) {
       if (!needsUploadTask) {
-        [fetchRequest setHTTPBody:_bodyData];
+        fetchRequest.HTTPBody = _bodyData;
       }
 #if !STRIP_GTM_FETCH_LOGGING
     } else if (fetchRequest.HTTPBodyStream) {
       if ([self respondsToSelector:@selector(loggedInputStreamForInputStream:)]) {
-        fetchRequest.HTTPBodyStream = [self performSelector:@selector(loggedInputStreamForInputStream:)
-                                                 withObject:fetchRequest.HTTPBodyStream];
+        fetchRequest.HTTPBodyStream =
+            [self performSelector:@selector(loggedInputStreamForInputStream:)
+                       withObject:fetchRequest.HTTPBodyStream];
       }
 #endif
     }
@@ -1502,7 +1507,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   SEL asyncAuthSel = @selector(authorizeRequest:delegate:didFinishSelector:);
   if ([authorizer respondsToSelector:asyncAuthSel]) {
     SEL callbackSel = @selector(authorizer:request:finishedWithError:);
-    [authorizer authorizeRequest:self.mutableRequest
+    NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
+    [authorizer authorizeRequest:mutableRequest
                         delegate:self
                didFinishSelector:callbackSel];
   } else {
@@ -1516,12 +1522,17 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 }
 
 - (void)authorizer:(id<GTMFetcherAuthorizationProtocol>)auth
-           request:(NSMutableURLRequest *)request
+           request:(NSMutableURLRequest *)authorizedRequest
  finishedWithError:(NSError *)error {
+  GTMSessionCheckNotSynchronized(self);
+
   if (error != nil) {
     // We can't fetch without authorization
     [self failToBeginFetchWithError:error];
   } else {
+    @synchronized(self) {
+      _request = authorizedRequest;
+    }
     [self beginFetchMayDelay:NO
                 mayAuthorize:NO];
   }
@@ -1932,7 +1943,7 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
   }
   if (redirectRequest && redirectResponse) {
     // Copy the original request, including the body.
-    NSMutableURLRequest *originalRequest = self.mutableRequest;
+    NSURLRequest *originalRequest = self.request;
     NSMutableURLRequest *newRequest = [originalRequest mutableCopy];
 
     // Disallow scheme changes (say, from https to http).
@@ -2624,11 +2635,13 @@ didCompleteWithError:(NSError *)error {
   // header.
   if ((status == 403) && self.usingBackgroundSession) {
     NSURL *redirectURL = self.response.URL;
-    NSMutableURLRequest *request = self.mutableRequest;
+    NSURLRequest *request = self.request;
     if (![request.URL isEqual:redirectURL]) {
       NSString *authorizationHeader = [request.allHTTPHeaderFields objectForKey:@"Authorization"];
       if (authorizationHeader != nil) {
-        request.URL = redirectURL;
+        NSMutableURLRequest *mutableRequest = [request mutableCopy];
+        mutableRequest.URL = redirectURL;
+        [self updateMutableRequest:mutableRequest];
         // Avoid assuming the session is still valid.
         self.session = nil;
         forceAssumeRetry = YES;
@@ -2904,7 +2917,7 @@ didCompleteWithError:(NSError *)error {
   if (hasPrimed) {
     shouldRetryForAuthRefresh = YES;
     _hasAttemptedAuthRefresh = YES;
-    [self.mutableRequest setValue:nil forHTTPHeaderField:@"Authorization"];
+    [self updateRequestValue:nil forHTTPHeaderField:@"Authorization"];
   }
 
   @synchronized(self) {
@@ -3278,19 +3291,46 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             skipBackgroundTask = _skipBackgroundTask;
 #endif
 
+- (GTM_NULLABLE NSURLRequest *)request {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return [_request copy];
+  }  // @synchronized(self)
+}
+
+- (void)setRequest:(GTM_NULLABLE NSURLRequest *)request {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (![self isFetchingUnsynchronized]) {
+      _request = [request mutableCopy];
+    } else {
+      GTMSESSION_ASSERT_DEBUG(0, @"request may not be set after beginFetch has been invoked");
+    }
+  }  // @synchronized(self)
+}
+
+- (GTM_NULLABLE NSMutableURLRequest *)mutableRequestForTesting {
+  // Allow tests only to modify the request, useful during retries.
+  return _request;
+}
+
 - (GTM_NULLABLE NSMutableURLRequest *)mutableRequest {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+
+    GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher mutableRequest] is deprecated; use -request or"
+                         @" -setRequestVaue:forHTTPHeaderField:");
 
     return _request;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSMutableURLRequest *)mutableRequestUnsynchronized {
-  return _request;
-}
-
 - (void)setMutableRequest:(GTM_NULLABLE NSMutableURLRequest *)request {
+  GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher setMutableRequest:] is deprecated; use -request or"
+                       @" -setRequestVaue:forHTTPHeaderField:");
+
   GTMSESSION_ASSERT_DEBUG(![self isFetching],
                           @"mutableRequest should not change after beginFetch has been invoked");
   [self updateMutableRequest:request];
@@ -3305,7 +3345,26 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setResponse:(GTM_NULLABLE NSURLResponse *)response {
+// Set a header field value on the request. Header field value changes will not
+// affect a fetch after the fetch has begun.
+- (void)setRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field {
+  if (![self isFetching]) {
+    [self updateRequestValue:value forHTTPHeaderField:field];
+  } else {
+    GTMSESSION_ASSERT_DEBUG(0, @"request may not be set after beginFetch has been invoked");
+  }
+}
+
+// Internal method for updating request headers.
+- (void)updateRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    [_request setValue:value forHTTPHeaderField:field];
+  }  // @synchronized(self)
+}
+
+- (void)setResponse:(NSURLResponse * GTM_NULLABLE_TYPE)response {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 

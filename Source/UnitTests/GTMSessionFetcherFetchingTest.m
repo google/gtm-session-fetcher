@@ -190,10 +190,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                         @"Failed to retrieve Gettysburg Address."
                         @"  %d bytes, status:%d request:%@ error:%@",
                         (int)data.length, (int)fetcher.statusCode,
-                        fetcher.mutableRequest, error);
+                        fetcher.request, error);
   XCTAssertNotNil(fetcher.response);
-  XCTAssertNotNil(fetcher.mutableRequest, @"Missing request");
-  XCTAssertEqual(fetcher.statusCode, (NSInteger)200, @"%@", fetcher.mutableRequest);
+  XCTAssertNotNil(fetcher.request, @"Missing request");
+  XCTAssertEqual(fetcher.statusCode, (NSInteger)200, @"%@", fetcher.request);
 }
 
 - (void)testFetch {
@@ -292,7 +292,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.configuration = priorConfig;
   // TODO(seh): Shouldn't be needed; without it the cookie isn't being received by the test server.
   // b/17646646
-  [fetcher.mutableRequest setValue:cookieExpected forHTTPHeaderField:@"Cookie"];
+  [fetcher setRequestValue:cookieExpected forHTTPHeaderField:@"Cookie"];
   fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
                                  NSURLSessionConfiguration *config) {
       wasConfigBlockCalled = YES;
@@ -922,7 +922,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.authorizer = [TestAuthorizer syncAuthorizer];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
-          [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error, @"unexpected error");
@@ -937,7 +937,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
-          [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error, @"unexpected error");
@@ -953,7 +953,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   ((TestAuthorizer *)fetcher.authorizer).willFailWithError = YES;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     NSString *authHdr =
-      [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+      [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
     XCTAssertNil(authHdr);
     XCTAssertNil(data);
     XCTAssertNotNil(error);
@@ -976,7 +976,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr = [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+      NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertNil(authHdr);
       XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
   }];
@@ -999,7 +999,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
-          [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertNil(authHdr);
       XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
   }];
@@ -1018,7 +1018,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr = [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+      NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -1039,7 +1039,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
-          [fetcher.mutableRequest.allHTTPHeaderFields objectForKey:@"Authorization"];
+          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -1186,7 +1186,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       // Fix it - change the request to a URL which does not have a status value
       NSString *urlString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-      fetcher.mutableRequest.URL = [NSURL URLWithString:urlString];
+      NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
+      mutableRequest.URL = [NSURL URLWithString:urlString];
 
       response(YES);  // Do the retry fetch; it should succeed now.
   };
@@ -1724,7 +1725,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
                         GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL, testURL);
+      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
@@ -1783,7 +1784,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
                         GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.mutableRequest.URL, testURL);
+      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
@@ -2060,7 +2061,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   [GTMSessionFetcher setGlobalTestBlock:^(GTMSessionFetcher *fetcherToTest,
                                           GTMSessionFetcherTestResponse testResponse) {
-      if ([fetcherToTest.mutableRequest.URL.host isEqual:@"test.example.com"]) {
+      if ([fetcherToTest.request.URL.host isEqual:@"test.example.com"]) {
         testResponse(fakedResultResponse, fakedResultData, fakedResultError);
       } else {
         // Actually do the fetch against the test server.
@@ -2459,7 +2460,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
   NSString *description = [NSString stringWithFormat:@"fetcher %p %@ %@",
                            fetcher,
                            fetcher.comment ?: @"<no comment>",
-                           fetcher.mutableRequest.URL.absoluteString];
+                           fetcher.request.URL.absoluteString];
   if (fetcher.retryCount > 0) {
     description = [description stringByAppendingFormat:@" retry %tu", fetcher.retryCount];
   }
@@ -2480,7 +2481,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
     if (isUploadChunkFetcher) {
       ++_uploadChunkFetchStarted;
 
-      NSURLRequest *request = fetcher.mutableRequest;
+      NSURLRequest *request = fetcher.request;
       NSString *command = [request valueForHTTPHeaderField:@"X-Goog-Upload-Command"];
       NSInteger offset = [[request valueForHTTPHeaderField:@"X-Goog-Upload-Offset"] integerValue];
       NSInteger length = [[request valueForHTTPHeaderField:@"Content-Length"] integerValue];

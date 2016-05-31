@@ -139,7 +139,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 - (GTM_NULLABLE id<NSURLSessionDelegate>)sessionDelegate;
 - (GTM_NULLABLE NSDate *)stoppedAllFetchersDate;
 
-// The testBlock can inspect its fetcher parameter's mutableRequest property to
+// The testBlock can inspect its fetcher parameter's request property to
 // determine which fetcher is being faked.
 @property(copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
 

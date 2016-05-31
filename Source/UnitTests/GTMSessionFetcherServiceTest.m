@@ -74,7 +74,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   };
 
   NSUInteger (^FetchersPerHost) (NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
-      NSArray *fetcherURLs = [fetchers valueForKeyPath:@"mutableRequest.URL"];
+      NSArray *fetcherURLs = [fetchers valueForKeyPath:@"request.URL"];
       return URLsPerHost(fetcherURLs, host);
   };
 
@@ -82,7 +82,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSInteger (^PriorityPerHost) (NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
       NSInteger val = NSIntegerMax;
       for (GTMSessionFetcher *fetcher in fetchers) {
-        if ([host isEqual:fetcher.mutableRequest.URL.host]) {
+        if ([host isEqual:fetcher.request.URL.host]) {
           val = MIN(val, fetcher.servicePriority);
         }
       }
@@ -149,7 +149,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [running addObject:fetcher];
         [pending removeObject:fetcher];
 
-        NSMutableURLRequest *fetcherReq = fetcher.mutableRequest;
+        NSURLRequest *fetcherReq = fetcher.request;
         NSURL *fetcherReqURL = fetcherReq.URL;
         NSString *host = fetcherReqURL.host;
         NSUInteger numberRunning = FetchersPerHost(running, host);
@@ -186,7 +186,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [completed addObject:fetcher];
         [running removeObject:fetcher];
 
-        NSString *host = fetcher.mutableRequest.URL.host;
+        NSString *host = fetcher.request.URL.host;
 
         NSUInteger numberRunning = FetchersPerHost(running, host);
         NSUInteger numberPending = FetchersPerHost(pending, host);
@@ -218,7 +218,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         [fetchersInFlight removeObjectIdenticalTo:fetcher];
 
         // The query should be empty except for the URL with a status code.
-        NSString *query = [fetcher.mutableRequest.URL query];
+        NSString *query = [fetcher.request.URL query];
         BOOL isValidRequest = (query.length == 0);
         if (isValidRequest) {
           XCTAssertEqualObjects(fetchData, gettysburgAddress, @"Bad fetch data");
@@ -532,7 +532,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       NSHTTPURLResponse *fakedResultResponse;
       NSError *fakedResultError;
 
-      NSURL *requestURL = fetcherToTest.mutableRequest.URL;
+      NSURL *requestURL = fetcherToTest.request.URL;
       NSString *pathStr = requestURL.path.lastPathComponent;
       BOOL isOdd = (([pathStr intValue] % 2) != 0);
       if (isOdd) {
@@ -643,7 +643,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [request setValue:kUserAgentValue forHTTPHeaderField:kUserAgentHeader];
 
   GTMSessionFetcher *fetcher = [service fetcherWithRequest:request];
-  NSMutableURLRequest *fetcherRequest = fetcher.mutableRequest;
+  NSURLRequest *fetcherRequest = fetcher.request;
 
   NSString *userAgent = [fetcherRequest valueForHTTPHeaderField:kUserAgentHeader];
   XCTAssertEqualObjects(userAgent, kUserAgentValue);
