@@ -714,6 +714,12 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 + (GTM_NSArrayOf(GTMSessionFetcher *) *)fetchersForBackgroundSessions;
 
 // Designated initializer.
+//
+// Applications should create fetchers with a "fetcherWith..." method on a fetcher
+// service or a class method, not with this initializer.
+//
+// The configuration should typically be nil. Applications needing to customize
+// the configuration may do so by setting the configurationBlock property.
 - (instancetype)initWithRequest:(GTM_NULLABLE NSURLRequest *)request
                   configuration:(GTM_NULLABLE NSURLSessionConfiguration *)configuration;
 
@@ -737,6 +743,11 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 // The configuration; this must be set before the fetch begins. If no configuration is
 // set or inherited from the fetcher service, then the fetcher uses an ephemeral config.
+//
+// NOTE: This property should typically be nil. Applications needing to customize
+// the configuration should do so by setting the configurationBlock property.
+// That allows the fetcher to pick an appropriate base configuration, with the
+// application setting only the configuration properties it needs to customize.
 @property(strong, GTM_NULLABLE) NSURLSessionConfiguration *configuration;
 
 // A block the client may use to customize the configuration used to create the session.
