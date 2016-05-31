@@ -100,7 +100,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 - (void)testSinglePartDoc {
   GTMMIMEDocument *doc = [GTMMIMEDocument MIMEDocument];
 
-  NSDictionary *h1 = @{@"hfoo": @"bar", @"hfaz" : @"baz"};
+  NSDictionary *h1 = @{ @"hfoo": @"bar", @"hfaz" : @"baz" };
   NSData *b1 = [@"Hi mom" dataUsingEncoding:NSUTF8StringEncoding];
   [doc addPartWithHeaders:h1 body:b1];
 
@@ -148,13 +148,17 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 - (void)testMultiPartDoc {
   GTMMIMEDocument *doc = [GTMMIMEDocument MIMEDocument];
 
-  NSDictionary *h1 = @{@"hfoo": @"bar", @"hfaz" : @"baz"};
+  NSDictionary *h1 = @{ @"hfoo": @"bar", @"hfaz" : @"baz" };
   NSData *b1 = [@"Hi mom" dataUsingEncoding:NSUTF8StringEncoding];
 
   NSDictionary *h2 = [NSDictionary dictionary];
   NSData *b2 = [@"Hi dad" dataUsingEncoding:NSUTF8StringEncoding];
 
-  NSDictionary *h3 = @{@"Content-Type": @"text/html", @"Content-Disposition": @"angry"};
+  NSDictionary *h3 = @{
+    @"Content-Type" : @"text/html",
+    @"Content-Disposition" : @"angry",
+    @"Content-ID" : @"MyCat:fluffy",   // Value should allow a colon.
+  };
   NSData* b3 = [@"Hi brother" dataUsingEncoding:NSUTF8StringEncoding];
 
   [doc addPartWithHeaders:h1 body:b1];
@@ -172,6 +176,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
       "Hi dad"
       "\r\n--%@\r\n"
       "Content-Disposition: angry\r\n"
+      "Content-ID: MyCat:fluffy\r\n"
       "Content-Type: text/html\r\n"
       "\r\n"    // Newline after headers.
       "Hi brother"
@@ -250,7 +255,7 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 - (void)testExplicitBoundary {
   GTMMIMEDocument *doc = [GTMMIMEDocument MIMEDocument];
 
-  NSDictionary *h1 = @{@"hfoo": @"bar", @"hfaz" : @"baz"};
+  NSDictionary *h1 = @{ @"hfoo": @"bar", @"hfaz" : @"baz" };
   NSData *b1 = [@"Hi mom" dataUsingEncoding:NSUTF8StringEncoding];
 
   NSDictionary *h2 = [NSDictionary dictionary];
@@ -309,13 +314,13 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
   // both the normal boundary ("END_OF_PART") and the first alternate
   // guess (given a random seed of 1, done below).
 
-  NSDictionary *h1 = @{@"hfoo": @"bar", @"hfaz" : @"baz"};
+  NSDictionary *h1 = @{ @"hfoo": @"bar", @"hfaz" : @"baz" };
   NSData *b1 = [@"Hi mom END_OF_PART" dataUsingEncoding:NSUTF8StringEncoding];
 
   NSDictionary *h2 = [NSDictionary dictionary];
   NSData *b2 = [@"Hi dad" dataUsingEncoding:NSUTF8StringEncoding];
 
-  NSDictionary *h3 = @{@"Content-Type": @"text/html", @"Content-Disposition": @"angry"};
+  NSDictionary *h3 = @{ @"Content-Type": @"text/html", @"Content-Disposition": @"angry" };
   NSData *b3 = [@"Hi brother END_OF_PART_6b8b4567" dataUsingEncoding:NSUTF8StringEncoding];
 
   [doc addPartWithHeaders:h1 body:b1];
