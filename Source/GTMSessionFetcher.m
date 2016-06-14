@@ -1866,14 +1866,25 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   // Loop until the callbacks have been called and released, and until
   // the connection is no longer pending, until there are no callback dispatches
   // in flight, or until the timeout has expired.
-
   int64_t delta = (int64_t)(100 * NSEC_PER_MSEC);  // 100 ms
-  while ((holdSelf->_sessionTask && [_sessionTask state] != NSURLSessionTaskStateCompleted)
-         || _completionHandler != nil
-         || (_callbackGroup
-             && dispatch_group_wait(_callbackGroup, dispatch_time(DISPATCH_TIME_NOW, delta)))) {
+  while (1) {
+    BOOL isTaskInProgress = (holdSelf->_sessionTask
+                             && [_sessionTask state] != NSURLSessionTaskStateCompleted);
+    BOOL needsToCallCompletion = (_completionHandler != nil);
+    BOOL isCallbackInProgress = (_callbackGroup
+        && dispatch_group_wait(_callbackGroup, dispatch_time(DISPATCH_TIME_NOW, delta)));
+
+    if (!isTaskInProgress && !needsToCallCompletion && !isCallbackInProgress) break;
+
     expired = ([giveUpDate timeIntervalSinceNow] < 0);
-    if (expired) break;
+    if (expired) {
+      GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher waitForCompletionWithTimeout:%0.1f expired -- "
+                           @"%@%@%@", timeoutInSeconds,
+                           isTaskInProgress ? @"taskInProgress " : @"",
+                           needsToCallCompletion ? @"needsToCallCompletion " : @"",
+                           isCallbackInProgress ? @"isCallbackInProgress" : @"");
+      break;
+    }
 
     // Run the current run loop 1/1000 of a second to give the networking
     // code a chance to work
