@@ -638,7 +638,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @required
 // This protocol allows us to call the authorizer without requiring its sources
 // in this project.
-- (void)authorizeRequest:(NSMutableURLRequest * GTM_NULLABLE_TYPE)request
+- (void)authorizeRequest:(GTM_NULLABLE NSMutableURLRequest *)request
                 delegate:(id)delegate
        didFinishSelector:(SEL)sel;
 
@@ -707,7 +707,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 // Methods for creating fetchers to continue previous fetches.
 + (instancetype)fetcherWithDownloadResumeData:(NSData *)resumeData;
-+ (instancetype)fetcherWithSessionIdentifier:(NSString *)sessionIdentifier;
++ (GTM_NULLABLE instancetype)fetcherWithSessionIdentifier:(NSString *)sessionIdentifier;
 
 // Returns an array of currently active fetchers for background sessions,
 // both restarted and newly created ones.
@@ -1032,8 +1032,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // If the application has specified a destinationFileURL or an accumulateDataBlock
 // for the fetcher, the data parameter passed to the callback will be nil.
 
-- (void)beginFetchWithDelegate:(GTM_NULLABLE_TYPE id)delegate
-             didFinishSelector:(GTM_NULLABLE_TYPE SEL)finishedSEL;
+- (void)beginFetchWithDelegate:(GTM_NULLABLE id)delegate
+             didFinishSelector:(GTM_NULLABLE SEL)finishedSEL;
 
 - (void)beginFetchWithCompletionHandler:(GTM_NULLABLE GTMSessionFetcherCompletionHandler)handler;
 
@@ -1082,7 +1082,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
 
 - (void)setProperty:(GTM_NULLABLE id)obj forKey:(NSString *)key;  // Pass nil for obj to remove the property.
-- (id GTM_NULLABLE_TYPE)propertyForKey:(NSString *)key;
+- (GTM_NULLABLE id)propertyForKey:(NSString *)key;
 
 - (void)addPropertiesFromDictionary:(GTM_NSDictionaryOf(NSString *, id) *)dict;
 

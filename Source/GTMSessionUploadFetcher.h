@@ -85,7 +85,7 @@ typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t leng
                    provider:(GTM_NULLABLE GTMSessionUploadFetcherDataProvider)block;
 
 + (NSArray *)uploadFetchersForBackgroundSessions;
-+ (instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier;
++ (GTM_NULLABLE instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier;
 
 - (void)pauseFetching;
 - (void)resumeFetching;
