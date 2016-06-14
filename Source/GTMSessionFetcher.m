@@ -457,14 +457,16 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
   NSString *requestScheme = fetchRequestURL.scheme;
   BOOL isDataRequest = [requestScheme isEqual:@"data"];
-  if (isDataRequest && priorSessionIdentifier) {
+  if (isDataRequest) {
     // NSURLSession does not support data URLs in background sessions.
-    @synchronized(self) {
-      GTMSessionMonitorSynchronized(self);
-
-      _sessionIdentifier = nil;
-      _usingBackgroundSession = NO;
-    }  // @synchronized(self)
+#if DEBUG
+    if (priorSessionIdentifier || self.sessionIdentifier) {
+      GTMSESSION_LOG_DEBUG(@"Converting background to foreground session for %@",
+                           fetchRequest);
+    }
+#endif
+    [self setSessionIdentifierInternal:nil];
+    self.useBackgroundSession = NO;
   }
 
 #if GTM_ALLOW_INSECURE_REQUESTS
@@ -808,7 +810,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if GTM_BACKGROUND_TASK_FETCHING
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (!self.skipBackgroundTask && !_usingBackgroundSession) {
+  if (!self.skipBackgroundTask && !self.useBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
     id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
@@ -1309,6 +1311,17 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     _usingBackgroundSession = YES;
     _canShareSession = NO;
     [self restoreDefaultStateForSessionIdentifierMetadata];
+  }  // @synchronized(self)
+}
+
+- (void)setSessionIdentifierInternal:(GTM_NULLABLE NSString *)sessionIdentifier {
+  // This internal method only does a synchronized set of the session identifier.
+  // It does not have side effects on the background session, shared session, or
+  // session identifier metadata.
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _sessionIdentifier = [sessionIdentifier copy];
   }  // @synchronized(self)
 }
 
