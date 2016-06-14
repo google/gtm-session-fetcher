@@ -147,7 +147,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 // The testBlock can inspect its fetcher parameter's request property to
 // determine which fetcher is being faked.
-@property(copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
+@property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
 
 @end
 

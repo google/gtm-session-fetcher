@@ -40,10 +40,10 @@
 //      readIntoBuffer:(uint8_t *)buffer
 //              length:(int64_t)length;
 
-@property(weak) id readDelegate;
-@property(assign) SEL readSelector;
+@property(atomic, weak) id readDelegate;
+@property(atomic, assign) SEL readSelector;
 
 // Modes for invoking callbacks, when necessary.
-@property(strong) NSArray *runLoopModes;
+@property(atomic, strong) NSArray *runLoopModes;
 
 @end

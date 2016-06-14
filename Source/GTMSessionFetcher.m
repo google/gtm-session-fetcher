@@ -79,8 +79,8 @@ GTM_ASSUME_NONNULL_END
 
 @interface GTMSessionFetcher ()
 
-@property(strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
-@property(strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
+@property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
+@property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 @property(assign, atomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
@@ -3251,8 +3251,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 #pragma mark Getters and Setters
 
-@synthesize mutableRequest = _request,
-            downloadResumeData = _downloadResumeData,
+@synthesize downloadResumeData = _downloadResumeData,
             configuration = _configuration,
             configurationBlock = _configurationBlock,
             sessionTask = _sessionTask,
@@ -3280,7 +3279,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             willCacheURLResponseBlock = _willCacheURLResponseBlock,
             retryBlock = _retryBlock,
             retryFactor = _retryFactor,
-            downloadedLength = _downloadedLength,
             allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
