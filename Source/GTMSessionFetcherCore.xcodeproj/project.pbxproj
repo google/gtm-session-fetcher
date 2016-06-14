@@ -1020,6 +1020,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;
 				CLANG_ANALYZER_SECURITY_INSECUREAPI_RAND = YES;
 				CLANG_ANALYZER_SECURITY_INSECUREAPI_STRCPY = YES;
@@ -1067,6 +1068,7 @@
 					"-Wextra",
 					"-Wall",
 					"-Wstrict-selector-match",
+					"-Wimplicit-atomic-properties",
 					"-Wsign-promo",
 					"-Wreorder",
 					"-Wformat-security",
@@ -1081,6 +1083,7 @@
 					"-Wno-unknown-pragmas",
 					"-Wno-unused-parameter",
 					"-Widiomatic-parentheses",
+					"-Wimplicit-atomic-properties",
 				);
 			};
 			name = Debug;
@@ -1089,6 +1092,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_SECURITY_FLOATLOOPCOUNTER = YES;
 				CLANG_ANALYZER_SECURITY_INSECUREAPI_RAND = YES;
 				CLANG_ANALYZER_SECURITY_INSECUREAPI_STRCPY = YES;
@@ -1131,6 +1135,7 @@
 					"-Wextra",
 					"-Wall",
 					"-Wstrict-selector-match",
+					"-Wimplicit-atomic-properties",
 					"-Wsign-promo",
 					"-Wreorder",
 					"-Wformat-security",
@@ -1145,6 +1150,7 @@
 					"-Wno-unknown-pragmas",
 					"-Wno-unused-parameter",
 					"-Widiomatic-parentheses",
+					"-Wimplicit-atomic-properties",
 				);
 			};
 			name = Release;

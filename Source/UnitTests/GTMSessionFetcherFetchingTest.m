@@ -2271,9 +2271,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 #if TARGET_OS_IPHONE
 @interface SubstituteUIApplicationTaskInfo : NSObject
-@property(assign) UIBackgroundTaskIdentifier taskIdentifier;
-@property(copy) NSString *taskName;
-@property(copy) dispatch_block_t expirationHandler;
+@property(atomic, assign) UIBackgroundTaskIdentifier taskIdentifier;
+@property(atomic, copy) NSString *taskName;
+@property(atomic, copy) dispatch_block_t expirationHandler;
 @end
 
 NSString *const kSubUIAppBackgroundTaskBegan = @"kSubUIAppBackgroundTaskBegan";

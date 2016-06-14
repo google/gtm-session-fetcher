@@ -82,7 +82,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @interface GTMSessionUploadFetcher ()
 
 // Changing readonly to readwrite.
-@property(strong, readwrite) NSURLRequest *lastChunkRequest;
+@property(atomic, strong, readwrite) NSURLRequest *lastChunkRequest;
+@property(atomic, readwrite, assign) int64_t currentOffset;
 
 // Internal properties.
 @property(strong, atomic, GTM_NULLABLE) GTMSessionFetcher *fetcherInFlight;  // Synchronized on self.
@@ -112,6 +113,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSData *_uploadData;
   NSFileHandle *_uploadFileHandle;
   GTMSessionUploadFetcherDataProvider _uploadDataProvider;
+  NSURL *_uploadFileURL;
   int64_t _uploadFileLength;
   NSString *_uploadMIMEType;
   int64_t _chunkSize;
@@ -423,6 +425,22 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
+- (void)setChunkSize:(int64_t)chunkSize {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _chunkSize = chunkSize;
+  }
+}
+
+- (int64_t)chunkSize {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _chunkSize;
+  }
+}
+
 - (void)setupRequestHeaders {
   GTMSessionCheckNotSynchronized(self);
 
@@ -727,6 +745,14 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     GTMSessionMonitorSynchronized(self);
 
     _delegateCallbackQueue = queue;
+  }
+}
+
+- (dispatch_queue_t GTM_NULLABLE_TYPE)delegateCallbackQueue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _delegateCallbackQueue;
   }
 }
 
@@ -1563,14 +1589,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 #pragma mark -
 
 // Public properties.
-@synthesize uploadData = _uploadData,
-            uploadFileURL = _uploadFileURL,
-            uploadFileHandle = _uploadFileHandle,
-            uploadMIMEType = _uploadMIMEType,
-            uploadLocationURL = _uploadLocationURL,
-            chunkSize = _chunkSize,
-            currentOffset = _currentOffset,
-            delegateCallbackQueue = _delegateCallbackQueue,
+@synthesize currentOffset = _currentOffset,
             delegateCompletionHandler = _delegateCompletionHandler,
             chunkFetcher = _chunkFetcher,
             lastChunkRequest = _lastChunkRequest,
@@ -1581,8 +1600,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 // Internal properties.
 @dynamic fetcherInFlight;
 @dynamic activeFetcher;
-@dynamic responseHeaders;
 @dynamic statusCode;
+@dynamic delegateCallbackQueue;
 
 + (void)removePointer:(void *)pointer fromPointerArray:(NSPointerArray *)pointerArray {
   for (NSUInteger index = 0; index < pointerArray.count; ++index) {

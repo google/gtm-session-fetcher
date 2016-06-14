@@ -85,40 +85,37 @@ typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t leng
                    provider:(GTM_NULLABLE GTMSessionUploadFetcherDataProvider)block;
 
 + (NSArray *)uploadFetchersForBackgroundSessions;
-+ (instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier;
++ (GTM_NULLABLE instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier;
 
 - (void)pauseFetching;
 - (void)resumeFetching;
 - (BOOL)isPaused;
 
-@property(strong, GTM_NULLABLE) NSURL *uploadLocationURL;
-@property(strong, GTM_NULLABLE) NSData *uploadData;
-@property(strong, GTM_NULLABLE) NSURL *uploadFileURL;
-@property(strong, GTM_NULLABLE) NSFileHandle *uploadFileHandle;
-@property(copy, readonly, GTM_NULLABLE) GTMSessionUploadFetcherDataProvider uploadDataProvider;
-@property(copy) NSString *uploadMIMEType;
-@property(assign) int64_t chunkSize;
-@property(assign) int64_t currentOffset;
+@property(atomic, strong, GTM_NULLABLE) NSURL *uploadLocationURL;
+@property(atomic, strong, GTM_NULLABLE) NSData *uploadData;
+@property(atomic, strong, GTM_NULLABLE) NSURL *uploadFileURL;
+@property(atomic, strong, GTM_NULLABLE) NSFileHandle *uploadFileHandle;
+@property(atomic, copy, readonly, GTM_NULLABLE) GTMSessionUploadFetcherDataProvider uploadDataProvider;
+@property(atomic, copy) NSString *uploadMIMEType;
+@property(atomic, assign) int64_t chunkSize;
+@property(atomic, readonly, assign) int64_t currentOffset;
 
 // The fetcher for the current data chunk, if any
-@property(strong, GTM_NULLABLE) GTMSessionFetcher *chunkFetcher;
+@property(atomic, strong, GTM_NULLABLE) GTMSessionFetcher *chunkFetcher;
 
 // The active fetcher is the current chunk fetcher, or the upload fetcher itself
 // if no chunk fetcher has yet been created.
-@property(readonly) GTMSessionFetcher *activeFetcher;
+@property(atomic, readonly) GTMSessionFetcher *activeFetcher;
 
 // The last request made by an active fetcher.  Useful for testing.
-@property(readonly, GTM_NULLABLE) NSURLRequest *lastChunkRequest;
-
-// The response headers from the most recently-completed fetch.
-@property(strong, GTM_NULLABLE) NSDictionary *responseHeaders;
+@property(atomic, readonly, GTM_NULLABLE) NSURLRequest *lastChunkRequest;
 
 // The status code from the most recently-completed fetch.
-@property(assign) NSInteger statusCode;
+@property(atomic, assign) NSInteger statusCode;
 
 // Exposed for testing only.
-@property(readonly, GTM_NULLABLE) dispatch_queue_t delegateCallbackQueue;
-@property(readonly, GTM_NULLABLE) GTMSessionFetcherCompletionHandler delegateCompletionHandler;
+@property(atomic, readonly, GTM_NULLABLE) dispatch_queue_t delegateCallbackQueue;
+@property(atomic, readonly, GTM_NULLABLE) GTMSessionFetcherCompletionHandler delegateCompletionHandler;
 
 @end
 
