@@ -987,16 +987,26 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+    // Get copies of ivars we'll access in async invocations.  This simulation assumes
+    // they won't change during fetcher execution.
+    NSURL *destinationFileURL = _destinationFileURL;
+    GTMSessionFetcherWillRedirectBlock willRedirectBlock = _willRedirectBlock;
+    GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock = _didReceiveResponseBlock;
+    GTMSessionFetcherSendProgressBlock sendProgressBlock = _sendProgressBlock;
+    GTMSessionFetcherDownloadProgressBlock downloadProgressBlock = _downloadProgressBlock;
+    GTMSessionFetcherAccumulateDataBlock accumulateDataBlock = _accumulateDataBlock;
+    GTMSessionFetcherReceivedProgressBlock receivedProgressBlock = _receivedProgressBlock;
+    GTMSessionFetcherWillCacheURLResponseBlock willCacheURLResponseBlock =
+        _willCacheURLResponseBlock;
+
     // Simulate receipt of redirection.
-    if (_willRedirectBlock) {
+    if (willRedirectBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          if (_willRedirectBlock) {
-            _willRedirectBlock((NSHTTPURLResponse *)response, _request,
-                               ^(NSURLRequest *redirectRequest) {
-                // For simulation, we'll assume the app will just continue.
-            });
-          }
+          willRedirectBlock((NSHTTPURLResponse *)response, _request,
+                             ^(NSURLRequest *redirectRequest) {
+              // For simulation, we'll assume the app will just continue.
+          });
       }];
     }
 
@@ -1037,47 +1047,41 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     }
 
     // Simulate receipt of an initial response.
-    if (_didReceiveResponseBlock) {
+    if (didReceiveResponseBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          if (_didReceiveResponseBlock) {
-            _didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
-              // For simulation, we'll assume the disposition is to continue.
-            });
-          }
+          didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+            // For simulation, we'll assume the disposition is to continue.
+          });
       }];
     }
 
     // Simulate reporting send progress.
-    if (_sendProgressBlock) {
+    if (sendProgressBlock) {
       [self simulateByteTransferReportWithDataLength:(int64_t)bodyData.length
                                                block:^(int64_t bytesSent,
                                                        int64_t totalBytesSent,
                                                        int64_t totalBytesExpectedToSend) {
           // This is invoked on the callback queue unless stopped.
-          if (_sendProgressBlock) {
-            _sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
-          }
+          sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
       }];
     }
 
-    if (_destinationFileURL) {
+    if (destinationFileURL) {
       // Simulate download to file progress.
-      if (_downloadProgressBlock) {
+      if (downloadProgressBlock) {
         [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
                                                  block:^(int64_t bytesDownloaded,
                                                          int64_t totalBytesDownloaded,
                                                          int64_t totalBytesExpectedToDownload) {
-          // This is invoked on the callback queue unless stopped.
-          if (_downloadProgressBlock) {
-            _downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
-                                   totalBytesExpectedToDownload);
-          }
+            // This is invoked on the callback queue unless stopped.
+            downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
+                                  totalBytesExpectedToDownload);
         }];
       }
 
       NSError *writeError;
-      [responseData writeToURL:_destinationFileURL
+      [responseData writeToURL:destinationFileURL
                        options:NSDataWritingAtomic
                          error:&writeError];
       if (writeError) {
@@ -1086,31 +1090,27 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       }
     } else {
       // Simulate download to NSData progress.
-      if (_accumulateDataBlock) {
+      if (accumulateDataBlock) {
         if (responseData) {
           [self invokeOnCallbackQueueUnlessStopped:^{
-            if (_accumulateDataBlock) {
-              _accumulateDataBlock(responseData);
-            }
+            accumulateDataBlock(responseData);
           }];
         }
       } else {
         _downloadedData = [responseData mutableCopy];
       }
 
-      if (_receivedProgressBlock) {
+      if (receivedProgressBlock) {
         [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
                                                  block:^(int64_t bytesReceived,
                                                          int64_t totalBytesReceived,
                                                          int64_t totalBytesExpectedToReceive) {
-          // This is invoked on the callback queue unless stopped.
-          if (_receivedProgressBlock) {
-            _receivedProgressBlock(bytesReceived, totalBytesReceived);
-          }
+            // This is invoked on the callback queue unless stopped.
+            receivedProgressBlock(bytesReceived, totalBytesReceived);
          }];
       }
 
-      if (_willCacheURLResponseBlock) {
+      if (willCacheURLResponseBlock) {
         // Simulate letting the client inspect and alter the cached response.
         NSData *cachedData = responseData ?: [[NSData alloc] init];  // Always have non-nil data.
         NSCachedURLResponse *cachedResponse =
@@ -1118,11 +1118,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                      data:cachedData];
         [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                             block:^{
-            if (_willCacheURLResponseBlock) {
-              _willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
-                  // The app may provide an alternative response, or nil to defeat caching.
-              });
-           }
+            willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
+                // The app may provide an alternative response, or nil to defeat caching.
+            });
         }];
       }
     }
