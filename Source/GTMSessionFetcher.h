@@ -331,9 +331,9 @@
 
 #if ((!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_12) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_12) \
       || (TARGET_OS_IPHONE && defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0))
-#define GTMSESSION_DEPRECATE_ON_2016_SDKS __attribute__((deprecated))
+#define GTMSESSION_DEPRECATE_ON_2016_SDKS(_MSG) __attribute__((deprecated("" _MSG)))
 #else
-#define GTMSESSION_DEPRECATE_ON_2016_SDKS
+#define GTMSESSION_DEPRECATE_ON_2016_SDKS(_MSG)
 #endif
 
 #ifndef GTM_DECLARE_GENERICS
@@ -736,7 +736,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Exposing a mutable object in the interface was convenient but a bad design decision due
 // to thread-safety requirements.  Clients should use the request property and
 // setRequestValue:forHTTPHeaderField: instead.
-@property(atomic, readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest GTMSESSION_DEPRECATE_ON_2016_SDKS;
+@property(atomic, readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest
+    GTMSESSION_DEPRECATE_ON_2016_SDKS("use 'request' or '-setRequestValue:forHTTPHeaderField:'");
 
 // Data used for resuming a download task.
 @property(atomic, readonly, GTM_NULLABLE) NSData *downloadResumeData;
