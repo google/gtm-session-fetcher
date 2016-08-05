@@ -86,7 +86,7 @@
 // be uploaded from a system temporary or cache directory.
 //
 // Background session transfers are slower, and should typically be used only
-// or very large downloads or uploads (hundreds of megabytes).
+// for very large downloads or uploads (hundreds of megabytes).
 //
 // When background sessions are used in iOS apps, the application delegate must
 // pass through the parameters from UIApplicationDelegate's
@@ -134,7 +134,7 @@
 // HTTP methods and headers:
 //
 // Alternative HTTP methods, like PUT, and custom headers can be specified by
-// creating the fetcher with an appropriate NSMutableURLRequest
+// creating the fetcher with an appropriate NSMutableURLRequest.
 //
 //
 // Caching:
