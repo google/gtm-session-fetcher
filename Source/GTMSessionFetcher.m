@@ -3044,6 +3044,7 @@ didCompleteWithError:(NSError *)error {
     NSTimeInterval nextInterval = [self nextRetryIntervalUnsynchronized];
     NSTimeInterval maxInterval = _maxRetryInterval;
     NSTimeInterval newInterval = MIN(nextInterval, (maxInterval > 0 ? maxInterval : DBL_MAX));
+    NSTimeInterval newIntervalTolerance = (newInterval / 10) > 1.0 ?: 1.0;
 
     _lastRetryInterval = newInterval;
 
@@ -3052,6 +3053,7 @@ didCompleteWithError:(NSError *)error {
                                         selector:@selector(retryTimerFired:)
                                         userInfo:nil
                                          repeats:NO];
+    _retryTimer.tolerance = newIntervalTolerance;
     [[NSRunLoop mainRunLoop] addTimer:_retryTimer
                               forMode:NSDefaultRunLoopMode];
   }  // @synchronized(self)
