@@ -650,7 +650,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
 - (BOOL)isAuthorizedRequest:(NSURLRequest *)request;
 
-@property(strong, readonly) NSString *userEmail;
+@property(strong, readonly, GTM_NULLABLE) NSString *userEmail;
 
 @optional
 
