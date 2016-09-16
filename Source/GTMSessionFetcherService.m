@@ -141,7 +141,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey
         [[GTMSessionFetcherSessionDelegateDispatcher alloc] initWithParentService:self
                                                            sessionDiscardInterval:_unusedSessionTimeout];
     _callbackQueue = dispatch_get_main_queue();
-    _delegateQueue = [NSOperationQueue mainQueue];
+
+    _delegateQueue = [[NSOperationQueue alloc] init];
+    _delegateQueue.maxConcurrentOperationCount = 1;
+    _delegateQueue.name = @"com.google.GTMSessionFetcher.NSURLSessionDelegateQueue";
 
     _sessionCreationSemaphore = dispatch_semaphore_create(1);
 

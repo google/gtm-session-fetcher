@@ -2287,62 +2287,78 @@ NSString *const kSubUIAppBackgroundTaskEnded = @"kSubUIAppBackgroundTaskEnded";
 UIBackgroundTaskIdentifier gTaskID = 1000;
 
 + (UIBackgroundTaskIdentifier)lastTaskID {
-  return gTaskID;
+  @synchronized(self) {
+    return gTaskID;
+  }
+}
+
++ (UIBackgroundTaskIdentifier)reserveTaskID {
+  @synchronized(self) {
+    return ++gTaskID;
+  }
 }
 
 - (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(NSString *)taskName
                                         expirationHandler:(dispatch_block_t)handler {
   // Threading stress is tested in [GTMSessionFetcherServiceTest testThreadingStress].
   // For the simple fetcher tests, the fetchers start on the main thread, so the background
-  // tasks start on the main thread. If this changes, then SubstituteUIApplication and gTaskID
-  // should be updated to be safe from arbitrary threads.
-  NSAssert([NSThread isMainThread],
-           @"SubstituteUIApplication needs to be updated for use off of the main thread");
-
-  UIBackgroundTaskIdentifier taskID = ++gTaskID;
+  // tasks start on the main thread. Since moving the NSURLSession delegate queue to default
+  // to a background queue, this SubstituteUIApplication, gTaskID access, and
+  // FetcherNotificationsCounter must be safe from arbitrary threads.
+  UIBackgroundTaskIdentifier taskID = [SubstituteUIApplication reserveTaskID];
 
   SubstituteUIApplicationTaskInfo *taskInfo = [[SubstituteUIApplicationTaskInfo alloc] init];
   taskInfo.taskIdentifier = taskID;
   taskInfo.taskName = taskName;
   taskInfo.expirationHandler = handler;
 
-  if (!_identifierToTaskInfoMap) _identifierToTaskInfoMap = [[NSMutableDictionary alloc] init];
-  _identifierToTaskInfoMap[@(taskID)] = taskInfo;
+  @synchronized(self) {
+    if (!_identifierToTaskInfoMap) _identifierToTaskInfoMap = [[NSMutableDictionary alloc] init];
+    _identifierToTaskInfoMap[@(taskID)] = taskInfo;
+  }
 
+  // Post the notification synchronously from the current thread.
   [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskBegan
                                                       object:@(taskID)];
   return taskID;
 }
 
 - (void)endBackgroundTask:(UIBackgroundTaskIdentifier)taskID {
-  NSAssert([NSThread isMainThread],
-           @"SubstituteUIApplication needs to be updated for use off of the main thread");
+  @synchronized(self) {
+    NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
+             @"endBackgroundTask failed to find task: %tu", taskID);
 
-  NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
-           @"endBackgroundTask failed to find task: %tu", taskID);
+    [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
+  }
 
-  [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
-
+  // Post the notification synchronously from the current thread.
   [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskEnded
                                                       object:@(taskID)];
 }
 
 - (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler {
-  NSUInteger count = _identifierToTaskInfoMap.count;
+  NSUInteger count;
+  @synchronized([SubstituteUIApplication class]) {
+    count = _identifierToTaskInfoMap.count;
+  }
   if (count == 0) {
     handler(0, nil);
     return;
   }
 
-  for (NSNumber *taskID in _identifierToTaskInfoMap) {
-    SubstituteUIApplicationTaskInfo *taskInfo = _identifierToTaskInfoMap[taskID];
-    taskInfo.expirationHandler();
+  @synchronized(self) {
+    for (NSNumber *taskID in _identifierToTaskInfoMap) {
+      SubstituteUIApplicationTaskInfo *taskInfo = _identifierToTaskInfoMap[taskID];
+      taskInfo.expirationHandler();
+    }
   }
   // We expect that all background tasks ended themselves soon after their handlers were called.
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
-    NSArray <SubstituteUIApplicationTaskInfo *>* failedToExpire =
-        _identifierToTaskInfoMap.allValues;
+    NSArray <SubstituteUIApplicationTaskInfo *>* failedToExpire;
+    @synchronized(self) {
+      failedToExpire = _identifierToTaskInfoMap.allValues;
+    }
     handler(count, failedToExpire);
   });
 }
@@ -2539,24 +2555,22 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 
 #if TARGET_OS_IPHONE
 - (void)backgroundTaskBegan:(NSNotification *)note {
-  NSAssert([NSThread isMainThread],
-           @"backgroundTaskBegan needs to be updated for calling off the main thread");
-
   // Ignore notifications that predate this object's existence.
-  if (((NSNumber *)note.object).unsignedLongLongValue <= _priorTaskID)  {
+  if (((NSNumber *)note.object).unsignedLongLongValue <= _priorTaskID) {
     return;
   }
-  [_backgroundTasksStarted addObject:(id)note.object];
+  @synchronized(self) {
+    [_backgroundTasksStarted addObject:(id)note.object];
+  }
 }
 
 - (void)backgroundTaskEnded:(NSNotification *)note {
-  NSAssert([NSThread isMainThread],
-           @"backgroundTaskEnded needs to be updated for calling off the main thread");
+  @synchronized(self) {
+    // Ignore notifications that were started prior to this object's existence.
+    if (![_backgroundTasksStarted containsObject:(NSNumber *)note.object]) return;
 
-  // Ignore notifications that were started prior to this object's existence.
-  if (![_backgroundTasksStarted containsObject:(NSNumber *)note.object]) return;
-
-  [_backgroundTasksEnded addObject:(id)note.object];
+    [_backgroundTasksEnded addObject:(id)note.object];
+  }
 }
 #endif  // TARGET_OS_IPHONE
 
