@@ -19,12 +19,16 @@
 
 #import "GTMSessionFetcherLogViewController.h"
 
-#if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
-
 #import <objc/runtime.h>
 
 #import "GTMSessionFetcher.h"
 #import "GTMSessionFetcherLogging.h"
+
+#ifndef STRIP_GTM_FETCH_LOGGING
+  #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.
+#endif
+
+#if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
 
 static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 

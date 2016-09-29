@@ -21,6 +21,10 @@
 
 #import <sys/utsname.h>
 
+#ifndef STRIP_GTM_FETCH_LOGGING
+  #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.
+#endif
+
 GTM_ASSUME_NONNULL_BEGIN
 
 NSString *const kGTMSessionFetcherStartedNotification           = @"kGTMSessionFetcherStartedNotification";
