@@ -1670,9 +1670,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     { NULL, 0, 0 },
   };
 
+  GTMSessionFetcherTestBlock testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testResponse(nil, [NSData data], nil);
+      };
+
   for (int i = 0; records[i].urlString; i++) {
     NSString *urlString = records[i].urlString;
     GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:urlString];
+    fetcher.testBlock = testBlock;
     if (records[i].flags & kAllowHTTPSchemeFlag) {
       fetcher.allowedInsecureSchemes = @[ @"http" ];
     };
@@ -1685,7 +1691,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     NSInteger expectedErrorCode = records[i].errorCode;
     [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       if (expectedErrorCode == 0) {
-        XCTAssertNil(error, @"index %i -- %@", i, urlString);
+        XCTAssertNotNil(data, @"index %i -- %@", i, urlString);
       } else {
         XCTAssertEqual(error.code, expectedErrorCode, @"index %i -- %@ -- %@", i, urlString, error);
       }
