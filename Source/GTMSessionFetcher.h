@@ -265,6 +265,16 @@
 #import <UIKit/UIKit.h>
 #endif
 
+// By default it is stripped from non DEBUG builds. Developers can override
+// this in their project settings.
+#ifndef STRIP_GTM_FETCH_LOGGING
+  #if !DEBUG
+    #define STRIP_GTM_FETCH_LOGGING 1
+  #else
+    #define STRIP_GTM_FETCH_LOGGING 0
+  #endif
+#endif
+
 // Logs in debug builds.
 #ifndef GTMSESSION_LOG_DEBUG
   #if DEBUG
