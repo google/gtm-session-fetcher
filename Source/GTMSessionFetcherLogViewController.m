@@ -45,7 +45,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 @end
 
 @implementation GTMSessionFetcherLogViewController {
-  NSArray *logsFolderURLs_;
+  NSMutableArray *logsFolderURLs_;
   BOOL opensScrolledToEnd_;
 }
 
@@ -161,6 +161,19 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
   [navController pushViewController:webViewController animated:YES];
 
   [tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+
+- (void)tableView:(UITableView *)tableView
+    commitEditingStyle:(UITableViewCellEditingStyle)editingStyle
+     forRowAtIndexPath:(NSIndexPath *)indexPath {
+  if (UITableViewCellEditingStyleDelete == editingStyle) {
+    NSURL *folderURL = [logsFolderURLs_ objectAtIndex:indexPath.row];
+    if ([[NSFileManager defaultManager] removeItemAtURL:folderURL error:NULL]) {
+      [logsFolderURLs_ removeObjectAtIndex:indexPath.row];
+      [tableView deleteRowsAtIndexPaths:@[indexPath]
+                       withRowAnimation:UITableViewRowAnimationAutomatic];
+    }
+  }
 }
 
 #pragma mark -
