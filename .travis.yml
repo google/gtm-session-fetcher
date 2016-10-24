@@ -5,6 +5,8 @@ env:
   - MODE=OSX CFG=Release
   - MODE=iOS CFG=Debug
   - MODE=iOS CFG=Release
+  - MODE=tvOS CFG=Debug
+  - MODE=tvOS CFG=Release
 script:
   - ./.travis.sh "${MODE}" "${CFG}"
 notifications:

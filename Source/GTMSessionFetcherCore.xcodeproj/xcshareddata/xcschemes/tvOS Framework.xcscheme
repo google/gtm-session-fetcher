@@ -8,15 +8,29 @@
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F4A872021DA3EACE00D69E09"
+               BuildableName = "GTMSessionFetchertvOS.framework"
+               BlueprintName = "GTMSessionFetchertvOS"
+               ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
             buildForRunning = "NO"
             buildForProfiling = "NO"
             buildForArchiving = "NO"
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8EC566A418AAFB1200E2C97D"
-               BuildableName = "FetcheriOSTests.xctest"
-               BlueprintName = "FetcheriOSTests"
+               BlueprintIdentifier = "F4A8721C1DA3EDE700D69E09"
+               BuildableName = "FetchertvOSTests.xctest"
+               BlueprintName = "FetchertvOSTests"
                ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -26,20 +40,28 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "NO"
-      enableAddressSanitizer = "YES">
+      shouldUseLaunchSchemeArgsEnv = "NO">
       <Testables>
          <TestableReference
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8EC566A418AAFB1200E2C97D"
-               BuildableName = "FetcheriOSTests.xctest"
-               BlueprintName = "FetcheriOSTests"
+               BlueprintIdentifier = "F4A8721C1DA3EDE700D69E09"
+               BuildableName = "FetchertvOSTests.xctest"
+               BlueprintName = "FetchertvOSTests"
                ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "F4A872021DA3EACE00D69E09"
+            BuildableName = "GTMSessionFetchertvOS.framework"
+            BlueprintName = "GTMSessionFetchertvOS"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "OS_ACTIVITY_MODE"
@@ -58,9 +80,17 @@
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
-      enableAddressSanitizer = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "F4A872021DA3EACE00D69E09"
+            BuildableName = "GTMSessionFetchertvOS.framework"
+            BlueprintName = "GTMSessionFetchertvOS"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
       <AdditionalOptions>
       </AdditionalOptions>
    </LaunchAction>
@@ -70,6 +100,15 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "F4A872021DA3EACE00D69E09"
+            BuildableName = "GTMSessionFetchertvOS.framework"
+            BlueprintName = "GTMSessionFetchertvOS"
+            ReferencedContainer = "container:GTMSessionFetcherCore.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

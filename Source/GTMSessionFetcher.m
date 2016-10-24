@@ -75,8 +75,10 @@ GTM_ASSUME_NONNULL_END
 #endif
 
 #ifndef GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY
-  #if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
-      || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
+  #if (TARGET_OS_TV \
+       || TARGET_OS_WATCH \
+       || (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
+       || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
     #define GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY 1
   #endif
 #endif
@@ -557,8 +559,10 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         NSMapTable *sessionIdentifierToFetcherMap = [[self class] sessionIdentifierToFetcherMap];
         [sessionIdentifierToFetcherMap setObject:self forKey:self.sessionIdentifier];
 
-#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
-    || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0)
+#if (TARGET_OS_TV \
+     || TARGET_OS_WATCH \
+     || (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
+     || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0))
         // iOS 8/10.10 builds require the new backgroundSessionConfiguration method name.
         _configuration =
             [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
@@ -785,7 +789,9 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     newSessionTask.taskDescription = _taskDescription;
   }
   if (_taskPriority >= 0) {
-#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
+#if TARGET_OS_TV || TARGET_OS_WATCH
+    BOOL hasTaskPriority = YES;
+#elif (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
     || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0)
     BOOL hasTaskPriority = YES;
 #else
@@ -4249,7 +4255,72 @@ NSString *GTMFetcherSystemVersionString(void) {
 
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
-#if TARGET_OS_MAC && !TARGET_OS_IPHONE
+    // The Xcode 8 SDKs finally cleaned up this mess by providing TARGET_OS_OSX
+    // and TARGET_OS_IOS, but to build with older SDKs, those don't exist and
+    // instead one has to rely on TARGET_OS_MAC (which is true for iOS, watchOS,
+    // and tvOS) and TARGET_OS_IPHONE (which is true for iOS, watchOS, tvOS). So
+    // one has to order these carefully so you pick off the specific things
+    // first.
+    // If the code can ever assume Xcode 8 or higher (even when building for
+    // older OSes), then
+    //   TARGET_OS_MAC -> TARGET_OS_OSX
+    //   TARGET_OS_IPHONE -> TARGET_OS_IOS
+    //   TARGET_IPHONE_SIMULATOR -> TARGET_OS_SIMULATOR
+#if TARGET_OS_WATCH
+    // watchOS - WKInterfaceDevice
+
+    WKInterfaceDevice *currentDevice = [WKInterfaceDevice currentDevice];
+
+    NSString *rawModel = [currentDevice model];
+    NSString *model = GTMFetcherCleanedUserAgentString(rawModel);
+
+    NSString *systemVersion = [currentDevice systemVersion];
+
+#if TARGET_OS_SIMULATOR
+    NSString *hardwareModel = @"sim";
+#else
+    NSString *hardwareModel;
+    struct utsname unameRecord;
+    if (uname(&unameRecord) == 0) {
+      NSString *machineName = @(unameRecord.machine);
+      hardwareModel = GTMFetcherCleanedUserAgentString(machineName);
+    }
+    if (hardwareModel.length == 0) {
+      hardwareModel = @"unk";
+    }
+#endif
+
+    sSavedSystemString = [[NSString alloc] initWithFormat:@"%@/%@ hw/%@",
+                          model, systemVersion, hardwareModel];
+    // Example:  Apple_Watch/3.0 hw/Watch1_2
+#elif TARGET_OS_TV || TARGET_OS_IPHONE
+    // iOS and tvOS have UIDevice, use that.
+    UIDevice *currentDevice = [UIDevice currentDevice];
+
+    NSString *rawModel = [currentDevice model];
+    NSString *model = GTMFetcherCleanedUserAgentString(rawModel);
+
+    NSString *systemVersion = [currentDevice systemVersion];
+
+#if TARGET_IPHONE_SIMULATOR || TARGET_OS_SIMULATOR
+    NSString *hardwareModel = @"sim";
+#else
+    NSString *hardwareModel;
+    struct utsname unameRecord;
+    if (uname(&unameRecord) == 0) {
+      NSString *machineName = @(unameRecord.machine);
+      hardwareModel = GTMFetcherCleanedUserAgentString(machineName);
+    }
+    if (hardwareModel.length == 0) {
+      hardwareModel = @"unk";
+    }
+#endif
+
+    sSavedSystemString = [[NSString alloc] initWithFormat:@"%@/%@ hw/%@",
+                          model, systemVersion, hardwareModel];
+    // Example:  iPod_Touch/2.2 hw/iPod1_1
+    // Example:  Apple_TV/9.2 hw/AppleTV5,3
+#elif TARGET_OS_MAC
     // Mac build
     NSProcessInfo *procInfo = [NSProcessInfo processInfo];
 #if !defined(MAC_OS_X_VERSION_10_10)
@@ -4282,33 +4353,6 @@ NSString *GTMFetcherSystemVersionString(void) {
     }
 
     sSavedSystemString = [[NSString alloc] initWithFormat:@"MacOSX/%@", versString];
-#elif TARGET_OS_IPHONE
-    // Compiling against the iPhone SDK
-    // Avoid the slowness of calling currentDevice repeatedly on the iPhone
-    UIDevice* currentDevice = [UIDevice currentDevice];
-
-    NSString *rawModel = [currentDevice model];
-    NSString *model = GTMFetcherCleanedUserAgentString(rawModel);
-
-    NSString *systemVersion = [currentDevice systemVersion];
-
-#if TARGET_IPHONE_SIMULATOR
-    NSString *hardwareModel = @"sim";
-#else
-    NSString *hardwareModel;
-    struct utsname unameRecord;
-    if (uname(&unameRecord) == 0) {
-      NSString *machineName = [NSString stringWithCString:unameRecord.machine
-                                                 encoding:NSUTF8StringEncoding];
-      hardwareModel = GTMFetcherCleanedUserAgentString(machineName);
-    } else {
-      hardwareModel = @"unk";
-    }
-#endif
-
-    sSavedSystemString = [[NSString alloc] initWithFormat:@"%@/%@ hw/%@",
-                          model, systemVersion, hardwareModel];
-    // Example:  iPod_Touch/2.2 hw/iPod1_1
 #elif defined(_SYS_UTSNAME_H)
     // Foundation-only build
     struct utsname unameRecord;
@@ -4316,6 +4360,8 @@ NSString *GTMFetcherSystemVersionString(void) {
 
     sSavedSystemString = [NSString stringWithFormat:@"%s/%s",
                           unameRecord.sysname, unameRecord.release]; // "Darwin/8.11.1"
+#else
+#error No branch taken for a default user agent
 #endif
   });
   return sSavedSystemString;

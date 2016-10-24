@@ -106,20 +106,24 @@
 
 - (void)testGTMFetcherSystemVersionString {
   NSString *result = GTMFetcherSystemVersionString();
-#if TARGET_OS_MAC && !TARGET_OS_IPHONE
-  XCTAssertTrue([result hasPrefix:@"MacOSX/"]);
+#if TARGET_OS_TV
+  XCTAssertTrue([result hasPrefix:@"Apple_TV/"], @"%@", result);
+#elif TARGET_OS_IPHONE
+  XCTAssertTrue([result hasPrefix:@"iPhone"], @"%@", result);
 #else
-  XCTAssertTrue([result hasPrefix:@"iPhone"]);
+  XCTAssertTrue([result hasPrefix:@"MacOSX/"], @"%@", result);
 #endif
 }
 
 - (void)testGTMFetcherApplicationIdentifier {
   NSBundle *bundle = [NSBundle bundleForClass:[self class]];
   NSString *result = GTMFetcherApplicationIdentifier(bundle);
-#if TARGET_OS_MAC && !TARGET_OS_IPHONE
-  XCTAssertEqualObjects(result, @"com.google.FetcherMacTests/1.0");
-#else
+#if TARGET_OS_TV
+  XCTAssertEqualObjects(result, @"com.google.FetchertvOSTests/1.0");
+#elif TARGET_OS_IPHONE
   XCTAssertEqualObjects(result, @"com.google.FetcheriOSTests/1.0");
+#else
+  XCTAssertEqualObjects(result, @"com.google.FetcherMacTests/1.0");
 #endif
 }
 
@@ -129,23 +133,32 @@
   NSString *result = GTMFetcherStandardUserAgentString(bundle);
 
   NSOperatingSystemVersion version = [NSProcessInfo processInfo].operatingSystemVersion;
-#if TARGET_OS_MAC && !TARGET_OS_IPHONE
-  // Mac
-  NSString *expected =
-      [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%zd.%zd.%zd",
-       version.majorVersion, version.minorVersion, version.patchVersion];
-  XCTAssertEqualObjects(result, expected);
-#else
-  // iOS
+#if TARGET_OS_IPHONE
+  // iOS, tvOS, watchOS
   NSString *versionStr = [NSString stringWithFormat:@"%zd.%zd",
                           version.majorVersion, version.minorVersion];
   if (version.patchVersion > 0) {
     versionStr = [versionStr stringByAppendingFormat:@".%zd", version.patchVersion];
   }
-  // The simulator result looks like @"com.google.FetcheriOSTests/1.0 iPhone_Simulator/%@ hw/sim"
-  XCTAssert([result hasPrefix:@"com.google.FetcheriOSTests/1.0 "], @"%@", result);
+  // The simulator result looks like:
+  //   com.google.FetcheriOSTests/1.0 iPhone/9.3.1 hw/sim
+  //   com.google.FetchertvOSTests/1.0 Apple_TV/9.2 hw/sim
+#if TARGET_OS_TV
+  NSString *expected =
+      [NSString stringWithFormat:@"com.google.FetchertvOSTests/1.0 Apple_TV/%@ hw/", versionStr];
+#else
+  NSString *model = GTMFetcherCleanedUserAgentString([[UIDevice currentDevice] model]);
+  NSString *expected =
+      [NSString stringWithFormat:@"com.google.FetcheriOSTests/1.0 %@/%@ hw/", model, versionStr];
 #endif
-
+  XCTAssertTrue([result hasPrefix:expected], @"%@", result);
+#else
+  // macOS
+  NSString *expected =
+      [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%zd.%zd.%zd",
+       version.majorVersion, version.minorVersion, version.patchVersion];
+  XCTAssertEqualObjects(result, expected);
+#endif
 }
 
 - (void)testGTMDataFromInputStream {

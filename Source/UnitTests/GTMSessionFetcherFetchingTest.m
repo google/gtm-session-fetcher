@@ -30,7 +30,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 // Base class for fetcher and chunked upload tests.
 @implementation GTMSessionFetcherBaseTest
 
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
 
 + (void)setUp {
   SubstituteUIApplication *app = [[SubstituteUIApplication alloc] init];
@@ -41,7 +41,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [GTMSessionFetcher setSubstituteUIApplication:nil];
 }
 
-#endif  // TARGET_OS_IPHONE
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 - (void)setUp {
   // The wrong-fetch test can take >10s to pass.
@@ -332,7 +332,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)2);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -346,7 +346,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 - (void)testFetchExpiringBackgroundTask {
   // Xcode test UI is happier if the method exists for both OS X and iOS builds.
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   if (!_isServerRunning) return;
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
@@ -398,7 +398,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
 
   [nc removeObserver:notification];
-#endif  // TARGET_OS_IPHONE
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 }
 
 - (void)testFetchExpiringBackgroundTask_WithoutFetcherService {
@@ -440,7 +440,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -513,7 +513,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)2);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -586,7 +586,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -697,7 +697,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -748,7 +748,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -833,7 +833,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 3);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)3);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -895,7 +895,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1053,7 +1053,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 7);
   XCTAssertEqual(fnctr.retryDelayStarted, 2);
   XCTAssertEqual(fnctr.retryDelayStopped, 2);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)8);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1132,7 +1132,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1278,7 +1278,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 4);
   XCTAssertEqual(fnctr.retryDelayStarted, 7);
   XCTAssertEqual(fnctr.retryDelayStopped, 7);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)11);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1348,7 +1348,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1372,7 +1372,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *origContents = [[NSString alloc] initWithData:[self gettysburgAddress]
                                                  encoding:NSUTF8StringEncoding];
   NSString *escapedContents =
-      [origContents stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+      [origContents stringByAddingPercentEncodingWithAllowedCharacters:
+       [NSCharacterSet URLQueryAllowedCharacterSet]];
   NSString *validDataURLString = [NSString stringWithFormat:@"data:,%@", escapedContents];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validDataURLString];
   fetcher.destinationFileURL = destFileURL;
@@ -1396,7 +1397,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1469,7 +1470,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1499,7 +1500,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@", fnctr.fetchersStartedDescriptions);
   XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1000);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1622,7 +1623,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)2);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1749,7 +1750,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -1819,7 +1820,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 3);
   XCTAssertEqual(fnctr.retryDelayStopped, 3);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)4);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -2108,7 +2109,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 2);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)2);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
@@ -2169,7 +2170,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)waitForBackgroundTaskEndedNotifications:(FetcherNotificationsCounter *)fnctr {
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   // The callback group does not include the main thread dispatch of notifications, so
   // we need to explicitly wait for those.
   NSMutableArray *remainingNotificationObjects = [fnctr.backgroundTasksStarted mutableCopy];
@@ -2275,7 +2276,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 @end
 
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
 @interface SubstituteUIApplicationTaskInfo : NSObject
 @property(atomic, assign) UIBackgroundTaskIdentifier taskIdentifier;
 @property(atomic, copy) NSString *taskName;
@@ -2383,12 +2384,12 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 
 @end
 
-#endif  // TARGET_OS_IPHONE
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 
 @implementation FetcherNotificationsCounter {
   NSDate *_counterCreationDate;
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
   UIBackgroundTaskIdentifier _priorTaskID;
 #endif
 }
@@ -2423,7 +2424,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
     _fetchersStoppedDescriptions = [[NSMutableArray alloc] init];
     _backgroundTasksStarted = [[NSMutableArray alloc] init];
     _backgroundTasksEnded = [[NSMutableArray alloc] init];
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
     _priorTaskID = [SubstituteUIApplication lastTaskID];
 #endif
 
@@ -2452,7 +2453,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
            selector:@selector(uploadLocationObtained:)
                name:kGTMSessionFetcherUploadLocationObtainedNotification
              object:nil];
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
     [nc addObserver:self
            selector:@selector(backgroundTaskBegan:)
                name:kSubUIAppBackgroundTaskBegan
@@ -2559,7 +2560,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
   ++_uploadLocationObtained;
 }
 
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
 - (void)backgroundTaskBegan:(NSNotification *)note {
   // Ignore notifications that predate this object's existence.
   if (((NSNumber *)note.object).unsignedLongLongValue <= _priorTaskID) {
@@ -2578,7 +2579,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
     [_backgroundTasksEnded addObject:(id)note.object];
   }
 }
-#endif  // TARGET_OS_IPHONE
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 @end
 
