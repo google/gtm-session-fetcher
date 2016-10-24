@@ -43,9 +43,9 @@ static NSString *const kGTMSessionUploadFetcherChunkParentKey = @"_uploadFetcher
 int64_t const kGTMSessionUploadFetcherStandardChunkSize = (int64_t)LLONG_MAX;
 
 #if TARGET_OS_IPHONE
-int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize = 10 * 1024 * 1024;  // 10 MB for iOS
+int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize = 10 * 1024 * 1024;  // 10 MB for iOS, watchOS, tvOS
 #else
-int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize = 100 * 1024 * 1024;  // 100 MB for OS X
+int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize = 100 * 1024 * 1024;  // 100 MB for macOS
 #endif
 
 typedef NS_ENUM(NSUInteger, GTMSessionUploadFetcherStatus) {
@@ -1604,7 +1604,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @dynamic delegateCallbackQueue;
 
 + (void)removePointer:(void *)pointer fromPointerArray:(NSPointerArray *)pointerArray {
-  for (NSUInteger index = 0; index < pointerArray.count; ++index) {
+  for (NSUInteger index = 0, count = pointerArray.count; index < count; ++index) {
     void *pointerAtIndex = [pointerArray pointerAtIndex:index];
     if (pointerAtIndex == pointer) {
       [pointerArray removePointerAtIndex:index];

@@ -85,7 +85,7 @@ extern NSString *const kGTMGettysburgFileName;
 
 @end
 
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
 
 // A fake of UIApplication that posts notifications when a background task begins
 // and ends.
@@ -108,7 +108,7 @@ typedef void (^SubstituteUIApplicationExpirationCallback)
 extern NSString *const kSubUIAppBackgroundTaskBegan;
 extern NSString *const kSubUIAppBackgroundTaskEnded;
 
-#endif  // TARGET_OS_IPHONE
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 
 @interface FetcherNotificationsCounter : NSObject
