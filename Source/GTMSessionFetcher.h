@@ -382,6 +382,13 @@
   #define GTM_BACKGROUND_TASK_FETCHING 1
 #endif
 
+// If GTM_BACKGROUND_TASK_FETCHING is enabled and GTMUIApplicationProtocol is not used,
+// GTM_BACKGROUND_UIAPPLICATION will allow defaulting to UIApplication. To avoid references to
+// UIApplication (e.g. for extensions), set GTM_BACKGROUND_UIAPPLICATION to 0.
+#if TARGET_OS_IPHONE && !TARGET_OS_WATCH && !defined(GTM_BACKGROUND_UIAPPLICATION)
+  #define GTM_BACKGROUND_UIAPPLICATION 1
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

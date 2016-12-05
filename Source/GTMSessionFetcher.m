@@ -1944,9 +1944,9 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   id<GTMUIApplicationProtocol> app = gSubstituteUIApp;
   if (app) return app;
 
-  // Some projects use GTM_BACKGROUND_TASK_FETCHING to avoid compile-time references
+  // Some projects use GTM_BACKGROUND_UIAPPLICATION to avoid compile-time references
   // to UIApplication.
-#if GTM_BACKGROUND_TASK_FETCHING
+#if GTM_BACKGROUND_UIAPPLICATION
   return (id<GTMUIApplicationProtocol>) [UIApplication sharedApplication];
 #else
   return nil;
