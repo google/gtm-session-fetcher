@@ -823,7 +823,6 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (app && !self.skipBackgroundTask && !self.useBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
-    id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
 #if DEBUG
     NSString *bgTaskName = [NSString stringWithFormat:@"%@-%@",
                             [self class], fetchRequest.URL.host];
