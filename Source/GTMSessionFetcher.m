@@ -819,11 +819,11 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 #endif  // GTM_DISABLE_FETCHER_TEST_BLOCK
 
 #if GTM_BACKGROUND_TASK_FETCHING
+  id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (!self.skipBackgroundTask && !self.useBackgroundSession) {
+  if (app && !self.skipBackgroundTask && !self.useBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
-    id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
 #if DEBUG
     NSString *bgTaskName = [NSString stringWithFormat:@"%@-%@",
                             [self class], fetchRequest.URL.host];
