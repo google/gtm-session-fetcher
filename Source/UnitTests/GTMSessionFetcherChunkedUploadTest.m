@@ -33,6 +33,12 @@
   [super setUp];
 }
 
+- (void)tearDown {
+  _service = nil;
+
+  [super tearDown];
+}
+
 #pragma mark - Chunked Upload Fetch Tests
 
 - (void)testChunkedUploadTestBlock {
@@ -723,6 +729,44 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
       [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 0);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
+- (void)testBigFileURLQueryUploadFetchWithServerError {
+  // Force a query that fails.
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  NSString *filename = @"gettysburgaddress.txt.upload?queryStatus=error";
+  NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+  fetcher.retryEnabled = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, (NSInteger)502);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];

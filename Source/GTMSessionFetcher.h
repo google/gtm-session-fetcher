@@ -400,8 +400,6 @@ extern "C" {
   #ifndef GTM_USE_SESSION_FETCHER
     #define GTM_USE_SESSION_FETCHER 1
   #endif
-
-  #define GTMSESSION_DEPRECATE_OLD_ENUMS 1
 #endif
 
 #if !defined(GTMBridgeFetcher)
@@ -501,21 +499,6 @@ typedef NS_ENUM(NSInteger, GTMSessionFetcherStatus) {
   GTMSessionFetcherStatusForbidden = 403,
   GTMSessionFetcherStatusPreconditionFailed = 412
 };
-
-#if !GTMSESSION_DEPRECATE_OLD_ENUMS
-#define kGTMSessionFetcherErrorDownloadFailed         GTMSessionFetcherErrorDownloadFailed
-#define kGTMSessionFetcherErrorUploadChunkUnavailable GTMSessionFetcherErrorUploadChunkUnavailable
-#define kGTMSessionFetcherErrorBackgroundExpiration   GTMSessionFetcherErrorBackgroundExpiration
-#define kGTMSessionFetcherErrorBackgroundFetchFailed  GTMSessionFetcherErrorBackgroundFetchFailed
-#define kGTMSessionFetcherErrorInsecureRequest        GTMSessionFetcherErrorInsecureRequest
-#define kGTMSessionFetcherErrorTaskCreationFailed     GTMSessionFetcherErrorTaskCreationFailed
-
-#define kGTMSessionFetcherStatusNotModified        GTMSessionFetcherStatusNotModified
-#define kGTMSessionFetcherStatusBadRequest         GTMSessionFetcherStatusBadRequest
-#define kGTMSessionFetcherStatusUnauthorized       GTMSessionFetcherStatusUnauthorized
-#define kGTMSessionFetcherStatusForbidden          GTMSessionFetcherStatusForbidden
-#define kGTMSessionFetcherStatusPreconditionFailed GTMSessionFetcherStatusPreconditionFailed
-#endif  // !GTMSESSION_DEPRECATE_OLD_ENUMS
 
 #ifdef __cplusplus
 extern "C" {

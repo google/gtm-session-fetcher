@@ -52,11 +52,15 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping service tests\n");
+
+  [super setUp];
 }
 
 - (void)tearDown {
   _testServer = nil;
   _isServerRunning = NO;
+
+  [super tearDown];
 }
 
 - (void)testFetcherService {

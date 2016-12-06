@@ -35,10 +35,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 + (void)setUp {
   SubstituteUIApplication *app = [[SubstituteUIApplication alloc] init];
   [GTMSessionFetcher setSubstituteUIApplication:app];
+
+  [super setUp];
 }
 
 + (void)tearDown {
   [GTMSessionFetcher setSubstituteUIApplication:nil];
+
+  [super tearDown];
 }
 
 #endif  // GTM_BACKGROUND_TASK_FETCHING
@@ -59,6 +63,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   _isServerRunning = (_testServer != nil);
   XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping fetcher tests\n");
+
+  [super setUp];
 }
 
 - (void)tearDown {
@@ -69,6 +75,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   _fetcherService = nil;
 
   [[GTMSessionFetcher staticCookieStorage] removeAllCookies];
+
+  [super tearDown];
 }
 
 #pragma mark -

@@ -30,10 +30,14 @@
 
 - (void)setUp {
   _monitoredData = [[NSMutableData alloc] init];
+
+  [super setUp];
 }
 
 - (void)tearDown {
   _monitoredData = nil;
+
+  [super tearDown];
 }
 
 - (void)testGTMReadMonitorInputStream {
