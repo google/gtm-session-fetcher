@@ -399,6 +399,9 @@ static NSString *const kEtag = @"GoodETag";
         // The upload server does not send Size-Received with the status "final" query response.
         NSString *pathWithoutLoc = [requestPath stringByDeletingPathExtension];
         queryResponseData = [self documentDataAtPath:pathWithoutLoc];
+      } else if ([uploadQueryStatus isEqual:@"error"]) {
+        // Pretend the query failed on server side.
+        return sendResponse(502, nil, nil);
       } else if (uploadQueryStatus.length == 0) {
         // Normally, we'll treat queries as being for uploads that are active.
         responseHeaders[@"X-Goog-Upload-Size-Received"] = [@(_uploadBytesReceived) stringValue];
