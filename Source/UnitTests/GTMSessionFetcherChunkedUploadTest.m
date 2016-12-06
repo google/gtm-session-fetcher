@@ -33,6 +33,12 @@
   [super setUp];
 }
 
+- (void)tearDown {
+  _service = nil;
+
+  [super tearDown];
+}
+
 #pragma mark - Chunked Upload Fetch Tests
 
 - (void)testChunkedUploadTestBlock {
