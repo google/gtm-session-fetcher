@@ -21,7 +21,7 @@
 //   than delegate methods.
 // - Out-of-process uploads and downloads using NSURLSession, including
 //   management of fetches after relaunch.
-// - Integration with GTMOAuth2 for invisible management and refresh of
+// - Integration with GTMAppAuth for invisible management and refresh of
 //   authorization tokens.
 // - Pretty-printed http logging.
 // - Cookies handling that does not interfere with or get interfered with
