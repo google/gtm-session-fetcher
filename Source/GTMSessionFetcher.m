@@ -89,7 +89,8 @@ GTM_ASSUME_NONNULL_END
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
-@property(assign, atomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
+// Should always be accessed within an @synchranized(self).
+@property(assign, nonatomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
 #endif
 
 @property(atomic, readwrite, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
@@ -837,13 +838,17 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       // Background task expiration callback - this block is always invoked by
       // UIApplication on the main thread.
       if (bgTaskID != UIBackgroundTaskInvalid) {
-        if (bgTaskID == self.backgroundTaskIdentifier) {
-          self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+        @synchronized(self) {
+          if (bgTaskID == self.backgroundTaskIdentifier) {
+            self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+          }
         }
         [app endBackgroundTask:bgTaskID];
       }
     }];
-    self.backgroundTaskIdentifier = bgTaskID;
+    @synchronized(self) {
+      self.backgroundTaskIdentifier = bgTaskID;
+    }
   }
 #endif
 
@@ -1534,14 +1539,15 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 - (void)endBackgroundTask {
   // Whenever the connection stops or background execution expires,
   // we need to tell UIApplication we're done.
-  //
-  // We'll wait on _callbackGroup to ensure that any callbacks in flight have executed,
-  // and that we access backgroundTaskIdentifier on the main thread, as happens when the
-  // task has expired.
-  UIBackgroundTaskIdentifier bgTaskID = self.backgroundTaskIdentifier;
-  if (bgTaskID != UIBackgroundTaskInvalid) {
-    self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+  UIBackgroundTaskIdentifier bgTaskID;
+  @synchronized(self) {
+    bgTaskID = self.backgroundTaskIdentifier;
+    if (bgTaskID != UIBackgroundTaskInvalid) {
+      self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
+    }
+  }
 
+  if (bgTaskID != UIBackgroundTaskInvalid) {
     id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
     [app endBackgroundTask:bgTaskID];
   }
