@@ -3354,7 +3354,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     GTMSessionMonitorSynchronized(self);
 
     GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher mutableRequest] is deprecated; use -request or"
-                         @" -setRequestVaue:forHTTPHeaderField:");
+                         @" -setRequestValue:forHTTPHeaderField:");
 
     return _request;
   }  // @synchronized(self)
@@ -3362,7 +3362,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 - (void)setMutableRequest:(GTM_NULLABLE NSMutableURLRequest *)request {
   GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher setMutableRequest:] is deprecated; use -request or"
-                       @" -setRequestVaue:forHTTPHeaderField:");
+                       @" -setRequestValue:forHTTPHeaderField:");
 
   GTMSESSION_ASSERT_DEBUG(![self isFetching],
                           @"mutableRequest should not change after beginFetch has been invoked");
