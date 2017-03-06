@@ -1977,13 +1977,25 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   id<GTMUIApplicationProtocol> app = gSubstituteUIApp;
   if (app) return app;
 
-  // Some projects use GTM_BACKGROUND_UIAPPLICATION to avoid compile-time references
-  // to UIApplication.
-#if GTM_BACKGROUND_UIAPPLICATION
-  return (id<GTMUIApplicationProtocol>) [UIApplication sharedApplication];
-#else
-  return nil;
-#endif
+  // iOS App extensions should not call [UIApplication sharedApplication], even
+  // if UIApplication responds to it.
+
+  static Class applicationClass = nil;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    BOOL isAppExtension = [[[NSBundle mainBundle] bundlePath] hasSuffix:@".appex"];
+    if (!isAppExtension) {
+      Class cls = NSClassFromString(@"UIApplication");
+      if (cls && [cls respondsToSelector:NSSelectorFromString(@"sharedApplication")]) {
+        applicationClass = cls;
+      }
+    }
+  });
+
+  if (applicationClass) {
+    app = (id<GTMUIApplicationProtocol>)[applicationClass sharedApplication];
+  }
+  return app;
 }
 #endif //  TARGET_OS_IPHONE
 
