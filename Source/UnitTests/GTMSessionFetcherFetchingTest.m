@@ -2054,6 +2054,52 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testFetcherTestBlockSimulateDataCallbacks];
 }
 
+- (void)testFetcherTestBlockDoesNotCallDidReceiveResponse_WithNilResponse {
+  // No test server needed.
+  _testServer = nil;
+  _isServerRunning = NO;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+
+  NSError *fakedResultError =
+      [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                          code:504
+                      userInfo:@{ kGTMSessionFetcherStatusDataKey : @"Oops." }];
+
+  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
+                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+      XCTFail(@"didReceiveResponseBlock should not be called.");
+  };
+
+  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
+                        GTMSessionFetcherTestResponse testResponse) {
+      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
+      testResponse(nil, nil, fakedResultError);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTAssertNotNil(error);
+      XCTAssertNil(data);
+      XCTAssertEqual(fetcher.statusCode, 0);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
 - (void)testFetcherGlobalTestBlock {
   if (!_isServerRunning) return;
 

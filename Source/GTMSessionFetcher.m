@@ -1057,7 +1057,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     }
 
     // Simulate receipt of an initial response.
-    if (didReceiveResponseBlock) {
+    if (response && didReceiveResponseBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
           didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
