@@ -2049,9 +2049,161 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self assertCallbacksReleasedForFetcher:fetcher];
 }
 
+- (void)testFetcherTestBlockSimulateStreamingDataChunks_defaultIsOneStreamedChunk {
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+  [self accumulateBlockTestHelperWithFetcher:fetcher
+                                         url:testURL
+                         generatedDataLength:333
+                           expectedCallCount:1];
+}
+
+- (void)testFetcherTestBlockSimulateStreamingDataChunks_handlesMultipleStreamedChunks {
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+  fetcher.testBlockAccumulateDataChunkCount = 10;
+  [self accumulateBlockTestHelperWithFetcher:fetcher
+                                         url:testURL
+                         generatedDataLength:333
+                           expectedCallCount:10];
+}
+
+- (void)testFetcherTestBlockSimulateStreamingDataChunks_handlesDataEvenlyDivisbleByChunkCount {
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+  fetcher.testBlockAccumulateDataChunkCount = 10;
+  [self accumulateBlockTestHelperWithFetcher:fetcher
+                                         url:testURL
+                         generatedDataLength:300
+                           expectedCallCount:10];
+}
+
+- (void)testFetcherTestBlockSimulateStreamingDataChunks_treatsChunkCountOfZeroAsOne {
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+  fetcher.testBlockAccumulateDataChunkCount = 0;
+  [self accumulateBlockTestHelperWithFetcher:fetcher
+                                         url:testURL
+                         generatedDataLength:333
+                           expectedCallCount:1];
+}
+
+- (void)testFetcherTestBlockSimulateStreamingWithAccumulateDataBlock_sendsOneChunkForOneByteArray {
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+  fetcher.testBlockAccumulateDataChunkCount = 10;
+  [self accumulateBlockTestHelperWithFetcher:fetcher
+                                         url:testURL
+                         generatedDataLength:1
+                           expectedCallCount:1];
+}
+
+// Simulates streaming download data via the accumulate block.
+- (void)accumulateBlockTestHelperWithFetcher:(GTMSessionFetcher *)fetcher
+                                         url:(NSURL *)testURL
+                         generatedDataLength:(NSUInteger)generatedDataLength
+                           expectedCallCount:(NSUInteger)expectedCallCount {
+
+  NSData *downloadData =
+      [GTMSessionFetcherTestServer generatedBodyDataWithLength:generatedDataLength];
+
+  __block int64_t bytesReceivedSum = 0;
+  __block int64_t lastTotalBytesReceived = 0;
+  __block int64_t expectedTotalBytesReceived = (int64_t)downloadData.length;
+
+  fetcher.receivedProgressBlock = ^(int64_t bytesReceived,
+                                    int64_t totalBytesReceived) {
+    bytesReceivedSum += bytesReceived;
+    lastTotalBytesReceived = totalBytesReceived;
+  };
+
+  NSMutableData *accumulatedData = [NSMutableData data];
+  __block NSUInteger accumulateDataBlockCallCount = 0;
+  fetcher.accumulateDataBlock = ^(NSData *downloadChunk) {
+    [accumulatedData appendData:downloadChunk];
+    accumulateDataBlockCallCount++;
+  };
+
+  NSHTTPURLResponse *fakedResultResponse =
+      [[NSHTTPURLResponse alloc] initWithURL:testURL
+                                  statusCode:200
+                                 HTTPVersion:@"HTTP/1.1"
+                                headerFields:@{ @"Aussie" : @"Shepherd" }];
+  NSError *fakedResultError = nil;
+  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
+                        GTMSessionFetcherTestResponse testResponse) {
+    testResponse(fakedResultResponse, downloadData, fakedResultError);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(error);
+    XCTAssertNil(data);
+    XCTAssertEqualObjects(accumulatedData, downloadData);
+
+    XCTAssertEqual(accumulateDataBlockCallCount, expectedCallCount);
+
+    XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
+    XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+  }];
+
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+}
+
 - (void)testFetcherTestBlockSimulateDataCallbacks_WithoutFetcherService {
   _fetcherService = nil;
   [self testFetcherTestBlockSimulateDataCallbacks];
+}
+
+- (void)testFetcherTestBlockDoesNotCallDidReceiveResponse_WithNilResponse {
+  // No test server needed.
+  _testServer = nil;
+  _isServerRunning = NO;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
+  GTMSessionFetcher *fetcher = [self fetcherWithURL:testURL];
+
+  NSError *fakedResultError =
+      [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                          code:504
+                      userInfo:@{ kGTMSessionFetcherStatusDataKey : @"Oops." }];
+
+  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
+                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+      XCTFail(@"didReceiveResponseBlock should not be called.");
+  };
+
+  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
+                        GTMSessionFetcherTestResponse testResponse) {
+      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
+      testResponse(nil, nil, fakedResultError);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTAssertNotNil(error);
+      XCTAssertNil(data);
+      XCTAssertEqual(fetcher.statusCode, 0);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
 }
 
 - (void)testFetcherGlobalTestBlock {

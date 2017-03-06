@@ -382,13 +382,6 @@
   #define GTM_BACKGROUND_TASK_FETCHING 1
 #endif
 
-// If GTM_BACKGROUND_TASK_FETCHING is enabled and GTMUIApplicationProtocol is not used,
-// GTM_BACKGROUND_UIAPPLICATION will allow defaulting to UIApplication. To avoid references to
-// UIApplication (e.g. for extensions), set GTM_BACKGROUND_UIAPPLICATION to 0.
-#if TARGET_OS_IPHONE && !TARGET_OS_WATCH && !defined(GTM_BACKGROUND_UIAPPLICATION)
-  #define GTM_BACKGROUND_UIAPPLICATION 1
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -529,6 +522,10 @@ typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectRe
                                                    NSURLRequest *redirectRequest,
                                                    GTMSessionFetcherWillRedirectResponse response);
 typedef void (^GTMSessionFetcherAccumulateDataBlock)(NSData * GTM_NULLABLE_TYPE buffer);
+typedef void (^GTMSessionFetcherSimulateByteTransferBlock)(NSData * GTM_NULLABLE_TYPE buffer,
+                                                           int64_t bytesWritten,
+                                                           int64_t totalBytesWritten,
+                                                           int64_t totalBytesExpectedToWrite);
 typedef void (^GTMSessionFetcherReceivedProgressBlock)(int64_t bytesWritten,
                                                        int64_t totalBytesWritten);
 typedef void (^GTMSessionFetcherDownloadProgressBlock)(int64_t bytesWritten,
@@ -1142,6 +1139,12 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherTestBlock testBlock;
 
 + (void)setGlobalTestBlock:(GTM_NULLABLE GTMSessionFetcherTestBlock)block;
+
+// When using the testBlock, |testBlockAccumulateDataChunkCount| is the desired number of chunks to
+// divide the response data into if the client has streaming enabled. The data will be divided up to
+// |testBlockAccumulateDataChunkCount| chunks; however, the exact amount may vary depending on the
+// size of the response data (e.g. a 1-byte response can only be divided into one chunk).
+@property(atomic, readwrite) NSUInteger testBlockAccumulateDataChunkCount;
 
 #if TARGET_OS_IPHONE
 // For testing or to override UIApplication invocations, apps may specify an alternative
