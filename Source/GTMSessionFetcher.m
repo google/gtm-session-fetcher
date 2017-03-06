@@ -311,6 +311,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
     _taskPriority = -1.0f;  // Valid values if set are 0.0...1.0.
 
+    _testBlockAccumulateDataChunkCount = 1;
+
 #if !STRIP_GTM_FETCH_LOGGING
     // Encourage developers to set the comment property or use
     // setCommentWithFormat: by providing a default string.
@@ -1100,24 +1102,25 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       }
     } else {
       // Simulate download to NSData progress.
-      if (accumulateDataBlock) {
-        if (responseData) {
-          [self invokeOnCallbackQueueUnlessStopped:^{
-            accumulateDataBlock(responseData);
-          }];
-        }
-      } else {
-        _downloadedData = [responseData mutableCopy];
+      if ((accumulateDataBlock || receivedProgressBlock) && responseData) {
+        [self simulateByteTransferWithData:responseData
+                                     block:^(NSData *data,
+                                             int64_t bytesReceived,
+                                             int64_t totalBytesReceived,
+                                             int64_t totalBytesExpectedToReceive) {
+          // This is invoked on the callback queue unless stopped.
+          if (accumulateDataBlock) {
+            accumulateDataBlock(data);
+          }
+
+          if (receivedProgressBlock) {
+            receivedProgressBlock(bytesReceived, totalBytesReceived);
+          }
+        }];
       }
 
-      if (receivedProgressBlock) {
-        [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
-                                                 block:^(int64_t bytesReceived,
-                                                         int64_t totalBytesReceived,
-                                                         int64_t totalBytesExpectedToReceive) {
-            // This is invoked on the callback queue unless stopped.
-            receivedProgressBlock(bytesReceived, totalBytesReceived);
-         }];
+      if (!accumulateDataBlock) {
+        _downloadedData = [responseData mutableCopy];
       }
 
       if (willCacheURLResponseBlock) {
@@ -1153,6 +1156,30 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       }];
     }
   }];
+}
+
+- (void)simulateByteTransferWithData:(NSData *)responseData
+                               block:(GTMSessionFetcherSimulateByteTransferBlock)transferBlock {
+  // This utility method simulates transfering data to the client. It divides the data into at most
+  // "chunkCount" chunks and then passes each chunk along with a progress update to transferBlock.
+  // This function can be used with accumulateDataBlock or receivedProgressBlock.
+
+  NSUInteger chunkCount = MAX(self.testBlockAccumulateDataChunkCount, (NSUInteger) 1);
+  NSUInteger totalDataLength = responseData.length;
+  NSUInteger sendDataSize = totalDataLength / chunkCount + 1;
+  NSUInteger totalSent = 0;
+  while (totalSent < totalDataLength) {
+    NSUInteger bytesRemaining = totalDataLength - totalSent;
+    sendDataSize = MIN(sendDataSize, bytesRemaining);
+    NSData *chunkData = [responseData subdataWithRange:NSMakeRange(totalSent, sendDataSize)];
+    totalSent += sendDataSize;
+    [self invokeOnCallbackQueueUnlessStopped:^{
+      transferBlock(chunkData,
+                    (int64_t)sendDataSize,
+                    (int64_t)totalSent,
+                    (int64_t)totalDataLength);
+    }];
+  }
 }
 
 #endif  // !GTM_DISABLE_FETCHER_TEST_BLOCK
@@ -3309,6 +3336,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             callbackQueue = _callbackQueue,
             initialBeginFetchDate = _initialBeginFetchDate,
             testBlock = _testBlock,
+            testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
             log = _log;
 
