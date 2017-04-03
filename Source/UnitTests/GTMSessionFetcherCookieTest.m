@@ -57,7 +57,6 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   // Make a cookie that would replace cookie 2, and make this one expire.
   NSDictionary *cookie2aProps = @{
     NSHTTPCookieVersion : @"1",
-    NSHTTPCookieDiscard : @"FALSE",
     NSHTTPCookieDomain : @".example.com",
     NSHTTPCookieName : @"Trump",
     NSHTTPCookiePath : @"/",
@@ -84,15 +83,6 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   NSHTTPCookie *foundCookie = foundCookies.firstObject;
   XCTAssertEqualObjects([foundCookie value], [testCookie2a value]);
 
-#if 1
-  // https://github.com/google/gtm-session-fetcher/issues/79
-  //
-  // This no longer seems to work as of Xcode 8.3 and all the SDKs that go with
-  // it (macOS, iOS, tvOS). Using NSHTTPCookieMaximumAge or NSHTTPCookieExpires
-  // set to [NSDate dateWithTimeIntervalSinceNow:2] all fail to capture any
-  // expire into in the cookie or its properties, so they can't be expired.
-#pragma message "Expiring cookies testing disable."
-#else
   // Wait for cookie 2a to expire, then remove expired cookies.
   [NSThread sleepForTimeInterval:3.0];
   [cookieStorage setCookies:nil];  // no-op but invokes removeExpiredCookies
@@ -102,7 +92,6 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
 
   foundCookies = [cookieStorage cookiesForURL:fullURL];
   XCTAssertEqual(foundCookies.count, (NSUInteger)1);
-#endif
 
   // Remove all cookies.
   [cookieStorage removeAllCookies];
