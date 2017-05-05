@@ -386,7 +386,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         [invocation invoke];
       }
   };
-  return completionHandler;
+  return [[completionHandler copy] autorelease];
 }
 
 - (void)beginFetchWithDelegate:(GTM_NULLABLE_TYPE id)target
