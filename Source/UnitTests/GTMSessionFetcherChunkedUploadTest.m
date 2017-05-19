@@ -658,6 +658,80 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+- (void)testBigFileURLSingleChunkedUploadFetchRetry {
+  // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
+  // with HTTP 503, triggering a retry.
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+
+  NSMutableURLRequest *request = [self validUploadFileRequest];
+
+  NSURL *originalURL = request.URL;
+  NSString *failureURL = [originalURL.absoluteString stringByAppendingString:@"?status=503"];
+  request.URL = [NSURL URLWithString:failureURL];
+
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                         uploadMIMEType:@"text/plain"
+                                              chunkSize:kGTMSessionUploadFetcherStandardChunkSize
+                                         fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  BOOL (^shouldRetryUpload)(GTMSessionUploadFetcher *, BOOL, NSError *) =
+      ^BOOL(GTMSessionUploadFetcher *fetcher, BOOL suggestedWillRetry, NSError *error) {
+        // Change this fetch's request to have the original, non-failure status URL.
+        // This will make the retry succeed.
+        NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
+        mutableRequest.URL = originalURL;
+        fetcher.uploadLocationURL = originalURL;
+
+        return suggestedWillRetry;  // do the retry fetch; it should succeed now
+      };
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+  fetcher.retryEnabled = YES;
+  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
+                         GTMSessionFetcherRetryResponse response) {
+    BOOL shouldRetry = shouldRetryUpload(fetcher, suggestedWillRetry, error);
+    response(shouldRetry);
+  };
+#pragma clang diagnostic pop
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
+  NSArray *expectedCommands = @[ @"upload, finalize" ];
+  NSArray *expectedOffsets = @[ @0 ];
+  NSArray *expectedLengths = @[ @(kBigUploadDataLength) ];
+  XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+  XCTAssertEqual(fnctr.fetchStarted, 3);
+  XCTAssertEqual(fnctr.fetchStopped, 3);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 1);
+  XCTAssertEqual(fnctr.retryDelayStopped, 1);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
 // This appears to be hang/fail when testing macOS with Xcode 8. The
 // waitForExpectationsWithTimeout runs longer than the 4 minutes, before dying.
 // And while it is running, something bad seems to happen as the machine can
