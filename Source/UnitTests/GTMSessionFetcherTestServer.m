@@ -348,15 +348,7 @@ static NSString *const kEtag = @"GoodETag";
       return sendResponse(503, nil, nil);
     }
 
-    long long uploadContentLength = [xUploadContentLength longLongValue];
-    BOOL hasXContentLength = uploadContentLength > 0;
-    if (!hasXContentLength) {
-      // Any rejection of upload should return "final" as the status.
-      // We'll allow uploads of 0 bytes to test this.
-      responseHeaders[@"X-Goog-Upload-Status"] = @"final";
-      return sendResponse(200, nil, nil);
-    }
-    _uploadBytesExpected = uploadContentLength;
+    _uploadBytesExpected = [xUploadContentLength longLongValue];
 
     // Return a location header containing the request path with
     // the ".location" suffix changed to ".upload".

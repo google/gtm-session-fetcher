@@ -100,7 +100,7 @@
       NSRange providingRange = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
       uploadedRange = NSUnionRange(uploadedRange, providingRange);
       NSData *subdata = [bigUploadData subdataWithRange:providingRange];
-      response(subdata, nil);
+      response(subdata, kGTMSessionUploadFetcherUnknownFileSize, nil);
   }];
 
   fakedResultError = nil;
@@ -277,7 +277,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
       NSData *responseData = [smallData subdataWithRange:range];
-      response(responseData, nil);
+      response(responseData, kGTMSessionUploadFetcherUnknownFileSize, nil);
   }];
 
   // The unit tests run in a process without a signature, so they are not allowed to
@@ -312,6 +312,62 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
 
+- (void)testSmallDataProviderWithUnknownFileLengthChunkedUploadFetch {
+  if (!_isServerRunning) return;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSData *smallData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:13];
+  NSMutableURLRequest *request = [self validUploadFileRequest];
+
+  // Test the default upload user-agent when none was present in the request.
+  [request setValue:nil forHTTPHeaderField:@"User-Agent"];
+
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  [fetcher setUploadDataLength:kGTMSessionUploadFetcherUnknownFileSize
+                      provider:^(int64_t offset, int64_t length,
+                                 GTMSessionUploadFetcherDataProviderResponse response) {
+                        length = MIN(length, (int64_t)smallData.length);
+                        NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
+                        NSData *responseData = [smallData subdataWithRange:range];
+                        response(responseData, (int64_t)smallData.length, nil);
+                      }];
+
+  // The unit tests run in a process without a signature, so they are not allowed to
+  // use background sessions.
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  NSString *expectedUserAgent = [NSString stringWithFormat:@"%@ (GTMSUF/1)",
+                                 GTMFetcherStandardUserAgentString(nil)];
+  XCTAssertEqualObjects([fetcher.request.allHTTPHeaderFields valueForKey:@"User-Agent"],
+                        expectedUserAgent,
+                        @"%@", fetcher.request.allHTTPHeaderFields);
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  [self assertSmallUploadFetchNotificationsWithCounter:fnctr];
+
+  XCTAssertEqual(fnctr.fetchStarted, 2);
+  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+}
+
 - (void)testSmallDataProviderChunkedErrorUploadFetch {
   if (!_isServerRunning) return;
 
@@ -328,7 +384,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
     // Fail to provide NSData.
     NSError *error = [NSError errorWithDomain:@"domain" code:-123 userInfo:nil];
-    response(nil, error);
+    response(nil, kGTMSessionUploadFetcherUnknownFileSize, error);
   }];
 
   // The unit tests run in a process without a signature, so they are not allowed to
@@ -869,7 +925,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
                                  GTMSessionUploadFetcherDataProviderResponse response) {
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
       NSData *responseData = [bigData subdataWithRange:range];
-      response(responseData, nil);
+      response(responseData, kGTMSessionUploadFetcherUnknownFileSize, nil);
   }];
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
@@ -880,6 +936,53 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
       XCTAssertNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
       [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  [self assertBigUploadFetchNotificationsWithCounter:fnctr];
+
+  XCTAssertEqual(fnctr.fetchStarted, 4);
+  XCTAssertEqual(fnctr.fetchStopped, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 3);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 3);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+}
+
+- (void)testBigDataProviderWithUnknownFileLengthChunkedUploadFetch {
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURLRequest *request = [self validUploadFileRequest];
+
+  NSData *bigData = [self bigUploadData];
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  [fetcher setUploadDataLength:kGTMSessionUploadFetcherUnknownFileSize
+                      provider:^(int64_t offset, int64_t length,
+                                 GTMSessionUploadFetcherDataProviderResponse response) {
+                        int64_t readLength = MIN(length, (int64_t)bigData.length - offset);
+                        NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)readLength);
+                        NSData *responseData = [bigData subdataWithRange:range];
+
+                        if (readLength != length) {
+                          response(responseData, (int64_t)bigData.length, nil);
+                        } else {
+                          response(responseData, -1, nil);
+                        }
+                      }];
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1106,41 +1209,6 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
-}
-
-- (void)testBigDataChunkedUploadWithShortCircuit {
-  // Force the server to prematurely finalize the upload on the initial request.
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
-
-  NSURLRequest *request = [self validUploadFileRequest];
-  NSData *bigData = [self bigUploadData];
-  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
-                                                                        uploadMIMEType:@"text/plain"
-                                                                             chunkSize:75000
-                                                                        fetcherService:_service];
-  fetcher.uploadData = bigData;
-  fetcher.useBackgroundSession = NO;
-  fetcher.allowLocalhostRequest = YES;
-
-  // Our test server looks for zero content length as a cue to prematurely stop the upload.
-  [fetcher setRequestValue:@"0" forHTTPHeaderField:@"X-Goog-Upload-Content-Length"];
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
-      XCTAssertEqual(error.code, (NSInteger)501);
-      [expectation fulfill];
-  }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-  [self assertCallbacksReleasedForFetcher:fetcher];
-
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
-  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0);
-  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0);
-  XCTAssertEqual(fnctr.retryDelayStarted, 0);
-  XCTAssertEqual(fnctr.retryDelayStopped, 0);
-  XCTAssertEqual(fnctr.uploadLocationObtained, 0);
 }
 
 @end
