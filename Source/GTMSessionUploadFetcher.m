@@ -70,6 +70,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
              afterUserStopped:(BOOL)afterStopped
                         block:(void (^)(void))block;
 - (NSTimer *)retryTimer;
+- (void)beginFetchForRetry;
 
 @property(readwrite, strong) NSData *downloadedData;
 - (void)releaseCallbacks;
@@ -794,6 +795,19 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
     return _fetcherInFlight;
   }
+}
+
+- (void)beginFetchForRetry {
+  GTMSessionCheckNotSynchronized(self);
+
+  // Override the superclass to reset the initial body length and fetcher-in-flight,
+  // then call the superclass implementation.
+  [self setInitialBodyLength:[self bodyLength]];
+
+  GTMSESSION_ASSERT_DEBUG(self.fetcherInFlight == nil, @"unexpected fetcher in flight: %@",
+                          self.fetcherInFlight);
+  self.fetcherInFlight = self;
+  [super beginFetchForRetry];
 }
 
 - (void)beginFetchWithCompletionHandler:(GTMSessionFetcherCompletionHandler)handler {
