@@ -2852,7 +2852,8 @@ didCompleteWithError:(NSError *)error {
           // Create an error.
           NSDictionary *userInfo = nil;
           if (_downloadedData.length > 0) {
-            userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
+            NSMutableData *data = _downloadedData;
+            userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
           }
           error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                       code:status
@@ -3030,7 +3031,8 @@ didCompleteWithError:(NSError *)error {
     if (canRetry) {
       NSDictionary *userInfo = nil;
       if (_downloadedData.length > 0) {
-        userInfo = @{ kGTMSessionFetcherStatusDataKey : _downloadedData };
+        NSMutableData *data = _downloadedData;
+        userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
       }
       NSError *statusError = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                                  code:status
