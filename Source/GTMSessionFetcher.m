@@ -1327,7 +1327,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   return fetchers;
 }
 
-#if TARGET_OS_IPHONE
+#if TARGET_OS_IPHONE && !TARGET_OS_WATCH
 + (void)application:(UIApplication *)application
     handleEventsForBackgroundURLSession:(NSString *)identifier
                       completionHandler:(GTMSessionFetcherSystemCompletionHandler)completionHandler {
@@ -1965,7 +1965,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   gGlobalTestBlock = [block copy];
 }
 
-#if TARGET_OS_IPHONE
+#if GTM_BACKGROUND_TASK_FETCHING
 
 static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
@@ -2001,7 +2001,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }
   return app;
 }
-#endif //  TARGET_OS_IPHONE
+#endif //  GTM_BACKGROUND_TASK_FETCHING
 
 #pragma mark NSURLSession Delegate Methods
 
