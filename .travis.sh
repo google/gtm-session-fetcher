@@ -19,6 +19,9 @@ RunXcodeBuild() {
 CMD_BUILDER=(
   -project Source/GTMSessionFetcherCore.xcodeproj
 )
+XCODE_ACTIONS=(
+  build test
+)
 
 case "${BUILD_MODE}" in
   iOS)
@@ -36,6 +39,11 @@ case "${BUILD_MODE}" in
         -destination "platform=tvOS Simulator,name=Apple TV 1080p,OS=latest"
     )
     ;;
+  watchOS)
+    CMD_BUILDER+=(-scheme "watchOS Framework")
+    # XCTest doesn't support watchOS.
+    XCODE_ACTIONS=( build )
+    ;;
   *)
     echo "Unknown BUILD_MODE: ${BUILD_MODE}"
     exit 11
@@ -44,11 +52,11 @@ esac
 
 case "${BUILD_CFG}" in
   Debug|Release)
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration "${BUILD_CFG}" build test
+    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration "${BUILD_CFG}" "${XCODE_ACTIONS[@]}"
     ;;
   Both)
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Debug build test
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Release build test
+    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Debug "${XCODE_ACTIONS[@]}"
+    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Release "${XCODE_ACTIONS[@]}"
     ;;
   *)
     echo "Unknown BUILD_CFG: ${BUILD_CFG}"
