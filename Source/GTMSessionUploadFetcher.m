@@ -221,6 +221,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   uploadFetcher.sessionUserInfo = metadata;
   uploadFetcher.useBackgroundSession = YES;
   uploadFetcher.currentOffset = currentOffset;
+  uploadFetcher.delegateCallbackQueue = uploadFetcher.callbackQueue;
   uploadFetcher.allowedInsecureSchemes = @[ @"http" ];  // Allowed on restored upload fetcher.
   return uploadFetcher;
 }
