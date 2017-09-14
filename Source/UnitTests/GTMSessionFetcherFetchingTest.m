@@ -1164,6 +1164,85 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testRedirectFetch];
 }
 
+- (void)testCancelRedirectFetch {
+  if (!_isServerRunning) return;
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+  [_testServer setRedirectEnabled:YES];
+
+  if (![_testServer isRedirectEnabled]) {
+    XCTFail(@"*** skipping %@: redirectServer failed to start", [self currentTestName]);
+    return;
+  }
+
+  //
+  // Fetch our test file.  Ensure the body survives the redirection.
+  //
+  const int kBodyLength = 137;
+  NSDictionary *params = @{ @"requestBodyLength" : [@(kBodyLength) stringValue] };
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                     parameters:params];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+  fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
+
+  __block BOOL didCallBlock = NO;
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
+                                NSURLRequest *redirectRequest,
+                                GTMSessionFetcherWillRedirectResponse response) {
+    XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
+              ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
+    didCallBlock = YES;
+    response(NULL);
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    // Check that a redirect was performed
+    NSURL *requestURL = [NSURL URLWithString:localURLString];
+    NSURL *responseURL = fetcher.response.URL;
+    XCTAssertFalse(![requestURL.host isEqual:responseURL.host] ||
+                   ![requestURL.port isEqual:responseURL.port], @"did not receive redirect");
+
+    XCTAssertEqualObjects(error.domain, kGTMBridgeFetcherStatusDomain);
+    XCTAssertEqual(error.code, 302, @"expect HTTP 302 status code error when cancelling redirect.");
+
+    // Cookies should have been set by the response; specifically, TestCookie
+    // should be set to the name of the file requested.
+    NSDictionary *responseHeaders = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
+    NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
+    NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
+    XCTAssertEqualObjects(cookiesSetString, cookieExpected);
+
+    // A cookie should've been set.
+    NSHTTPCookieStorage *cookieStorage = fetcher.configuration.HTTPCookieStorage;
+    NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
+    NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
+    XCTAssertEqual(cookies.count, (NSUInteger)1);
+    NSHTTPCookie *firstCookie = cookies.firstObject;
+    XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  XCTAssertTrue(didCallBlock);
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
+- (void)testCancelRedirectFetch_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testCancelRedirectFetch];
+}
+
 - (void)testRetryFetches {
   if (!_isServerRunning) return;
 
