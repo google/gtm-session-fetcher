@@ -89,7 +89,7 @@ GTM_ASSUME_NONNULL_END
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
-// Should always be accessed within an @synchranized(self).
+// Should always be accessed within an @synchronized(self).
 @property(assign, nonatomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
 #endif
 
