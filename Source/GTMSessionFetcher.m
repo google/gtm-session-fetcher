@@ -583,8 +583,13 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         // +backgroundSessionConfiguration: on iOS 8.
         if ([NSURLSessionConfiguration respondsToSelector:@selector(backgroundSessionConfigurationWithIdentifier:)]) {
           // Running on iOS 8+/OS X 10.10+.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
           _configuration =
               [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
+#pragma clang diagnostic pop
         } else {
           // Running on iOS 7/OS X 10.9.
           _configuration =
@@ -809,7 +814,12 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     BOOL hasTaskPriority = [newSessionTask respondsToSelector:@selector(setPriority:)];
 #endif
     if (hasTaskPriority) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
       newSessionTask.priority = _taskPriority;
+#pragma clang diagnostic pop
     }
   }
 
@@ -4387,7 +4397,12 @@ NSString *GTMFetcherSystemVersionString(void) {
     if (hasOperatingSystemVersion) {
 #if defined(MAC_OS_X_VERSION_10_10)
       // A reference to NSOperatingSystemVersion requires the 10.10 SDK.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
       NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
+#pragma clang diagnostic pop
       versString = [NSString stringWithFormat:@"%zd.%zd.%zd",
                     version.majorVersion, version.minorVersion, version.patchVersion];
 #else
