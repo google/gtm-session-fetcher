@@ -132,7 +132,12 @@
   NSBundle *bundle = [NSBundle bundleForClass:[self class]];
   NSString *result = GTMFetcherStandardUserAgentString(bundle);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
   NSOperatingSystemVersion version = [NSProcessInfo processInfo].operatingSystemVersion;
+#pragma clang diagnostic pop
 #if TARGET_OS_IPHONE
   // iOS, tvOS, watchOS
   NSString *versionStr = [NSString stringWithFormat:@"%zd.%zd",
