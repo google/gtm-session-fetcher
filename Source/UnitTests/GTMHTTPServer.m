@@ -216,7 +216,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   [self stop];
 }
 
-- (BOOL)start:(NSError **)error {
+- (BOOL)start:(NSError * __autoreleasing *)error {
   NSAssert(_socket == NULL, @"start called when we already have a _socket");
 
   if (error) *error = NULL;
