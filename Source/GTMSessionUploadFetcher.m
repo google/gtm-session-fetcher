@@ -1519,7 +1519,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   // Standard granularity for Google uploads is 256K.
   NSString *chunkGranularityHeader =
-      [responseHeaders objectForKey:@"X-Goog-Upload-Chunk-Granularity"];
+      [responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadChunkGranularity];
   self.uploadGranularity = chunkGranularityHeader.longLongValue;
 }
 
