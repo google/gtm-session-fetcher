@@ -595,7 +595,18 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
         return;
       }
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
-      resultData = [uploadData subdataWithRange:range];
+
+      @try {
+        resultData = [uploadData subdataWithRange:range];
+      }
+      @catch (NSException *exception) {
+        NSString *errorMessage = exception.description;
+        GTMSESSION_ASSERT_DEBUG(NO, @"%@", errorMessage);
+        response(nil,
+                 kGTMSessionUploadFetcherUnknownFileSize,
+                 [self uploadChunkUnavailableErrorWithDescription:errorMessage]);
+        return;
+      }
     }
     response(resultData, kGTMSessionUploadFetcherUnknownFileSize, nil);
     return;
