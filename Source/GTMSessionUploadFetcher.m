@@ -1093,7 +1093,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if (error == nil) {
     int64_t offset = [sizeReceivedHeader longLongValue];
     int64_t fullUploadLength = [self fullUploadLength];
-    if (offset >= fullUploadLength || uploadStatus == kStatusFinal) {
+    if (uploadStatus == kStatusFinal ||
+        (offset >= fullUploadLength &&
+         fullUploadLength != kGTMSessionUploadFetcherUnknownFileSize)) {
       // Handle we're done
       [self chunkFetcher:queryFetcher finishedWithData:data error:nil];
     } else {

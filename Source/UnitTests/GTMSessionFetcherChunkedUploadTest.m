@@ -1148,6 +1148,94 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
 
+- (void)testBigDataChunkedUploadWithUnknownFileSizeAndPause {
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURLRequest *request = [self validUploadFileRequest];
+  NSData *bigData = [self bigUploadData];
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  [fetcher setUploadDataLength:kGTMSessionUploadFetcherUnknownFileSize
+                      provider:^(int64_t offset, int64_t length,
+                                 GTMSessionUploadFetcherDataProviderResponse response) {
+      length = MIN(length, (int64_t)bigData.length);
+      NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
+      NSData *responseData = [bigData subdataWithRange:range];
+
+      int64_t fileLength = 0;
+      if (offset) {
+        fileLength = (int64_t)bigData.length;
+      }
+      response(responseData, fileLength, nil);
+  }];
+
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  // Add a property to the fetcher that our progress callback will look for to
+  // know when to pause and resume the upload
+  fetcher.sendProgressBlock = ^(int64_t bytesSent, int64_t totalBytesSent,
+                                int64_t totalBytesExpectedToSend) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+    TestProgressBlock(fetcher, bytesSent, totalBytesSent, totalBytesExpectedToSend);
+#pragma clang diagnostic pop
+  };
+  [fetcher setProperty:@20000
+                forKey:kPauseAtKey];
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTAssertEqualObjects(data, [self gettysburgAddress]);
+      XCTAssertNil(error);
+      XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+      [expectation fulfill];
+  }];
+  [fetcher waitForCompletionWithTimeout:_timeoutInterval];
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  NSArray *expectedURLStrings = @[
+    @"/gettysburgaddress.txt.upload",
+    @"/gettysburgaddress.txt.upload",
+    @"/gettysburgaddress.txt.upload",
+    @"/gettysburgaddress.txt.upload"
+  ];
+  NSArray *expectedCommands = @[
+    @"upload",
+    @"query",
+    @"upload",
+    @"upload, finalize"
+  ];
+  NSArray *expectedOffsets = @[
+    @0,
+    @0,
+    @75000,
+    @150000
+  ];
+  NSArray *expectedLengths = @[
+    @75000,
+    @0,
+    @75000,
+    @49000
+  ];
+  XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+  XCTAssertEqual(fnctr.fetchStarted, 5);
+  XCTAssertEqual(fnctr.fetchStopped, 5);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 4);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+}
+
 - (void)testBigDataChunkedUploadWithCancel {
   // Repeat the previous test, canceling after 20,000 bytes.
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
