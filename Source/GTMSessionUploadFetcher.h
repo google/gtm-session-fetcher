@@ -44,6 +44,8 @@ extern int64_t const kGTMSessionUploadFetcherUnknownFileSize;
 
 // Unless an application knows it needs a smaller chunk size, it should use the standard
 // chunk size, which sends the entire file as a single chunk to minimize upload overhead.
+// Setting an explicit chunk size that comfortably fits in memory is advisable for large
+// uploads.
 extern int64_t const kGTMSessionUploadFetcherStandardChunkSize;
 
 // When uploading requires data buffer allocations (such as uploading from an NSData or
