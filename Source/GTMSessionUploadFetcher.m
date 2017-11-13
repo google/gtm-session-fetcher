@@ -705,6 +705,16 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     // Fall through with the error.
   } else {
     // Successfully created an NSData by memory-mapping the file.
+    if ((NSUInteger)(offset + length) > mappedData.length) {
+      NSString *errorMessage = [NSString stringWithFormat:
+                                @"Range invalid for upload data.  offset: %lld\tlength: %lld\tdataLength: %lld\texpected UploadLength: %lld",
+                                offset, length, (long long)mappedData.length, fullUploadLength];
+      GTMSESSION_ASSERT_DEBUG(NO, @"%@", errorMessage);
+      response(nil,
+               kGTMSessionUploadFetcherUnknownFileSize,
+               [self uploadChunkUnavailableErrorWithDescription:errorMessage]);
+      return;
+    }
     if (offset > 0 || length < fullUploadLength) {
       NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
       resultData = [mappedData subdataWithRange:range];
