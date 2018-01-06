@@ -210,22 +210,22 @@
 		4F6F7ED718D6B62900CA4B4C /* GTMHTTPServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMHTTPServer.m; path = UnitTests/GTMHTTPServer.m; sourceTree = SOURCE_ROOT; };
 		4F6F7ED818D6B62900CA4B4C /* GTMSessionFetcherTestServer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherTestServer.h; path = UnitTests/GTMSessionFetcherTestServer.h; sourceTree = SOURCE_ROOT; };
 		4F6F7ED918D6B62900CA4B4C /* GTMSessionFetcherTestServer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherTestServer.m; path = UnitTests/GTMSessionFetcherTestServer.m; sourceTree = SOURCE_ROOT; };
-		4FA025621BB21EAB00BB255C /* GTMSessionFetcherOSX.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcherOSX.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4FA025621BB21EAB00BB255C /* GTMSessionFetcher.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcher.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FA025661BB21EAB00BB255C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4FA8DB7A193D13A30071BC92 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMGatherInputStreamTest.m; path = UnitTests/GTMGatherInputStreamTest.m; sourceTree = SOURCE_ROOT; };
-		4FEE14271BB22328002ACBF8 /* GTMSessionFetcherIOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcherIOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4FEE14271BB22328002ACBF8 /* GTMSessionFetcher.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcher.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FEE142B1BB22328002ACBF8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = MainStoryboard.storyboard; path = TestApps/FetcheriOSTestApp/MainStoryboard.storyboard; sourceTree = SOURCE_ROOT; };
 		8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS7.0.sdk/System/Library/Frameworks/CoreGraphics.framework; sourceTree = DEVELOPER_DIR; };
 		8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcheriOSTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EC5669118AAFB1200E2C97D /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
 		8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcheriOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetchertvOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4A872031DA3EACE00D69E09 /* GTMSessionFetcher.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcher.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4A872051DA3EACE00D69E09 /* GTMSessionFetchertvOS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetchertvOS.h; sourceTree = "<group>"; };
 		F4A872061DA3EACE00D69E09 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F4A8721D1DA3EDE700D69E09 /* FetchertvOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetchertvOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4B18F811F0EC6C200E55018 /* GTMSessionFetcherwatchOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcherwatchOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4B18F811F0EC6C200E55018 /* GTMSessionFetcher.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcher.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4B18F841F0EC7A500E55018 /* GTMSessionFetcherwatchOS.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcherwatchOS.h; sourceTree = "<group>"; };
 		F4B18F851F0EC7A500E55018 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -362,11 +362,11 @@
 				4F34A21B187CCBB50012E91E /* FetcherOSXTestApp.app */,
 				8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */,
 				8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */,
-				4FA025621BB21EAB00BB255C /* GTMSessionFetcherOSX.framework */,
-				4FEE14271BB22328002ACBF8 /* GTMSessionFetcherIOS.framework */,
-				F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */,
+				4FA025621BB21EAB00BB255C /* GTMSessionFetcher.framework */,
+				4FEE14271BB22328002ACBF8 /* GTMSessionFetcher.framework */,
+				F4A872031DA3EACE00D69E09 /* GTMSessionFetcher.framework */,
 				F4A8721D1DA3EDE700D69E09 /* FetchertvOSTests.xctest */,
-				F4B18F811F0EC6C200E55018 /* GTMSessionFetcherwatchOS.framework */,
+				F4B18F811F0EC6C200E55018 /* GTMSessionFetcher.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -628,7 +628,7 @@
 			);
 			name = GTMSessionFetcherOSX;
 			productName = GTMSessionFetcherOSX;
-			productReference = 4FA025621BB21EAB00BB255C /* GTMSessionFetcherOSX.framework */;
+			productReference = 4FA025621BB21EAB00BB255C /* GTMSessionFetcher.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		4FEE14261BB22328002ACBF8 /* GTMSessionFetcherIOS */ = {
@@ -646,7 +646,7 @@
 			);
 			name = GTMSessionFetcherIOS;
 			productName = GTMSessionFetcherIOS;
-			productReference = 4FEE14271BB22328002ACBF8 /* GTMSessionFetcherIOS.framework */;
+			productReference = 4FEE14271BB22328002ACBF8 /* GTMSessionFetcher.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		8EC5668C18AAFB1200E2C97D /* FetcheriOSTestApp */ = {
@@ -698,7 +698,7 @@
 			);
 			name = GTMSessionFetchertvOS;
 			productName = GTMSessionFetchertvOS;
-			productReference = F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */;
+			productReference = F4A872031DA3EACE00D69E09 /* GTMSessionFetcher.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 		F4A8721C1DA3EDE700D69E09 /* FetchertvOSTests */ = {
@@ -733,7 +733,7 @@
 			);
 			name = GTMSessionFetcherwatchOS;
 			productName = GTMSessionFetchertvOS;
-			productReference = F4B18F811F0EC6C200E55018 /* GTMSessionFetcherwatchOS.framework */;
+			productReference = F4B18F811F0EC6C200E55018 /* GTMSessionFetcher.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
@@ -1294,7 +1294,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherOSX;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SKIP_INSTALL = YES;
 			};
 			name = Debug;
@@ -1313,7 +1313,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherOSX;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SKIP_INSTALL = YES;
 			};
 			name = Release;
@@ -1332,7 +1332,7 @@
 				INFOPLIST_FILE = GTMSessionFetcherIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherIOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1351,7 +1351,7 @@
 				INFOPLIST_FILE = GTMSessionFetcherIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherIOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1465,7 +1465,7 @@
 				INFOPLIST_FILE = GTMSessionFetchertvOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetchertvOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = appletvos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 3;
@@ -1483,7 +1483,7 @@
 				INFOPLIST_FILE = GTMSessionFetchertvOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetchertvOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = appletvos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 3;
@@ -1531,7 +1531,7 @@
 				INFOPLIST_FILE = GTMSessionFetcherwatchOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherwatchOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -1549,7 +1549,7 @@
 				INFOPLIST_FILE = GTMSessionFetcherwatchOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.GTMSessionFetcherwatchOS;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = GTMSessionFetcher;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
