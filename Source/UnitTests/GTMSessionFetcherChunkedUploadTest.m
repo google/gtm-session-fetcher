@@ -1025,6 +1025,88 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
 
+- (void)testBigDataProviderChunkedUploadFetchSuccessClearsCancellationHandler {
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURLRequest *request = [self validUploadFileRequest];
+
+  NSData *bigData = [self bigUploadData];
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  [fetcher setUploadDataLength:(int64_t)bigData.length
+                      provider:^(int64_t offset, int64_t length,
+                                 GTMSessionUploadFetcherDataProviderResponse response) {
+    NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
+    NSData *responseData = [bigData subdataWithRange:range];
+    response(responseData, kGTMSessionUploadFetcherUnknownFileSize, nil);
+  }];
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+  fetcher.cancellationHandler =
+      ^(GTMSessionFetcher *cancellationFetcher, NSData *data, NSError *error) {
+    XCTFail("Success should not call cancellation handler.");
+  };
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+  // Success should clear the cancellationHandler.
+  XCTAssertNil(fetcher.cancellationHandler);
+
+  [self assertBigUploadFetchNotificationsWithCounter:fnctr];
+
+  XCTAssertEqual(fnctr.fetchStarted, 4);
+  XCTAssertEqual(fnctr.fetchStopped, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 3);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 3);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+}
+
+- (void)testBigDataProviderChunkedUploadEarlyCancel {
+  NSURLRequest *request = [self validUploadFileRequest];
+
+  NSData *bigData = [self bigUploadData];
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  [fetcher setUploadDataLength:(int64_t)bigData.length
+                      provider:^(int64_t offset, int64_t length,
+                                 GTMSessionUploadFetcherDataProviderResponse response) {
+    NSRange range = NSMakeRange((NSUInteger)offset, (NSUInteger)length);
+    NSData *responseData = [bigData subdataWithRange:range];
+    response(responseData, kGTMSessionUploadFetcherUnknownFileSize, nil);
+  }];
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+  XCTestExpectation *expectation = [self expectationWithDescription:@"cancelled"];
+  fetcher.cancellationHandler =
+      ^(GTMSessionFetcher *cancellationFetcher, NSData *data, NSError *error) {
+    // Should be nil as we cancel before allowing any thing to happen.
+    XCTAssertNil(cancellationFetcher);
+    [expectation fulfill];
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTFail("Completion should not fire as fetcher is immediately cancelled.");
+  }];
+  [fetcher stopFetching];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+  // Immediate fire should clear out cancellation handler.
+  XCTAssertNil(fetcher.cancellationHandler);
+}
+
 - (void)testBigDataProviderWithUnknownFileLengthChunkedUploadFetch {
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
@@ -1261,6 +1343,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   };
   [fetcher setProperty:@20000
                 forKey:kCancelAtKey];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"cancelled"];
+  fetcher.cancellationHandler =
+      ^(GTMSessionFetcher *cancellationFetcher, NSData *data, NSError *error) {
+    XCTAssertNotNil(cancellationFetcher);
+    [expectation fulfill];
+  };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTFail(@"Canceled fetcher should not have called back");
@@ -1275,6 +1363,10 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  // After cancellation fires, it should be removed.
+  XCTAssertNil(fetcher.cancellationHandler);
 }
 
 - (void)testBigDataChunkedUploadWithRetry {
