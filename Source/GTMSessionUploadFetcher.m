@@ -79,6 +79,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 - (NSInteger)statusCodeUnsynchronized;
 
+- (BOOL)userStoppedFetching;
+
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
@@ -138,6 +140,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // is in progress.
   GTMSessionFetcher *_fetcherInFlight;
   BOOL _isSubdataGenerating;
+  BOOL _isCancelInFlight;
+
+  GTMSessionUploadFetcherCancellationHandler _cancellationHandler;
 }
 
 + (void)load {
@@ -825,6 +830,23 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
+- (void)setCancellationHandler:(GTMSessionUploadFetcherCancellationHandler GTM_NULLABLE_TYPE)
+    cancellationHandler {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _cancellationHandler = cancellationHandler;
+  }
+}
+
+- (GTMSessionUploadFetcherCancellationHandler GTM_NULLABLE_TYPE)cancellationHandler {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _cancellationHandler;
+  }
+}
+
 - (void)beginFetchForRetry {
   GTMSessionCheckNotSynchronized(self);
 
@@ -1015,16 +1037,19 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     }
   }  // @synchronized(self)
 
-  [self releaseUploadAndBaseCallbacks];
+  [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching];
 }
 
-- (void)releaseUploadAndBaseCallbacks {
+- (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     _delegateCallbackQueue = nil;
     _delegateCompletionHandler = nil;
     _uploadDataProvider = nil;
+    if (shouldReleaseCancellation) {
+      _cancellationHandler = nil;
+    }
   }
 
   // Release the base class's callbacks, too, if needed.
@@ -1044,7 +1069,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
 
   if (shouldReleaseCallbacks) {
-    [self releaseUploadAndBaseCallbacks];
+    [self releaseUploadAndBaseCallbacks:NO];
   }
 }
 
@@ -1119,6 +1144,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 - (void)sendCancelUploadWithFetcherProperties:(NSDictionary *)props {
+  @synchronized(self) {
+    _isCancelInFlight = YES;
+  }
   GTMSessionFetcher *cancelFetcher = [self uploadFetcherWithProperties:props
                                                           isQueryFetch:YES];
   cancelFetcher.bodyData = [NSData data];
@@ -1132,8 +1160,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   self.fetcherInFlight = cancelFetcher;
   [cancelFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       self.fetcherInFlight = nil;
-      if (error) {
-        GTMSESSION_LOG_DEBUG(@"cancelFetcher %@", error);
+      if (![self triggerCancellationHandlerForFetch:cancelFetcher data:data error:error]) {
+        if (error) {
+          GTMSESSION_LOG_DEBUG(@"cancelFetcher %@", error);
+        }
+      }
+      @synchronized(self) {
+        _isCancelInFlight = NO;
       }
   }];
 }
@@ -1595,9 +1628,36 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   if (self.uploadLocationURL) {
     [self sendCancelUploadWithFetcherProperties:[self properties]];
     self.uploadLocationURL = nil;
+  } else {
+    [self invokeOnCallbackQueue:self.callbackQueue
+               afterUserStopped:YES
+                          block:^{
+      // Repeated calls to stopFetching may cause this path to be reached despite having sent a real
+      // cancel request, check here to ensure that the cancellation handler invocation which fires
+      // will definitely be for the real request sent previously.
+      @synchronized(self) {
+        if (_isCancelInFlight) {
+          return;
+        }
+      }
+      [self triggerCancellationHandlerForFetch:nil data:nil error:nil];
+    }];
   }
 
   [super stopFetching];
+}
+
+// Fires the cancellation handler, returning whether there was a handler to be fired.
+- (BOOL)triggerCancellationHandlerForFetch:(GTMSessionFetcher *)fetcher
+                                      data:(NSData *)data
+                                     error:(NSError *)error {
+  GTMSessionUploadFetcherCancellationHandler handler = self.cancellationHandler;
+  if (handler) {
+    handler(fetcher, data, error);
+    self.cancellationHandler = nil;
+    return YES;
+  }
+  return NO;
 }
 
 #pragma mark -
