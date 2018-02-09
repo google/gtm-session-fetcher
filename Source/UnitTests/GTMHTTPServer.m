@@ -184,7 +184,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 @synthesize socket = _socket;
 
 + (instancetype)startedServerWithDelegate:(id<GTMHTTPServerDelegate>)delegate {
-  GTMHTTPServer *server = [[self alloc] initWithDelegate:delegate];
+  GTMHTTPServer *server = [(GTMHTTPServer*)[self alloc] initWithDelegate:delegate];
   NSError *error = nil;
   if (![server start:&error]) {
     NSLog(@"Failed to start up %@ (error=%@)", NSStringFromClass(self), error);
