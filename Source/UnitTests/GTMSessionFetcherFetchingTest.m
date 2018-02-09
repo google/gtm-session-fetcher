@@ -496,7 +496,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher = [self fetcherWithURLString:statusURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *statusStr = [[_testServer class] JSONBodyStringForStatus:400];
+      NSString *statusStr = [[self->_testServer class] JSONBodyStringForStatus:400];
       NSData *errorBodyData = [statusStr dataUsingEncoding:NSUTF8StringEncoding];
       XCTAssertEqualObjects(data, errorBodyData);
 
@@ -508,7 +508,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       if (statusData) {
         NSString *dataStr = [[NSString alloc] initWithData:statusData
                                                   encoding:NSUTF8StringEncoding];
-        NSString *expectedStr = [[_testServer class] JSONBodyStringForStatus:400];
+        NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:400];
         XCTAssertEqualObjects(dataStr, expectedStr, @"Expected JSON status data");
       }
   }];
@@ -792,7 +792,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -814,7 +814,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -837,7 +837,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       XCTAssertEqual(error.code, (NSInteger)NSURLErrorCancelled, @"%@", error);
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -902,7 +902,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                 data:data
                                                error:error];
-    XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+    XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -1270,7 +1270,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                               encoding:NSUTF8StringEncoding];
     NSInteger code = error.code;
     if (code == 503) {
-      NSString *expectedStr = [[_testServer class] JSONBodyStringForStatus:503];
+      NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:503];
       XCTAssertEqualObjects(dataStr, expectedStr);
     }
     response(shouldRetry);
@@ -2615,7 +2615,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
                  dispatch_get_main_queue(), ^{
     NSArray <SubstituteUIApplicationTaskInfo *>* failedToExpire;
     @synchronized(self) {
-      failedToExpire = _identifierToTaskInfoMap.allValues;
+      failedToExpire = self->_identifierToTaskInfoMap.allValues;
     }
     handler(count, failedToExpire);
   });
