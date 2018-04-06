@@ -393,7 +393,8 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
       if (previousPartDataLength < 2) {
         // The preceding part was too short to be useful.
 #if DEBUG
-        NSLog(@"MIME part %zd has %zd bytes", partCounter - 1, previousPartDataLength);
+        NSLog(@"MIME part %ld has %ld bytes", (long)partCounter - 1,
+              (long)previousPartDataLength);
 #endif
       } else {
         if (!parts) parts = [NSMutableArray array];
@@ -431,7 +432,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
           if (crlfOffsets.count == 0) {
 #if DEBUG
             // We could not distinguish body and headers.
-            NSLog(@"MIME part %zd lacks a header separator: %@", partCounter - 1,
+            NSLog(@"MIME part %ld lacks a header separator: %@", (long)partCounter - 1,
                   [[NSString alloc] initWithData:(NSData *)partData encoding:NSUTF8StringEncoding]);
 #endif
           } else {
