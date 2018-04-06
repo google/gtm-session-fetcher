@@ -430,8 +430,9 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   // NSOperationQueueDefaultMaxConcurrentOperationCount (-1), to avoid the additional complexity
   // of simultaneous or out-of-order delegate callbacks.
   GTMSESSION_ASSERT_DEBUG(_delegateQueue.maxConcurrentOperationCount == 1,
-                          @"delegate queue %@ should support one concurrent operation, not %zd",
-                          _delegateQueue.name, _delegateQueue.maxConcurrentOperationCount);
+                          @"delegate queue %@ should support one concurrent operation, not %ld",
+                          _delegateQueue.name,
+                          (long)_delegateQueue.maxConcurrentOperationCount);
 
   if (!_initialBeginFetchDate) {
     // This ivar is set only here on the initial beginFetch so need not be synchronized.
@@ -2659,8 +2660,8 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
       // the server may have included error details in the response body, and
       // abandoning the downloaded file here means that the details from the
       // body are not available to the fetcher client.
-      GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %zd, file %@",
-                           statusCode, downloadLocationURL.path);
+      GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %ld, file %@",
+                           (long)statusCode, downloadLocationURL.path);
     } else {
       NSError *moveError;
       NSURL *destinationFolderURL = [destinationURL URLByDeletingLastPathComponent];
