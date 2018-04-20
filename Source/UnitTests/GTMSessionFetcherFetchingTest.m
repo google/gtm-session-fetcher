@@ -2584,7 +2584,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 - (void)endBackgroundTask:(UIBackgroundTaskIdentifier)taskID {
   @synchronized(self) {
     NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
-             @"endBackgroundTask failed to find task: %tu", taskID);
+             @"endBackgroundTask failed to find task: %lu", (unsigned long)taskID);
 
     [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
   }
@@ -2630,7 +2630,8 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 @synthesize expirationHandler = _expirationHandler;
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"<task %tu \"%@\">", _taskIdentifier, _taskName];
+  return [NSString stringWithFormat:@"<task %lu \"%@\">",
+          (unsigned long)_taskIdentifier, _taskName];
 }
 
 @end
@@ -2736,7 +2737,8 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
                            fetcher.comment ?: @"<no comment>",
                            fetcher.request.URL.absoluteString];
   if (fetcher.retryCount > 0) {
-    description = [description stringByAppendingFormat:@" retry %tu", fetcher.retryCount];
+    description = [description stringByAppendingFormat:@" retry %lu",
+                   (unsigned long)fetcher.retryCount];
   }
   return description;
 }

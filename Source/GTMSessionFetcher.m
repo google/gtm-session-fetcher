@@ -756,8 +756,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (_downloadResumeData) {
     newSessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
-        @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
-        _session, _downloadResumeData.length);
+        @"Failed downloadTaskWithResumeData for %@, resume data %lu bytes",
+        _session, (unsigned long)_downloadResumeData.length);
   } else if (_destinationFileURL && !isDataRequest) {
     newSessionTask = [_session downloadTaskWithRequest:fetchRequest];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask, @"Failed downloadTaskWithRequest for %@, %@",
@@ -780,8 +780,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       newSessionTask = [_session uploadTaskWithRequest:fetchRequest
                                             fromData:(NSData * GTM_NONNULL_TYPE)_bodyData];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
-          @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
-          _session, fetchRequest, _bodyData.length);
+          @"Failed uploadTaskWithRequest for %@, %@, body data %lu bytes",
+          _session, fetchRequest, (unsigned long)_bodyData.length);
     }
     needsDataAccumulator = YES;
   } else {
@@ -4404,8 +4404,9 @@ NSString *GTMFetcherSystemVersionString(void) {
 // all clients to build with Xcode 9 or above.
       NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
 #pragma clang diagnostic pop
-      versString = [NSString stringWithFormat:@"%zd.%zd.%zd",
-                    version.majorVersion, version.minorVersion, version.patchVersion];
+      versString = [NSString stringWithFormat:@"%ld.%ld.%ld",
+                    (long)version.majorVersion, (long)version.minorVersion,
+                    (long)version.patchVersion];
 #else
 #pragma unused(procInfo)
 #endif

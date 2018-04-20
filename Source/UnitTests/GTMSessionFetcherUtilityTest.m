@@ -140,10 +140,10 @@
 #pragma clang diagnostic pop
 #if TARGET_OS_IPHONE
   // iOS, tvOS, watchOS
-  NSString *versionStr = [NSString stringWithFormat:@"%zd.%zd",
-                          version.majorVersion, version.minorVersion];
+  NSString *versionStr = [NSString stringWithFormat:@"%ld.%ld",
+                          (long)version.majorVersion, (long)version.minorVersion];
   if (version.patchVersion > 0) {
-    versionStr = [versionStr stringByAppendingFormat:@".%zd", version.patchVersion];
+    versionStr = [versionStr stringByAppendingFormat:@".%ld", (long)version.patchVersion];
   }
   // The simulator result looks like:
   //   com.google.FetcheriOSTests/1.0 iPhone/9.3.1 hw/sim
@@ -160,8 +160,8 @@
 #else
   // macOS
   NSString *expected =
-      [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%zd.%zd.%zd",
-       version.majorVersion, version.minorVersion, version.patchVersion];
+      [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%ld.%ld.%ld",
+       (long)version.majorVersion, (long)version.minorVersion, (long)version.patchVersion];
   XCTAssertEqualObjects(result, expected);
 #endif
 }
