@@ -472,7 +472,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSMutableIndexSet *overloadIndexes = [NSMutableIndexSet indexSet];
 
   for (NSUInteger index = 0; index < kNumberOfFetchersToCreate; index++) {
-    NSString *desc = [NSString stringWithFormat:@"Fetcher %tu", index];
+    NSString *desc = [NSString stringWithFormat:@"Fetcher %lu", (unsigned long)index];
     XCTestExpectation *expectation = [self expectationWithDescription:desc];
 
     dispatch_queue_t queue = queues[index % queues.count];
@@ -496,11 +496,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
               dispatch_queue_get_label(queues[(index / 3) % queues.count]);
           const char *actualQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL);
           XCTAssert(strcmp(actualQueueLabel, expectedQueueLabel) == 0,
-                    @"queue mismatch on index %tu: %s (expected %s)",
-                    index, actualQueueLabel, expectedQueueLabel);
+                    @"queue mismatch on index %lu: %s (expected %s)",
+                    (unsigned long)index, actualQueueLabel, expectedQueueLabel);
 
-          XCTAssertNotNil(fetchData, @"index %tu", index);
-          XCTAssertNil(fetchError, @"index %tu", index);
+          XCTAssertNotNil(fetchData, @"index %lu", (unsigned long)index);
+          XCTAssertNil(fetchError, @"index %lu", (unsigned long)index);
         }
       }];
     });
