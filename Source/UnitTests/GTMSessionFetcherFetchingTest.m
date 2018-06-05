@@ -1537,9 +1537,20 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
 
-      // Download tasks seem to return an NSURLErrorDomain error rather than the
-      // server status, unless I run only this unit test method, in which case it returns
-      // the server status.  TODO: Figure out why the inconsistency.
+      // errorData gets set with http status error only when the client error is nil.
+      // on iOS 8, client error gets returned with URLSession:task:didCompleteWithError:
+      // on iOS 9 and up, client error is nil and the http status error with errorData
+      // gets set in finishWithError:shouldRetry:
+      if (error.domain == kGTMSessionFetcherStatusDomain) {
+        NSData *errorData = error.userInfo[kGTMSessionFetcherStatusDataKey];
+        XCTAssertNotNil(errorData);
+        XCTAssertEqual(errorData.length, (NSUInteger)totalWritten,
+                       @"The length of error data should match the size of totalBytesWritten.");
+      }
+
+
+      // Check for two error codes because of the discrepancy between iOS 8 and iOS 9 plus
+      // described above
       BOOL isExpectedCode = (error.code == NSURLErrorFileDoesNotExist || error.code == 400);
       XCTAssertTrue(isExpectedCode, @"%@", error);
 
