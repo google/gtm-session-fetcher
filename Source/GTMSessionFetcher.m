@@ -53,6 +53,9 @@ static const NSTimeInterval kUnsetMaxRetryInterval = -1.0;
 static const NSTimeInterval kDefaultMaxDownloadRetryInterval = 60.0;
 static const NSTimeInterval kDefaultMaxUploadRetryInterval = 60.0 * 10.;
 
+// The maximum data length that can be loaded to the error userInfo
+static const int64_t kMaximumDownloadErrorDataLength = 20000;
+
 #ifdef GTMSESSION_PERSISTED_DESTINATION_KEY
 // Projects using unique class names should also define a unique persisted destination key.
 static NSString * const kGTMSessionFetcherPersistedDestinationKey =
@@ -145,6 +148,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   NSMutableData * GTM_NULLABLE_TYPE _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;  // immutable after construction
+  NSData * GTM_NULLABLE_TYPE _downloadTaskErrorData; // Data for when download task fails
   NSURL *_destinationFileURL;
   int64_t _downloadedLength;
   NSURLCredential *_credential;     // username & password
@@ -2656,12 +2660,18 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
       // In OS X 10.11, the response body is written to a file even on a server
       // status error.  For convenience of the fetcher client, we'll skip saving the
       // downloaded body to the destination URL so that clients do not need to know
-      // to delete the file following fetch errors. A downside of this is that
-      // the server may have included error details in the response body, and
-      // abandoning the downloaded file here means that the details from the
-      // body are not available to the fetcher client.
+      // to delete the file following fetch errors.
       GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %ld, file %@",
                            (long)statusCode, downloadLocationURL.path);
+
+      // On error code, add the contents of the temporary file to _downloadTaskErrorData
+      // This way fetcher clients have access to error details possibly passed by the server.
+      if (_downloadedLength > 0 && _downloadedLength <= kMaximumDownloadErrorDataLength) {
+        _downloadTaskErrorData = [NSData dataWithContentsOfURL:downloadLocationURL];
+      } else if (_downloadedLength > kMaximumDownloadErrorDataLength) {
+        GTMSESSION_LOG_DEBUG(@"Download error data for file %@ not passed to userInfo due to size "
+                             @"%lld", downloadLocationURL.path, _downloadedLength);
+      }
     } else {
       NSError *moveError;
       NSURL *destinationFolderURL = [destinationURL URLByDeletingLastPathComponent];
@@ -2865,7 +2875,11 @@ didCompleteWithError:(NSError *)error {
           if (_downloadedData.length > 0) {
             NSMutableData *data = _downloadedData;
             userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
+          } else if (_downloadTaskErrorData.length > 0) {
+            NSData *data = _downloadTaskErrorData;
+            userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
           }
+
           error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                       code:status
                                   userInfo:userInfo];
