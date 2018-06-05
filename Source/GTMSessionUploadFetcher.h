@@ -71,7 +71,7 @@ extern NSString *const kGTMSessionFetcherUploadLocationObtainedNotification;
 typedef void (^GTMSessionUploadFetcherDataProviderResponse)(NSData * GTM_NULLABLE_TYPE data,
                                                             int64_t fullUploadLength,
                                                             NSError * GTM_NULLABLE_TYPE error);
-// Do not call the repsonse with an NSData object with less data than the requested length unless
+// Do not call the response with an NSData object with less data than the requested length unless
 // you are passing the fullUploadLength to the fetcher for the first time and it is the last chunk
 // of data in the file being uploaded.
 typedef void (^GTMSessionUploadFetcherDataProvider)(int64_t offset, int64_t length,
