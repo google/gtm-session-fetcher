@@ -109,7 +109,13 @@ static NSString *gLoggingProcessName = nil;
                              withIntermediateDirectories:YES
                                               attributes:nil
                                                    error:NULL];
+        if (doesFolderExist) {
+          // The directory has been created. Exclude it from backups.
+          NSURL *pathURL = [NSURL fileURLWithPath:logsFolderPath isDirectory:YES];
+          [pathURL setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:NULL];
+        }
       }
+
       if (doesFolderExist) {
         // it's there; store it in the global
         gLoggingDirectoryPath = [logsFolderPath copy];
