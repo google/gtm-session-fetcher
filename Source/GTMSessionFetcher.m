@@ -39,6 +39,7 @@ NSString *const kGTMSessionFetcherCompletionErrorKey = @"error";
 NSString *const kGTMSessionFetcherErrorDomain       = @"com.google.GTMSessionFetcher";
 NSString *const kGTMSessionFetcherStatusDomain      = @"com.google.HTTPStatus";
 NSString *const kGTMSessionFetcherStatusDataKey     = @"data";  // data returned with a kGTMSessionFetcherStatusDomain error
+NSString *const kGTMSessionFetcherStatusDataContentTypeKey = @"data_content_type";
 
 NSString *const kGTMSessionFetcherNumberOfRetriesDoneKey        = @"kGTMSessionFetcherNumberOfRetriesDoneKey";
 NSString *const kGTMSessionFetcherElapsedIntervalWithRetriesKey = @"kGTMSessionFetcherElapsedIntervalWithRetriesKey";
@@ -122,6 +123,22 @@ static BOOL IsLocalhost(NSString * GTM_NULLABLE_TYPE host) {
   return ([host caseInsensitiveCompare:@"localhost"] == NSOrderedSame
           || [host isEqual:@"::1"]
           || [host isEqual:@"127.0.0.1"]);
+}
+
+static NSDictionary *GTM_NULLABLE_TYPE GTMErrorUserInfoForData(
+    NSData *GTM_NULLABLE_TYPE data, NSDictionary *GTM_NULLABLE_TYPE responseHeaders) {
+  NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+
+  if (data.length > 0) {
+    userInfo[kGTMSessionFetcherStatusDataKey] = data;
+
+    NSString *contentType = responseHeaders[@"Content-Type"];
+    if (contentType) {
+      userInfo[kGTMSessionFetcherStatusDataContentTypeKey] = contentType;
+    }
+  }
+
+  return userInfo.count > 0 ? userInfo : nil;
 }
 
 static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
@@ -2871,14 +2888,9 @@ didCompleteWithError:(NSError *)error {
       } else {
         if (error == nil) {
           // Create an error.
-          NSDictionary *userInfo = nil;
-          if (_downloadedData.length > 0) {
-            NSMutableData *data = _downloadedData;
-            userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
-          } else if (_downloadTaskErrorData.length > 0) {
-            NSData *data = _downloadTaskErrorData;
-            userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
-          }
+          NSDictionary *userInfo = GTMErrorUserInfoForData(
+              _downloadedData.length > 0 ? _downloadedData : _downloadTaskErrorData,
+              [self responseHeadersUnsynchronized]);
 
           error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                       code:status
@@ -3054,11 +3066,8 @@ didCompleteWithError:(NSError *)error {
     }
     BOOL canRetry = shouldRetryForAuthRefresh || forceAssumeRetry || shouldDoRetry;
     if (canRetry) {
-      NSDictionary *userInfo = nil;
-      if (_downloadedData.length > 0) {
-        NSMutableData *data = _downloadedData;
-        userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
-      }
+      NSDictionary *userInfo =
+          GTMErrorUserInfoForData(_downloadedData, [self responseHeadersUnsynchronized]);
       NSError *statusError = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                                  code:status
                                              userInfo:userInfo];

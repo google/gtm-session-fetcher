@@ -455,6 +455,7 @@ extern NSString *const kGTMSessionFetcherErrorDomain;
 // userInfo dictionary with key kGTMSessionFetcherStatusDataKey.
 extern NSString *const kGTMSessionFetcherStatusDomain;
 extern NSString *const kGTMSessionFetcherStatusDataKey;
+extern NSString *const kGTMSessionFetcherStatusDataContentTypeKey;
 
 // When a fetch fails with an error, these keys are included in the error userInfo
 // dictionary if retries were attempted.
