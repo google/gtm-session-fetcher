@@ -33,6 +33,7 @@ static NSString *const kGTMSessionHeaderXGoogUploadContentLength    = @"X-Goog-U
 static NSString *const kGTMSessionHeaderXGoogUploadContentType      = @"X-Goog-Upload-Content-Type";
 static NSString *const kGTMSessionHeaderXGoogUploadOffset           = @"X-Goog-Upload-Offset";
 static NSString *const kGTMSessionHeaderXGoogUploadProtocol         = @"X-Goog-Upload-Protocol";
+static NSString *const kGTMSessionXGoogUploadProtocolResumable      = @"resumable";
 static NSString *const kGTMSessionHeaderXGoogUploadSizeReceived     = @"X-Goog-Upload-Size-Received";
 static NSString *const kGTMSessionHeaderXGoogUploadStatus           = @"X-Goog-Upload-Status";
 static NSString *const kGTMSessionHeaderXGoogUploadURL              = @"X-Goog-Upload-URL";
@@ -479,7 +480,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                           @"Request and location are mutually exclusive");
   if (!mutableRequest) return;
 
-  [mutableRequest setValue:@"resumable"
+  [mutableRequest setValue:kGTMSessionXGoogUploadProtocolResumable
         forHTTPHeaderField:kGTMSessionHeaderXGoogUploadProtocol];
   [mutableRequest setValue:@"start"
         forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
@@ -1332,11 +1333,17 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [chunkRequest setHTTPMethod:@"PUT"];
 
   // copy the user-agent from the original connection
+  // n.b. that self.request is nil for upload fetchers created with an existing upload location
+  // URL.
   NSURLRequest *origRequest = self.request;
   NSString *userAgent = [origRequest valueForHTTPHeaderField:@"User-Agent"];
   if (userAgent.length > 0) {
     [chunkRequest setValue:userAgent forHTTPHeaderField:@"User-Agent"];
   }
+
+  [chunkRequest setValue:kGTMSessionXGoogUploadProtocolResumable
+      forHTTPHeaderField:kGTMSessionHeaderXGoogUploadProtocol];
+
   // To avoid timeouts when debugging, copy the timeout of the initial fetcher.
   NSTimeInterval origTimeout = [origRequest timeoutInterval];
   [chunkRequest setTimeoutInterval:origTimeout];
