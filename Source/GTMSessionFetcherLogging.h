@@ -23,12 +23,11 @@
 //
 // to begin generating log files.
 //
-// Log files are put into a folder on the desktop called "GTMHTTPDebugLogs"
-// unless another directory is specified with +setLoggingDirectory.
-//
-// In the iPhone simulator, the default logs location is the user's home
-// directory in ~/Library/Application Support.  On the iPhone device, the
-// default logs location is the application's documents directory on the device.
+// Unless explicitly set by the application using +setLoggingDirectory:,
+// logs are put into a default directory, located at:
+//   * macOS: ~/Desktop/GTMHTTPDebugLogs
+//   * iOS simulator: ~/GTMHTTPDebugLogs (in application sandbox)
+//   * iOS device: ~/Documents/GTMHTTPDebugLogs (in application sandbox)
 //
 // Tip: use the Finder's "Sort By Date" to find the most recent logs.
 //
@@ -54,9 +53,15 @@
 
 @interface GTMSessionFetcher (GTMSessionFetcherLogging)
 
-// Note: the default logs directory is ~/Desktop/GTMHTTPDebugLogs; it will be
-// created as needed.  If a custom directory is set, the directory should
-// already exist.
+// Note: on macOS the default logs directory is ~/Desktop/GTMHTTPDebugLogs; on
+// iOS simulators it will be the ~/GTMHTTPDebugLogs (in the app sandbox); on
+// iOS devices it will be in ~/Documents/GTMHTTPDebugLogs (in the app sandbox).
+// These directories will be created as needed, and are excluded from backups
+// to iCloud and iTunes.
+//
+// If a custom directory is set, the directory should already exist. It is
+// the application's responsibility to exclude any custom directory from
+// backups, if desired.
 + (void)setLoggingDirectory:(NSString *)path;
 + (NSString *)loggingDirectory;
 
