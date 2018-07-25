@@ -503,6 +503,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNotNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)400, @"%@", error);
 
+      NSString *statusDataContentType =
+          [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+      XCTAssertEqualObjects(statusDataContentType, @"application/json");
+
       NSData *statusData = [error.userInfo objectForKey:kGTMSessionFetcherStatusDataKey];
       XCTAssertNotNil(statusData, @"Missing data in error");
       if (statusData) {
@@ -1270,6 +1274,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                               encoding:NSUTF8StringEncoding];
     NSInteger code = error.code;
     if (code == 503) {
+      NSString *statusDataContentType =
+        [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+      XCTAssertEqualObjects(statusDataContentType, @"application/json");
       NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:503];
       XCTAssertEqualObjects(dataStr, expectedStr);
     }
@@ -1546,6 +1553,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         XCTAssertNotNil(errorData);
         XCTAssertEqual(errorData.length, (NSUInteger)totalWritten,
                        @"The length of error data should match the size of totalBytesWritten.");
+        XCTAssertNotNil(error.userInfo[kGTMSessionFetcherStatusDataContentTypeKey]);
       }
 
 
