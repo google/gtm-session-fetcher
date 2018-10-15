@@ -13,3 +13,7 @@ script:
   - ./.travis.sh "${MODE}" "${CFG}"
 notifications:
   email: false
+
+branches:
+  except:
+    - google
