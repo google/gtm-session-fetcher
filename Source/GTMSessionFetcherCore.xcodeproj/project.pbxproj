@@ -81,6 +81,7 @@
 		4FEE143B1BB223DE002ACBF8 /* GTMSessionUploadFetcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4FEE143C1BB223DE002ACBF8 /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
 		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
+		7C7EB0172180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */; };
 		8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */; };
 		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
 		8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
@@ -217,6 +218,7 @@
 		4FEE14271BB22328002ACBF8 /* GTMSessionFetcherIOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcherIOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FEE142B1BB22328002ACBF8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = MainStoryboard.storyboard; path = TestApps/FetcheriOSTestApp/MainStoryboard.storyboard; sourceTree = SOURCE_ROOT; };
+		7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherURLSessionDelegateSwapTest.m; path = UnitTests/GTMSessionFetcherURLSessionDelegateSwapTest.m; sourceTree = SOURCE_ROOT; };
 		8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS7.0.sdk/System/Library/Frameworks/CoreGraphics.framework; sourceTree = DEVELOPER_DIR; };
 		8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcheriOSTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EC5669118AAFB1200E2C97D /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
@@ -419,6 +421,7 @@
 				4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */,
 				4F6F7EC518D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m */,
 				4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */,
+				7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */,
 				4FBD7F78186523400048382E /* Data */,
 				4F5566FE1862A17A00D6D62C /* Server */,
 				4F5566D01862981000D6D62C /* Supporting Files */,
@@ -968,6 +971,7 @@
 				4F6F7ECE18D6B60300CA4B4C /* GTMSessionFetcherFetchingTest.m in Sources */,
 				4F6F7ED018D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */,
 				F46D93621D9D4DEB00590137 /* GTMSessionFetcherService.m in Sources */,
+				7C7EB0172180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */,
 				F46D93601D9D4DEB00590137 /* GTMSessionFetcher.m in Sources */,
 				F46D93631D9D4DEB00590137 /* GTMSessionUploadFetcher.m in Sources */,
 				4F63A7AC19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m in Sources */,
