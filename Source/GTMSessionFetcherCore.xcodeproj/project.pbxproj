@@ -81,6 +81,8 @@
 		4FEE143B1BB223DE002ACBF8 /* GTMSessionUploadFetcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4FEE143C1BB223DE002ACBF8 /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
 		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
+		7C6F25E3218372DF003AC4F9 /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */; };
+		7C6F25E4218372E4003AC4F9 /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */; };
 		7C7EB0172180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 7C7EB0162180B44300E7CE2A /* GTMSessionFetcherURLSessionDelegateSwapTest.m */; };
 		8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */; };
 		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
@@ -901,6 +903,7 @@
 				4F6F7ECF18D6B60300CA4B4C /* GTMSessionFetcherServiceTest.m in Sources */,
 				4FE52ABC18D7A37000C78136 /* GTMGatherInputStreamTest.m in Sources */,
 				F493FADE1D9C5B5900F6D5DC /* GTMSessionFetcherService.m in Sources */,
+				7C6F25E3218372DF003AC4F9 /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */,
 				F493FADC1D9C5B5900F6D5DC /* GTMSessionFetcher.m in Sources */,
 				F493FADF1D9C5B5900F6D5DC /* GTMSessionUploadFetcher.m in Sources */,
 				4F6F7EC718D6B60300CA4B4C /* GTMMIMEDocumentTest.m in Sources */,
@@ -1010,6 +1013,7 @@
 				F4A872291DA3EEF900D69E09 /* GTMSessionFetcherLogging.m in Sources */,
 				F4A8722E1DA3EF3900D69E09 /* GTMReadMonitorInputStreamTest.m in Sources */,
 				F4A872321DA3EF3900D69E09 /* GTMSessionFetcherServiceTest.m in Sources */,
+				7C6F25E4218372E4003AC4F9 /* GTMSessionFetcherURLSessionDelegateSwapTest.m in Sources */,
 				F4A872261DA3EEF900D69E09 /* GTMMIMEDocument.m in Sources */,
 				F4A872271DA3EEF900D69E09 /* GTMReadMonitorInputStream.m in Sources */,
 				F4A8722C1DA3EF3900D69E09 /* GTMGatherInputStreamTest.m in Sources */,
