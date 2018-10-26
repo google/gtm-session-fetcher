@@ -110,6 +110,8 @@
     }];
     
     [self waitForExpectations:@[swizzleDidActuallyHappenExpectaion] timeout:1];
+    
+    [fetcher stopFetching];
 }
 
 @end
