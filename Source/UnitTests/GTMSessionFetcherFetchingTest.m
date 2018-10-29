@@ -27,6 +27,11 @@ static NSString *const kExpiredBearerValue = @"Bearer expired";
 // The test file available in the Tests/Data folder.
 NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
+@interface GTMSessionFetcher (ExposedForTesting)
++ (NSURL *)redirectURLWithOriginalRequestURL:(NSURL *)originalRequestURL
+                          redirectRequestURL:(NSURL *)redirectRequestURL;
+@end
+
 // Base class for fetcher and chunked upload tests.
 @implementation GTMSessionFetcherBaseTest
 
@@ -2391,6 +2396,30 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testFetcherGlobalTestBlock_WithoutFetcherService {
   _fetcherService = nil;
   [self testFetcherGlobalTestBlock];
+}
+
+#pragma mark - Redirect URL Tests
+
+// Test building the redirect URL from the original request URL and redirect request URL to ensure
+// that any scheme changes aside from "http" to "https" are disallowed.
+- (void)testFetcherRedirectURLHandling {
+  NSArray<NSArray<NSString *> *> *testCases = @[
+    @[ @"http://original_host/", @"http://redirect_host/", @"http://redirect_host/" ],
+    @[ @"https://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
+    // Insecure to secure = allowed.
+    @[ @"http://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
+    // Secure to insecure = disallowed.
+    @[ @"https://original_host/", @"http://redirect_host/", @"https://redirect_host/" ],
+    // Arbitrary change = disallowed.
+    @[ @"http://original_host/", @"fake://redirect_host/", @"http://redirect_host/" ],
+  ];
+
+  for (NSArray<NSString *> *testCase in testCases) {
+    NSURL *redirectURL =
+        [GTMSessionFetcher redirectURLWithOriginalRequestURL:[NSURL URLWithString:testCase[0]]
+                                          redirectRequestURL:[NSURL URLWithString:testCase[1]]];
+    XCTAssertEqualObjects(redirectURL, [NSURL URLWithString:testCase[2]]);
+  }
 }
 
 #pragma mark - Utilities
