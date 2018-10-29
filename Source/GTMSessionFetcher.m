@@ -2060,28 +2060,9 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
     NSURLRequest *originalRequest = self.request;
     NSMutableURLRequest *newRequest = [originalRequest mutableCopy];
 
-    // Disallow scheme changes (say, from https to http).
-    NSURL *originalRequestURL = originalRequest.URL;
-    NSURL *redirectRequestURL = redirectRequest.URL;
-
-    NSString *originalScheme = originalRequestURL.scheme;
-    NSString *redirectScheme = redirectRequestURL.scheme;
-
-    if (originalScheme != nil
-        && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame
-        && redirectScheme != nil
-        && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame) {
-      // Allow the change from http to https.
-    } else {
-      // Disallow any other scheme changes.
-      redirectScheme = originalScheme;
-    }
     // The new requests's URL overrides the original's URL.
-    NSURLComponents *components = [NSURLComponents componentsWithURL:redirectRequestURL
-                                             resolvingAgainstBaseURL:NO];
-    components.scheme = redirectScheme;
-    NSURL *newURL = components.URL;
-    [newRequest setURL:newURL];
+    [newRequest setURL:[GTMSessionFetcher redirectURLWithOriginalRequestURL:originalRequest.URL
+                                                         redirectRequestURL:redirectRequest.URL]];
 
     // Any headers in the redirect override headers in the original.
     NSDictionary *redirectHeaders = redirectRequest.allHTTPHeaderFields;
@@ -2283,6 +2264,32 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
       handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
     }
   }  // @synchronized(self)
+}
+
+// Return redirect URL based on the original request URL and redirect request URL.
+//
+// Method disallows any scheme changes between the original request URL and redirect request URL
+// aside from "http" to "https". If a change in scheme is detected the redirect URL inherits the
+// scheme from the original request URL.
++ (NSURL *)redirectURLWithOriginalRequestURL:(NSURL *)originalRequestURL
+                          redirectRequestURL:(NSURL *)redirectRequestURL {
+  NSString *originalScheme = originalRequestURL.scheme;
+  NSString *redirectScheme = redirectRequestURL.scheme;
+  BOOL insecureToSecureRedirect =
+      (originalScheme != nil && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame &&
+       redirectScheme != nil && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
+
+  // Check for changes to the scheme and disallow any changes except for http to https.
+  if (!insecureToSecureRedirect &&
+      (redirectScheme.length != originalScheme.length ||
+       [redirectScheme caseInsensitiveCompare:originalScheme] != NSOrderedSame)) {
+    NSURLComponents *components = [NSURLComponents componentsWithURL:redirectRequestURL
+                                             resolvingAgainstBaseURL:NO];
+    components.scheme = originalScheme;
+    return components.URL;
+  } else {
+    return redirectRequestURL;
+  }
 }
 
 // Validate the certificate chain.
