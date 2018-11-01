@@ -123,7 +123,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 - (NSInteger)tableView:(UITableView *)tableView
  numberOfRowsInSection:(NSInteger)section {
-  return [logsFolderURLs_ count];
+  return (NSInteger)logsFolderURLs_.count;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView
@@ -136,7 +136,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     [cell.textLabel setAdjustsFontSizeToFitWidth:YES];
   }
 
-  NSURL *url = [logsFolderURLs_ objectAtIndex:indexPath.row];
+  NSURL *url = logsFolderURLs_[(NSUInteger)indexPath.row];
   cell.textLabel.text = [self shortenedNameForURL:url];
 
   return cell;
@@ -146,7 +146,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 - (void)tableView:(UITableView *)tableView
     didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-  NSURL *folderURL = [logsFolderURLs_ objectAtIndex:indexPath.row];
+  NSURL *folderURL = logsFolderURLs_[(NSUInteger)indexPath.row];
   NSString *htmlName = [GTMSessionFetcher htmlFileName];
   NSURL *htmlURL = [folderURL URLByAppendingPathComponent:htmlName isDirectory:NO];
 
@@ -167,9 +167,9 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     commitEditingStyle:(UITableViewCellEditingStyle)editingStyle
      forRowAtIndexPath:(NSIndexPath *)indexPath {
   if (UITableViewCellEditingStyleDelete == editingStyle) {
-    NSURL *folderURL = [logsFolderURLs_ objectAtIndex:indexPath.row];
+    NSURL *folderURL = logsFolderURLs_[(NSUInteger)indexPath.row];
     if ([[NSFileManager defaultManager] removeItemAtURL:folderURL error:NULL]) {
-      [logsFolderURLs_ removeObjectAtIndex:indexPath.row];
+      [logsFolderURLs_ removeObjectAtIndex:(NSUInteger)indexPath.row];
       [tableView deleteRowsAtIndexPaths:@[indexPath]
                        withRowAnimation:UITableViewRowAnimationAutomatic];
     }
