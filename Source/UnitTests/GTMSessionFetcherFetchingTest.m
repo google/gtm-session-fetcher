@@ -899,7 +899,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   // All we're testing is that the code path for use of the challenge block is exercised;
   // actual behavior of the disposition is up to NSURLSession and the test server.
-  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
                              NSURLAuthenticationChallenge *challenge,
                              GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
     dispositionBlock(NSURLSessionAuthChallengeUseCredential, goodCredential);
@@ -1979,7 +1979,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSError *fakedResultError = nil;
 
   __block NSURLAuthenticationChallenge *challengePresented;
-  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
                              NSURLAuthenticationChallenge *challenge,
                              GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
     challengePresented = challenge;

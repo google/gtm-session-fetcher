@@ -681,12 +681,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.allowLocalhostRequest = YES;
 
   BOOL (^shouldRetryUpload)(GTMSessionUploadFetcher *, BOOL, NSError *) =
-      ^BOOL(GTMSessionUploadFetcher *fetcher, BOOL suggestedWillRetry, NSError *error) {
+      ^BOOL(GTMSessionUploadFetcher *blockFetcher, BOOL suggestedWillRetry, NSError *error) {
         // Change this fetch's request to have the original, non-failure status URL.
         // This will make the retry succeed.
-        NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
+        NSMutableURLRequest *mutableRequest = [blockFetcher mutableRequestForTesting];
         mutableRequest.URL = originalURL;
-        fetcher.uploadLocationURL = originalURL;
+        blockFetcher.uploadLocationURL = originalURL;
 
         return suggestedWillRetry;  // do the retry fetch; it should succeed now
       };
