@@ -28,8 +28,8 @@ static NSString *const kExpiredBearerValue = @"Bearer expired";
 NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 @interface GTMSessionFetcher (ExposedForTesting)
-+ (NSURL *)redirectURLWithOriginalRequestURL:(NSURL *)originalRequestURL
-                          redirectRequestURL:(NSURL *)redirectRequestURL;
++ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
+                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL;
 @end
 
 // Base class for fetcher and chunked upload tests.
@@ -2412,6 +2412,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     @[ @"https://original_host/", @"http://redirect_host/", @"https://redirect_host/" ],
     // Arbitrary change = disallowed.
     @[ @"http://original_host/", @"fake://redirect_host/", @"http://redirect_host/" ],
+    // Validate the behavior of nil URLs in the redirect. This should not happen under
+    // real conditions, but if one of the redirect URLs are nil, the other one should
+    // always be returned. For these tests, use a string that will not parse to a URL
+    // due to invalid characters (the backslash \).
+    @[ @"invalid:\\url", @"https://redirect_host/", @"https://redirect_host/" ],
+    @[ @"http://original_host/", @"invalid:\\url", @"http://original_host/" ],
   ];
 
   for (NSArray<NSString *> *testCase in testCases) {

@@ -2271,8 +2271,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
 // Method disallows any scheme changes between the original request URL and redirect request URL
 // aside from "http" to "https". If a change in scheme is detected the redirect URL inherits the
 // scheme from the original request URL.
-+ (NSURL *)redirectURLWithOriginalRequestURL:(NSURL *)originalRequestURL
-                          redirectRequestURL:(NSURL *)redirectRequestURL {
++ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
+                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL {
+  // In the case of an NSURLSession redirect, neither URL should ever be nil; as a sanity check
+  // if either is nil return the other URL.
+  if (!redirectRequestURL) return originalRequestURL;
+  if (!originalRequestURL) return redirectRequestURL;
+
   NSString *originalScheme = originalRequestURL.scheme;
   NSString *redirectScheme = redirectRequestURL.scheme;
   BOOL insecureToSecureRedirect =
@@ -2283,13 +2288,14 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   if (!insecureToSecureRedirect &&
       (redirectScheme.length != originalScheme.length ||
        [redirectScheme caseInsensitiveCompare:originalScheme] != NSOrderedSame)) {
-    NSURLComponents *components = [NSURLComponents componentsWithURL:redirectRequestURL
-                                             resolvingAgainstBaseURL:NO];
+    NSURLComponents *components =
+        [NSURLComponents componentsWithURL:(NSURL * _Nonnull)redirectRequestURL
+                   resolvingAgainstBaseURL:NO];
     components.scheme = originalScheme;
     return components.URL;
-  } else {
-    return redirectRequestURL;
   }
+
+  return redirectRequestURL;
 }
 
 // Validate the certificate chain.
