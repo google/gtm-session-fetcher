@@ -4525,7 +4525,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
   }
 }
 
-#if DEBUG
+#if DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
 @implementation GTMSessionSyncMonitorInternal {
   NSValue *_objectKey;        // The synchronize target object.
   const char *_functionName;  // The function containing the monitored sync block.
@@ -4595,5 +4595,5 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
   return functionNamesCounter.count > 0 ? functionNamesCounter.allObjects : nil;
 }
 @end
-#endif  // DEBUG
+#endif  // DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
 GTM_ASSUME_NONNULL_END
