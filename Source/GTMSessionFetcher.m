@@ -302,15 +302,6 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                   configuration:(GTM_NULLABLE NSURLSessionConfiguration *)configuration {
   self = [super init];
   if (self) {
-    if (![NSURLSession class]) {
-      Class oldFetcherClass = NSClassFromString(@"GTMHTTPFetcher");
-      if (oldFetcherClass && request) {
-        self = [[oldFetcherClass alloc] initWithRequest:(NSURLRequest *)request];
-      } else {
-        self = nil;
-      }
-      return self;
-    }
 #if GTM_BACKGROUND_TASK_FETCHING
     _backgroundTaskIdentifier = UIBackgroundTaskInvalid;
 #endif
