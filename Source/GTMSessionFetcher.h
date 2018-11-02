@@ -1247,7 +1247,11 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // can catch those.
 
 #ifdef __OBJC__
-#if DEBUG
+// If asserts are entirely no-ops, the synchronization monitor is just a bunch
+// of counting code that doesn't report exceptional circumstances in any way.
+// Only build the synchronization monitor code if NS_BLOCK_ASSERTIONS is not
+// defined or asserts are being logged instead.
+#if DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
   #define __GTMSessionMonitorSynchronizedVariableInner(varname, counter) \
       varname ## counter
   #define __GTMSessionMonitorSynchronizedVariable(varname, counter)  \
