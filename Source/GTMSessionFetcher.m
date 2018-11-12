@@ -39,6 +39,7 @@ NSString *const kGTMSessionFetcherCompletionErrorKey = @"error";
 NSString *const kGTMSessionFetcherErrorDomain       = @"com.google.GTMSessionFetcher";
 NSString *const kGTMSessionFetcherStatusDomain      = @"com.google.HTTPStatus";
 NSString *const kGTMSessionFetcherStatusDataKey     = @"data";  // data returned with a kGTMSessionFetcherStatusDomain error
+NSString *const kGTMSessionFetcherStatusDataContentTypeKey = @"data_content_type";
 
 NSString *const kGTMSessionFetcherNumberOfRetriesDoneKey        = @"kGTMSessionFetcherNumberOfRetriesDoneKey";
 NSString *const kGTMSessionFetcherElapsedIntervalWithRetriesKey = @"kGTMSessionFetcherElapsedIntervalWithRetriesKey";
@@ -52,6 +53,9 @@ static NSString *const kGTMSessionIdentifierBodyFileURLMetadataKey        = @"_b
 static const NSTimeInterval kUnsetMaxRetryInterval = -1.0;
 static const NSTimeInterval kDefaultMaxDownloadRetryInterval = 60.0;
 static const NSTimeInterval kDefaultMaxUploadRetryInterval = 60.0 * 10.;
+
+// The maximum data length that can be loaded to the error userInfo
+static const int64_t kMaximumDownloadErrorDataLength = 20000;
 
 #ifdef GTMSESSION_PERSISTED_DESTINATION_KEY
 // Projects using unique class names should also define a unique persisted destination key.
@@ -89,7 +93,7 @@ GTM_ASSUME_NONNULL_END
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
-// Should always be accessed within an @synchranized(self).
+// Should always be accessed within an @synchronized(self).
 @property(assign, nonatomic) UIBackgroundTaskIdentifier backgroundTaskIdentifier;
 #endif
 
@@ -121,6 +125,22 @@ static BOOL IsLocalhost(NSString * GTM_NULLABLE_TYPE host) {
           || [host isEqual:@"127.0.0.1"]);
 }
 
+static NSDictionary *GTM_NULLABLE_TYPE GTMErrorUserInfoForData(
+    NSData *GTM_NULLABLE_TYPE data, NSDictionary *GTM_NULLABLE_TYPE responseHeaders) {
+  NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+
+  if (data.length > 0) {
+    userInfo[kGTMSessionFetcherStatusDataKey] = data;
+
+    NSString *contentType = responseHeaders[@"Content-Type"];
+    if (contentType) {
+      userInfo[kGTMSessionFetcherStatusDataContentTypeKey] = contentType;
+    }
+  }
+
+  return userInfo.count > 0 ? userInfo : nil;
+}
+
 static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 @implementation GTMSessionFetcher {
@@ -145,6 +165,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   NSMutableData * GTM_NULLABLE_TYPE _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;  // immutable after construction
+  NSData * GTM_NULLABLE_TYPE _downloadTaskErrorData; // Data for when download task fails
   NSURL *_destinationFileURL;
   int64_t _downloadedLength;
   NSURLCredential *_credential;     // username & password
@@ -281,15 +302,6 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                   configuration:(GTM_NULLABLE NSURLSessionConfiguration *)configuration {
   self = [super init];
   if (self) {
-    if (![NSURLSession class]) {
-      Class oldFetcherClass = NSClassFromString(@"GTMHTTPFetcher");
-      if (oldFetcherClass && request) {
-        self = [[oldFetcherClass alloc] initWithRequest:(NSURLRequest *)request];
-      } else {
-        self = nil;
-      }
-      return self;
-    }
 #if GTM_BACKGROUND_TASK_FETCHING
     _backgroundTaskIdentifier = UIBackgroundTaskInvalid;
 #endif
@@ -430,8 +442,9 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   // NSOperationQueueDefaultMaxConcurrentOperationCount (-1), to avoid the additional complexity
   // of simultaneous or out-of-order delegate callbacks.
   GTMSESSION_ASSERT_DEBUG(_delegateQueue.maxConcurrentOperationCount == 1,
-                          @"delegate queue %@ should support one concurrent operation, not %zd",
-                          _delegateQueue.name, _delegateQueue.maxConcurrentOperationCount);
+                          @"delegate queue %@ should support one concurrent operation, not %ld",
+                          _delegateQueue.name,
+                          (long)_delegateQueue.maxConcurrentOperationCount);
 
   if (!_initialBeginFetchDate) {
     // This ivar is set only here on the initial beginFetch so need not be synchronized.
@@ -583,8 +596,13 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         // +backgroundSessionConfiguration: on iOS 8.
         if ([NSURLSessionConfiguration respondsToSelector:@selector(backgroundSessionConfigurationWithIdentifier:)]) {
           // Running on iOS 8+/OS X 10.10+.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
           _configuration =
               [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
+#pragma clang diagnostic pop
         } else {
           // Running on iOS 7/OS X 10.9.
           _configuration =
@@ -750,8 +768,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   if (_downloadResumeData) {
     newSessionTask = [_session downloadTaskWithResumeData:_downloadResumeData];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
-        @"Failed downloadTaskWithResumeData for %@, resume data %tu bytes",
-        _session, _downloadResumeData.length);
+        @"Failed downloadTaskWithResumeData for %@, resume data %lu bytes",
+        _session, (unsigned long)_downloadResumeData.length);
   } else if (_destinationFileURL && !isDataRequest) {
     newSessionTask = [_session downloadTaskWithRequest:fetchRequest];
     GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask, @"Failed downloadTaskWithRequest for %@, %@",
@@ -774,8 +792,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       newSessionTask = [_session uploadTaskWithRequest:fetchRequest
                                             fromData:(NSData * GTM_NONNULL_TYPE)_bodyData];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(newSessionTask,
-          @"Failed uploadTaskWithRequest for %@, %@, body data %tu bytes",
-          _session, fetchRequest, _bodyData.length);
+          @"Failed uploadTaskWithRequest for %@, %@, body data %lu bytes",
+          _session, fetchRequest, (unsigned long)_bodyData.length);
     }
     needsDataAccumulator = YES;
   } else {
@@ -809,7 +827,12 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     BOOL hasTaskPriority = [newSessionTask respondsToSelector:@selector(setPriority:)];
 #endif
     if (hasTaskPriority) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
       newSessionTask.priority = _taskPriority;
+#pragma clang diagnostic pop
     }
   }
 
@@ -930,9 +953,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       // Callback from test block.
       if (response == nil && responseData == nil && error == nil) {
         // Assume the fetcher should execute rather than be tested.
-        _testBlock = nil;
-        _isUsingTestBlock = NO;
-        [_sessionTask resume];
+        self->_testBlock = nil;
+        self->_isUsingTestBlock = NO;
+        [self->_sessionTask resume];
         return;
       }
 
@@ -962,7 +985,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
         NSURL *bodyFileURL = self.bodyFileURL;
         if (bodyFileURL) {
           NSError *readError;
-          _bodyData = [NSData dataWithContentsOfURL:bodyFileURL
+          self->_bodyData = [NSData dataWithContentsOfURL:bodyFileURL
                                             options:NSDataReadingMappedIfSafe
                                               error:&readError];
           error = readError;
@@ -975,7 +998,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
         // delaying callbacks here at least to the next spin of the run loop.  That keeps
         // immediate, synchronous setting of callback blocks after beginFetch working in tests.
         dispatch_async(dispatch_get_main_queue(), ^{
-          [self simulateDataCallbacksForTestBlockWithBodyData:_bodyData
+          [self simulateDataCallbacksForTestBlockWithBodyData:self->_bodyData
                                                      response:response
                                                  responseData:responseData
                                                         error:error];
@@ -1028,7 +1051,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     if (willRedirectBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-          willRedirectBlock((NSHTTPURLResponse *)response, _request,
+          willRedirectBlock((NSHTTPURLResponse *)response, self->_request,
                              ^(NSURLRequest *redirectRequest) {
               // For simulation, we'll assume the app will just continue.
           });
@@ -1043,8 +1066,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     if (_challengeBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-        if (_challengeBlock) {
-          NSURL *requestURL = _request.URL;
+        if (self->_challengeBlock) {
+          NSURL *requestURL = self->_request.URL;
           NSString *host = requestURL.host;
           NSURLProtectionSpace *pspace =
               [[NSURLProtectionSpace alloc] initWithHost:host
@@ -1061,7 +1084,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                                             failureResponse:nil
                                                                       error:nil
                                                                      sender:unusedSender];
-          _challengeBlock(self, challenge, ^(NSURLSessionAuthChallengeDisposition disposition,
+          self->_challengeBlock(self, challenge, ^(NSURLSessionAuthChallengeDisposition disposition,
                                              NSURLCredential * GTM_NULLABLE_TYPE credential){
             // We could change the responseData and responseError based on the disposition,
             // but it's easier for apps to just supply the expected data and error
@@ -1812,7 +1835,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                          afterUserStopped:YES
                                     block:^{
                   resumeBlock(resumeData);
-                  dispatch_group_leave(_callbackGroup);
+                  dispatch_group_leave(self->_callbackGroup);
               }];
           }];
         }
@@ -2028,28 +2051,9 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
     NSURLRequest *originalRequest = self.request;
     NSMutableURLRequest *newRequest = [originalRequest mutableCopy];
 
-    // Disallow scheme changes (say, from https to http).
-    NSURL *originalRequestURL = originalRequest.URL;
-    NSURL *redirectRequestURL = redirectRequest.URL;
-
-    NSString *originalScheme = originalRequestURL.scheme;
-    NSString *redirectScheme = redirectRequestURL.scheme;
-
-    if (originalScheme != nil
-        && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame
-        && redirectScheme != nil
-        && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame) {
-      // Allow the change from http to https.
-    } else {
-      // Disallow any other scheme changes.
-      redirectScheme = originalScheme;
-    }
     // The new requests's URL overrides the original's URL.
-    NSURLComponents *components = [NSURLComponents componentsWithURL:redirectRequestURL
-                                             resolvingAgainstBaseURL:NO];
-    components.scheme = redirectScheme;
-    NSURL *newURL = components.URL;
-    [newRequest setURL:newURL];
+    [newRequest setURL:[GTMSessionFetcher redirectURLWithOriginalRequestURL:originalRequest.URL
+                                                         redirectRequestURL:redirectRequest.URL]];
 
     // Any headers in the redirect override headers in the original.
     NSDictionary *redirectHeaders = redirectRequest.allHTTPHeaderFields;
@@ -2105,14 +2109,14 @@ didReceiveResponse:(NSURLResponse *)response
       @synchronized(self) {
         GTMSessionMonitorSynchronized(self);
 
-        BOOL hadPreviousData = _downloadedLength > 0;
+        BOOL hadPreviousData = self->_downloadedLength > 0;
 
-        [_downloadedData setLength:0];
-        _downloadedLength = 0;
+        [self->_downloadedData setLength:0];
+        self->_downloadedLength = 0;
 
         if (hadPreviousData && (dispositionValue != NSURLSessionResponseCancel)) {
           // Tell the accumulate block to discard prior data.
-          GTMSessionFetcherAccumulateDataBlock accumulateBlock = _accumulateDataBlock;
+          GTMSessionFetcherAccumulateDataBlock accumulateBlock = self->_accumulateDataBlock;
           if (accumulateBlock) {
             [self invokeOnCallbackQueueUnlessStopped:^{
                 accumulateBlock(nil);
@@ -2210,7 +2214,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
               NSURLCredential *trustCredential = [NSURLCredential credentialForTrust:trustRef];
               handler(NSURLSessionAuthChallengeUseCredential, trustCredential);
             } else {
-              GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", _request.URL);
+              GTMSESSION_LOG_DEBUG(@"Cancelling authentication challenge for %@", self->_request.URL);
               handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
             }
           };
@@ -2251,6 +2255,38 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
       handler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
     }
   }  // @synchronized(self)
+}
+
+// Return redirect URL based on the original request URL and redirect request URL.
+//
+// Method disallows any scheme changes between the original request URL and redirect request URL
+// aside from "http" to "https". If a change in scheme is detected the redirect URL inherits the
+// scheme from the original request URL.
++ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
+                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL {
+  // In the case of an NSURLSession redirect, neither URL should ever be nil; as a sanity check
+  // if either is nil return the other URL.
+  if (!redirectRequestURL) return originalRequestURL;
+  if (!originalRequestURL) return redirectRequestURL;
+
+  NSString *originalScheme = originalRequestURL.scheme;
+  NSString *redirectScheme = redirectRequestURL.scheme;
+  BOOL insecureToSecureRedirect =
+      (originalScheme != nil && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame &&
+       redirectScheme != nil && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
+
+  // Check for changes to the scheme and disallow any changes except for http to https.
+  if (!insecureToSecureRedirect &&
+      (redirectScheme.length != originalScheme.length ||
+       [redirectScheme caseInsensitiveCompare:originalScheme] != NSOrderedSame)) {
+    NSURLComponents *components =
+        [NSURLComponents componentsWithURL:(NSURL * _Nonnull)redirectRequestURL
+                   resolvingAgainstBaseURL:NO];
+    components.scheme = originalScheme;
+    return components.URL;
+  }
+
+  return redirectRequestURL;
 }
 
 // Validate the certificate chain.
@@ -2343,13 +2379,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
         if (!afterStopped) {
-          NSDate *serviceStoppedAllDate = [_service stoppedAllFetchersDate];
+          NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
           @synchronized(self) {
             GTMSessionMonitorSynchronized(self);
 
             // Avoid a race between stopFetching and the callback.
-            if (_userStoppedFetching) {
+            if (self->_userStoppedFetching) {
               return;
             }
 
@@ -2359,7 +2395,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
             // but the app still won't expect the callback to fire after
             // the service's stopAllFetchers was invoked.
             if (serviceStoppedAllDate
-                && [_initialBeginFetchDate compare:serviceStoppedAllDate] != NSOrderedDescending) {
+                && [self->_initialBeginFetchDate compare:serviceStoppedAllDate] != NSOrderedDescending) {
               // stopAllFetchers was called after this fetcher began.
               return;
             }
@@ -2475,7 +2511,7 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
       @synchronized(self) {
         GTMSessionMonitorSynchronized(self);
 
-        progressBlock = _sendProgressBlock;
+        progressBlock = self->_sendProgressBlock;
       }
       if (progressBlock) {
         progressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
@@ -2529,10 +2565,10 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
             @synchronized(self) {
               GTMSessionMonitorSynchronized(self);
 
-              progressBlock = _receivedProgressBlock;
+              progressBlock = self->_receivedProgressBlock;
             }
             if (progressBlock) {
-              progressBlock((int64_t)bufferLength, _downloadedLength);
+              progressBlock((int64_t)bufferLength, self->_downloadedLength);
             }
         }];
       }
@@ -2593,7 +2629,7 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
       @synchronized(self) {
         GTMSessionMonitorSynchronized(self);
 
-        progressBlock = _downloadProgressBlock;
+        progressBlock = self->_downloadProgressBlock;
       }
       if (progressBlock) {
         progressBlock(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
@@ -2645,12 +2681,18 @@ didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
       // In OS X 10.11, the response body is written to a file even on a server
       // status error.  For convenience of the fetcher client, we'll skip saving the
       // downloaded body to the destination URL so that clients do not need to know
-      // to delete the file following fetch errors. A downside of this is that
-      // the server may have included error details in the response body, and
-      // abandoning the downloaded file here means that the details from the
-      // body are not available to the fetcher client.
-      GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %zd, file %@",
-                           statusCode, downloadLocationURL.path);
+      // to delete the file following fetch errors.
+      GTMSESSION_LOG_DEBUG(@"Abandoning download due to status %ld, file %@",
+                           (long)statusCode, downloadLocationURL.path);
+
+      // On error code, add the contents of the temporary file to _downloadTaskErrorData
+      // This way fetcher clients have access to error details possibly passed by the server.
+      if (_downloadedLength > 0 && _downloadedLength <= kMaximumDownloadErrorDataLength) {
+        _downloadTaskErrorData = [NSData dataWithContentsOfURL:downloadLocationURL];
+      } else if (_downloadedLength > kMaximumDownloadErrorDataLength) {
+        GTMSESSION_LOG_DEBUG(@"Download error data for file %@ not passed to userInfo due to size "
+                             @"%lld", downloadLocationURL.path, _downloadedLength);
+      }
     } else {
       NSError *moveError;
       NSURL *destinationFolderURL = [destinationURL URLByDeletingLastPathComponent];
@@ -2850,11 +2892,10 @@ didCompleteWithError:(NSError *)error {
       } else {
         if (error == nil) {
           // Create an error.
-          NSDictionary *userInfo = nil;
-          if (_downloadedData.length > 0) {
-            NSMutableData *data = _downloadedData;
-            userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
-          }
+          NSDictionary *userInfo = GTMErrorUserInfoForData(
+              _downloadedData.length > 0 ? _downloadedData : _downloadTaskErrorData,
+              [self responseHeadersUnsynchronized]);
+
           error = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                       code:status
                                   userInfo:userInfo];
@@ -3029,11 +3070,8 @@ didCompleteWithError:(NSError *)error {
     }
     BOOL canRetry = shouldRetryForAuthRefresh || forceAssumeRetry || shouldDoRetry;
     if (canRetry) {
-      NSDictionary *userInfo = nil;
-      if (_downloadedData.length > 0) {
-        NSMutableData *data = _downloadedData;
-        userInfo = @{ kGTMSessionFetcherStatusDataKey : data };
-      }
+      NSDictionary *userInfo =
+          GTMErrorUserInfoForData(_downloadedData, [self responseHeadersUnsynchronized]);
       NSError *statusError = [NSError errorWithDomain:kGTMSessionFetcherStatusDomain
                                                  code:status
                                              userInfo:userInfo];
@@ -4387,9 +4425,15 @@ NSString *GTMFetcherSystemVersionString(void) {
     if (hasOperatingSystemVersion) {
 #if defined(MAC_OS_X_VERSION_10_10)
       // A reference to NSOperatingSystemVersion requires the 10.10 SDK.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability"
+// Disable unguarded availability warning as we can't use the @availability macro until we require
+// all clients to build with Xcode 9 or above.
       NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
-      versString = [NSString stringWithFormat:@"%zd.%zd.%zd",
-                    version.majorVersion, version.minorVersion, version.patchVersion];
+#pragma clang diagnostic pop
+      versString = [NSString stringWithFormat:@"%ld.%ld.%ld",
+                    (long)version.majorVersion, (long)version.minorVersion,
+                    (long)version.patchVersion];
 #else
 #pragma unused(procInfo)
 #endif
@@ -4481,7 +4525,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
   }
 }
 
-#if DEBUG
+#if DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
 @implementation GTMSessionSyncMonitorInternal {
   NSValue *_objectKey;        // The synchronize target object.
   const char *_functionName;  // The function containing the monitored sync block.
@@ -4518,7 +4562,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
       functionNamesCounter = [NSCountedSet set];
       counters[_objectKey] = functionNamesCounter;
     }
-    [functionNamesCounter addObject:@(functionName)];
+    [functionNamesCounter addObject:(id _Nonnull)@(functionName)];
   }
   return self;
 }
@@ -4551,5 +4595,5 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
   return functionNamesCounter.count > 0 ? functionNamesCounter.allObjects : nil;
 }
 @end
-#endif  // DEBUG
+#endif  // DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
 GTM_ASSUME_NONNULL_END

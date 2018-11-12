@@ -27,6 +27,11 @@ static NSString *const kExpiredBearerValue = @"Bearer expired";
 // The test file available in the Tests/Data folder.
 NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
+@interface GTMSessionFetcher (ExposedForTesting)
++ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
+                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL;
+@end
+
 // Base class for fetcher and chunked upload tests.
 @implementation GTMSessionFetcherBaseTest
 
@@ -496,19 +501,23 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher = [self fetcherWithURLString:statusURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *statusStr = [[_testServer class] JSONBodyStringForStatus:400];
+      NSString *statusStr = [[self->_testServer class] JSONBodyStringForStatus:400];
       NSData *errorBodyData = [statusStr dataUsingEncoding:NSUTF8StringEncoding];
       XCTAssertEqualObjects(data, errorBodyData);
 
       XCTAssertNotNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)400, @"%@", error);
 
+      NSString *statusDataContentType =
+          [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+      XCTAssertEqualObjects(statusDataContentType, @"application/json");
+
       NSData *statusData = [error.userInfo objectForKey:kGTMSessionFetcherStatusDataKey];
       XCTAssertNotNil(statusData, @"Missing data in error");
       if (statusData) {
         NSString *dataStr = [[NSString alloc] initWithData:statusData
                                                   encoding:NSUTF8StringEncoding];
-        NSString *expectedStr = [[_testServer class] JSONBodyStringForStatus:400];
+        NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:400];
         XCTAssertEqualObjects(dataStr, expectedStr, @"Expected JSON status data");
       }
   }];
@@ -792,7 +801,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -814,7 +823,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -837,7 +846,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       XCTAssertEqual(error.code, (NSInteger)NSURLErrorCancelled, @"%@", error);
-      XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
+      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -890,7 +899,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   // All we're testing is that the code path for use of the challenge block is exercised;
   // actual behavior of the disposition is up to NSURLSession and the test server.
-  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
                              NSURLAuthenticationChallenge *challenge,
                              GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
     dispositionBlock(NSURLSessionAuthChallengeUseCredential, goodCredential);
@@ -902,7 +911,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                 data:data
                                                error:error];
-    XCTAssertEqual(_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+    XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
   }];
   XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -1270,7 +1279,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                               encoding:NSUTF8StringEncoding];
     NSInteger code = error.code;
     if (code == 503) {
-      NSString *expectedStr = [[_testServer class] JSONBodyStringForStatus:503];
+      NSString *statusDataContentType =
+        [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+      XCTAssertEqualObjects(statusDataContentType, @"application/json");
+      NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:503];
       XCTAssertEqualObjects(dataStr, expectedStr);
     }
     response(shouldRetry);
@@ -1537,9 +1549,21 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
 
-      // Download tasks seem to return an NSURLErrorDomain error rather than the
-      // server status, unless I run only this unit test method, in which case it returns
-      // the server status.  TODO: Figure out why the inconsistency.
+      // errorData gets set with http status error only when the client error is nil.
+      // on iOS 8, client error gets returned with URLSession:task:didCompleteWithError:
+      // on iOS 9 and up, client error is nil and the http status error with errorData
+      // gets set in finishWithError:shouldRetry:
+      if (error.domain == kGTMSessionFetcherStatusDomain) {
+        NSData *errorData = error.userInfo[kGTMSessionFetcherStatusDataKey];
+        XCTAssertNotNil(errorData);
+        XCTAssertEqual(errorData.length, (NSUInteger)totalWritten,
+                       @"The length of error data should match the size of totalBytesWritten.");
+        XCTAssertNotNil(error.userInfo[kGTMSessionFetcherStatusDataContentTypeKey]);
+      }
+
+
+      // Check for two error codes because of the discrepancy between iOS 8 and iOS 9 plus
+      // described above
       BOOL isExpectedCode = (error.code == NSURLErrorFileDoesNotExist || error.code == 400);
       XCTAssertTrue(isExpectedCode, @"%@", error);
 
@@ -1955,7 +1979,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSError *fakedResultError = nil;
 
   __block NSURLAuthenticationChallenge *challengePresented;
-  fetcher.challengeBlock = ^(GTMSessionFetcher *fetcher,
+  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
                              NSURLAuthenticationChallenge *challenge,
                              GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
     challengePresented = challenge;
@@ -2374,6 +2398,36 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testFetcherGlobalTestBlock];
 }
 
+#pragma mark - Redirect URL Tests
+
+// Test building the redirect URL from the original request URL and redirect request URL to ensure
+// that any scheme changes aside from "http" to "https" are disallowed.
+- (void)testFetcherRedirectURLHandling {
+  NSArray<NSArray<NSString *> *> *testCases = @[
+    @[ @"http://original_host/", @"http://redirect_host/", @"http://redirect_host/" ],
+    @[ @"https://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
+    // Insecure to secure = allowed.
+    @[ @"http://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
+    // Secure to insecure = disallowed.
+    @[ @"https://original_host/", @"http://redirect_host/", @"https://redirect_host/" ],
+    // Arbitrary change = disallowed.
+    @[ @"http://original_host/", @"fake://redirect_host/", @"http://redirect_host/" ],
+    // Validate the behavior of nil URLs in the redirect. This should not happen under
+    // real conditions, but if one of the redirect URLs are nil, the other one should
+    // always be returned. For these tests, use a string that will not parse to a URL
+    // due to invalid characters (the backslash \).
+    @[ @"invalid:\\url", @"https://redirect_host/", @"https://redirect_host/" ],
+    @[ @"http://original_host/", @"invalid:\\url", @"http://original_host/" ],
+  ];
+
+  for (NSArray<NSString *> *testCase in testCases) {
+    NSURL *redirectURL =
+        [GTMSessionFetcher redirectURLWithOriginalRequestURL:[NSURL URLWithString:testCase[0]]
+                                          redirectRequestURL:[NSURL URLWithString:testCase[1]]];
+    XCTAssertEqualObjects(redirectURL, [NSURL URLWithString:testCase[2]]);
+  }
+}
+
 #pragma mark - Utilities
 
 - (NSString *)currentTestName {
@@ -2584,7 +2638,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 - (void)endBackgroundTask:(UIBackgroundTaskIdentifier)taskID {
   @synchronized(self) {
     NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
-             @"endBackgroundTask failed to find task: %tu", taskID);
+             @"endBackgroundTask failed to find task: %lu", (unsigned long)taskID);
 
     [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
   }
@@ -2615,7 +2669,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
                  dispatch_get_main_queue(), ^{
     NSArray <SubstituteUIApplicationTaskInfo *>* failedToExpire;
     @synchronized(self) {
-      failedToExpire = _identifierToTaskInfoMap.allValues;
+      failedToExpire = self->_identifierToTaskInfoMap.allValues;
     }
     handler(count, failedToExpire);
   });
@@ -2630,7 +2684,8 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 @synthesize expirationHandler = _expirationHandler;
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"<task %tu \"%@\">", _taskIdentifier, _taskName];
+  return [NSString stringWithFormat:@"<task %lu \"%@\">",
+          (unsigned long)_taskIdentifier, _taskName];
 }
 
 @end
@@ -2736,7 +2791,8 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
                            fetcher.comment ?: @"<no comment>",
                            fetcher.request.URL.absoluteString];
   if (fetcher.retryCount > 0) {
-    description = [description stringByAppendingFormat:@" retry %tu", fetcher.retryCount];
+    description = [description stringByAppendingFormat:@" retry %lu",
+                   (unsigned long)fetcher.retryCount];
   }
   return description;
 }

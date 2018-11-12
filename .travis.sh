@@ -36,7 +36,7 @@ case "${BUILD_MODE}" in
   tvOS)
     CMD_BUILDER+=(
         -scheme "tvOS Framework"
-        -destination "platform=tvOS Simulator,name=Apple TV 1080p,OS=latest"
+        -destination "platform=tvOS Simulator,name=Apple TV,OS=latest"
     )
     ;;
   watchOS)

@@ -1,5 +1,5 @@
 language: objective-c
-osx_image: xcode8.3
+osx_image: xcode9.4
 env:
   - MODE=OSX CFG=Debug
   - MODE=OSX CFG=Release
@@ -13,3 +13,7 @@ script:
   - ./.travis.sh "${MODE}" "${CFG}"
 notifications:
   email: false
+
+branches:
+  except:
+    - google
