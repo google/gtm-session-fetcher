@@ -3439,26 +3439,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   return _request;
 }
 
-- (GTM_NULLABLE NSMutableURLRequest *)mutableRequest {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher mutableRequest] is deprecated; use -request or"
-                         @" -setRequestValue:forHTTPHeaderField:");
-
-    return _request;
-  }  // @synchronized(self)
-}
-
-- (void)setMutableRequest:(GTM_NULLABLE NSMutableURLRequest *)request {
-  GTMSESSION_LOG_DEBUG(@"[GTMSessionFetcher setMutableRequest:] is deprecated; use -request or"
-                       @" -setRequestValue:forHTTPHeaderField:");
-
-  GTMSESSION_ASSERT_DEBUG(![self isFetching],
-                          @"mutableRequest should not change after beginFetch has been invoked");
-  [self updateMutableRequest:request];
-}
-
 // Internal method for updating the request property such as on redirects.
 - (void)updateMutableRequest:(GTM_NULLABLE NSMutableURLRequest *)request {
   @synchronized(self) {

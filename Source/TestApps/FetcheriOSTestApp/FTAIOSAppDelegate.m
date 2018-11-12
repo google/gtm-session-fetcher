@@ -247,7 +247,7 @@ static NSUInteger const kPostDataSize = 512 * 1024;
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:urlStr];
   fetcher.allowedInsecureSchemes = @[ @"http" ];
   fetcher.bodyData = postData;
-  [fetcher.mutableRequest setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
+  [fetcher setRequestValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
 
   fetcher.sendProgressBlock = ^(int64_t bytesSent,
                                 int64_t totalBytesSent,
