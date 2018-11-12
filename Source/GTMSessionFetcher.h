@@ -734,14 +734,6 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // affect a fetch after the fetch has begun.
 - (void)setRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field;
 
-// The fetcher's request (deprecated.)
-//
-// Exposing a mutable object in the interface was convenient but a bad design decision due
-// to thread-safety requirements.  Clients should use the request property and
-// setRequestValue:forHTTPHeaderField: instead.
-@property(atomic, readonly, GTM_NULLABLE) NSMutableURLRequest *mutableRequest
-    GTMSESSION_DEPRECATE_ON_2016_SDKS("use 'request' or '-setRequestValue:forHTTPHeaderField:'");
-
 // Data used for resuming a download task.
 @property(atomic, readonly, GTM_NULLABLE) NSData *downloadResumeData;
 
