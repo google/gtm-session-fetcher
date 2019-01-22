@@ -434,7 +434,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey
       NSURLSessionTask *task = fetcher.sessionTask;
       GTMSESSION_ASSERT_DEBUG(task != nil, @"Missing session task: %@", fetcher);
 
-      if (task) {
+      if (task && [delegateDispatcher respondsToSelector:@selector(setFetcher:forTask:)]) {
         [delegateDispatcher setFetcher:fetcher
                                forTask:task];
       }
