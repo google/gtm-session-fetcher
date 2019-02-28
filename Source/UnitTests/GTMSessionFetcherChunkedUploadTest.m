@@ -949,6 +949,55 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+- (void)testEmptyFileURLUploadFetch {
+  // Like the previous, but we upload in a single chunk, needed for an out-of-process upload.
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *emptyFileURL =
+  [self fileToUploadURLWithData:[NSData data] baseName:NSStringFromSelector(_cmd)];
+
+  NSURLRequest *request = [self validUploadFileRequest];
+  GTMSessionUploadFetcher *fetcher =
+  [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                     uploadMIMEType:@"text/plain"
+                                          chunkSize:kGTMSessionUploadFetcherStandardChunkSize
+                                     fetcherService:_service];
+  fetcher.uploadFileURL = emptyFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    [expectation fulfill];
+  }];
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
+  NSArray *expectedCommands = @[ @"upload, finalize" ];
+  NSArray *expectedOffsets = @[ @0 ];
+  NSArray *expectedLengths = @[ @(kBigUploadDataLength) ];
+  XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+  XCTAssertEqual(fnctr.fetchStarted, 2);
+  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
+
+  [self removeTemporaryFileURL:emptyFileURL];
+}
+
 - (void)testBigDataChunkedUploadFetch {
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
