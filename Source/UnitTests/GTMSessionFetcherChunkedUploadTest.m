@@ -954,7 +954,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   NSURL *emptyFileURL =
-  [self fileToUploadURLWithData:[NSData data] baseName:NSStringFromSelector(_cmd)];
+      [self fileToUploadURLWithData:[NSData data] baseName:NSStringFromSelector(_cmd)];
 
   NSURLRequest *request = [self validUploadFileRequest];
   GTMSessionUploadFetcher *fetcher =
@@ -968,9 +968,10 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    XCTAssertEqualObjects(data, [self gettysburgAddress]);
-    XCTAssertNil(error);
-    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    // Test that server result is returned (success or failure).
+    // The current test server don't accept POST requests with empty body.
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, 503);
     [expectation fulfill];
   }];
 
@@ -979,7 +980,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
 
   // Check that we uploaded the expected chunks.
   NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
-  NSArray *expectedCommands = @[ @"upload, finalize" ];
+  NSArray *expectedCommands = @[ @"finalize" ];
   NSArray *expectedOffsets = @[ @0 ];
   NSArray *expectedLengths = @[ @0 ];
   XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
@@ -987,8 +988,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
   XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
-  XCTAssertEqual(fnctr.fetchStarted, 1);
-  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.fetchStarted, 2);
+  XCTAssertEqual(fnctr.fetchStopped, 2);
   XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
@@ -996,6 +997,53 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 
   [self removeTemporaryFileURL:emptyFileURL];
+}
+
+- (void)testNonExistingFileURLUploadFetch {
+  // Like the previous, but we upload in a single chunk, needed for an out-of-process upload.
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *nonExistingFileURL = [NSURL fileURLWithPath:@"some/file"];
+
+  NSURLRequest *request = [self validUploadFileRequest];
+  GTMSessionUploadFetcher *fetcher =
+  [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                     uploadMIMEType:@"text/plain"
+                                          chunkSize:kGTMSessionUploadFetcherStandardChunkSize
+                                     fetcherService:_service];
+  fetcher.uploadFileURL = nonExistingFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    // The current test server don't accept POST requests with empty body.
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, 260);
+    [expectation fulfill];
+  }];
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedURLStrings = @[];
+  NSArray *expectedCommands = @[];
+  NSArray *expectedOffsets = @[];
+  NSArray *expectedLengths = @[];
+  XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
 
 - (void)testBigDataChunkedUploadFetch {
