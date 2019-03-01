@@ -981,14 +981,14 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
   NSArray *expectedCommands = @[ @"upload, finalize" ];
   NSArray *expectedOffsets = @[ @0 ];
-  NSArray *expectedLengths = @[ @(kBigUploadDataLength) ];
+  NSArray *expectedLengths = @[ @0 ];
   XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
   XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
   XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
   XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
-  XCTAssertEqual(fnctr.fetchStarted, 2);
-  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
   XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
