@@ -22,6 +22,38 @@
 #import "GTMSessionFetcherTestServer.h"
 #import "GTMSessionFetcherService.h"
 
+@interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
+- (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
+@end
+
+@interface GTMSessionFetcherServiceTestObjectProxy : NSProxy
+@end
+
+@implementation GTMSessionFetcherServiceTestObjectProxy {
+  id _proxiedObject;
+}
+
++ (instancetype)proxyForObject:(id)object {
+  GTMSessionFetcherServiceTestObjectProxy *proxy = [self alloc];
+  proxy->_proxiedObject = object;
+  return proxy;
+}
+
+- (BOOL)isKindOfClass:(Class)aClass {
+  return [_proxiedObject isKindOfClass:aClass];
+}
+
+- (void)forwardInvocation:(NSInvocation *)invocation {
+  [invocation invokeWithTarget:_proxiedObject];
+}
+
+- (NSMethodSignature *)methodSignatureForSelector:(SEL)sel {
+  return [_proxiedObject methodSignatureForSelector:sel];
+}
+
+@end
+
+
 @interface GTMSessionFetcherServiceTest : XCTestCase {
   GTMSessionFetcherTestServer *_testServer;
   BOOL _isServerRunning;
@@ -698,6 +730,65 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }];
 
   [self waitForExpectationsWithTimeout:10 handler:nil];
+}
+
+- (void)testDelegateDispatcherForFetcher {
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  GTMSessionFetcher *fetcher;
+  NSURLSession *session;
+  NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+
+  // When the NSURLSession delegate is the fetcher itself, the returned delegate dispatcher
+  // should be nil.
+  fetcher = [service fetcherWithURLString:@"https://www.example.com"];
+  session = [NSURLSession sessionWithConfiguration:config
+                                          delegate:fetcher
+                                     delegateQueue:fetcher.sessionDelegateQueue];
+
+  fetcher.session = session;
+  XCTAssertNil([service delegateDispatcherForFetcher:fetcher],
+               @"dispatcher should be nil when fetcher is the session delegate");
+  [session invalidateAndCancel];
+
+  // When the NSURLSession delegate is a proxy for a GTMSessionFetcher, the returned delegate
+  // dispatcher should be nil.
+  fetcher = [service fetcherWithURLString:@"https://www.example.com"];
+  GTMSessionFetcherServiceTestObjectProxy *fetcherProxy =
+      [GTMSessionFetcherServiceTestObjectProxy proxyForObject:fetcher];
+  session = [NSURLSession sessionWithConfiguration:config
+                                          delegate:(id<NSURLSessionDelegate>)fetcherProxy
+                                     delegateQueue:fetcher.sessionDelegateQueue];
+  fetcher.session = session;
+
+  XCTAssertNil([service delegateDispatcherForFetcher:fetcher],
+               @"dispatcher should be nil when session delegate is a proxy for GTMSessionFetcher");
+  [session invalidateAndCancel];
+
+  // When the NSURLSession delegate is the delegate dispatcher, the returned delegate dispatcher
+  // should be non-nil.
+  fetcher = [service fetcherWithURLString:@"https://www.example.com"];
+  session = [NSURLSession sessionWithConfiguration:config
+                                          delegate:service.sessionDelegate
+                                     delegateQueue:fetcher.sessionDelegateQueue];
+
+  fetcher.session = session;
+  XCTAssertNotNil([service delegateDispatcherForFetcher:fetcher],
+                  @"dispatcher should be non-nil when fetcher is the session delegate");
+  [session invalidateAndCancel];
+
+  // When the NSURLSession delegate is a proxy for a the delegate dispatcher, the returned delegate
+  // dispatcher should be non-nil.
+  fetcher = [service fetcherWithURLString:@"https://www.example.com"];
+  GTMSessionFetcherServiceTestObjectProxy *dispatcherProxy =
+      [GTMSessionFetcherServiceTestObjectProxy proxyForObject:service.sessionDelegate];
+  session = [NSURLSession sessionWithConfiguration:config
+                                          delegate:(id<NSURLSessionDelegate>)dispatcherProxy
+                                     delegateQueue:fetcher.sessionDelegateQueue];
+  fetcher.session = session;
+
+  XCTAssertNotNil([service delegateDispatcherForFetcher:fetcher],
+                  @"dispatcher should be non-nil when session delegate is a proxy for the dispatcher");
+  [session invalidateAndCancel];
 }
 
 @end
