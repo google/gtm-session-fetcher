@@ -50,12 +50,14 @@
 
   NSData *smallData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:13];
   NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
-  NSURLRequest *request = [NSURLRequest requestWithURL:testURL];
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:testURL];
+  request.allowsCellularAccess = NO;
 
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
                                                                         fetcherService:_service];
+  XCTAssertFalse(fetcher.allowsCellularAccess);
   fetcher.uploadData = smallData;
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
@@ -89,10 +91,13 @@
   __block NSRange uploadedRange = NSMakeRange(0, 0);
   NSRange expectedRange = NSMakeRange(0, bigUploadData.length);
 
+  // Try a cellular allowed request.
+  request.allowsCellularAccess = YES;
   fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                uploadMIMEType:@"text/plain"
                                                     chunkSize:75000
                                                fetcherService:_service];
+  XCTAssertTrue(fetcher.allowsCellularAccess);
   fetcher.uploadData = nil;
   [fetcher setUploadDataLength:(int64_t)expectedRange.length
                       provider:^(int64_t offset, int64_t length,
