@@ -1046,6 +1046,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     GTMSessionFetcherReceivedProgressBlock receivedProgressBlock = _receivedProgressBlock;
     GTMSessionFetcherWillCacheURLResponseBlock willCacheURLResponseBlock =
         _willCacheURLResponseBlock;
+    GTMSessionFetcherChallengeBlock challengeBlock = _challengeBlock;
 
     // Simulate receipt of redirection.
     if (willRedirectBlock) {
@@ -1063,34 +1064,32 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
     // It might be nice to eventually let the user determine which testBlock
     // fetches get challenged rather than always executing the supplied
     // challenge block.
-    if (_challengeBlock) {
+    if (challengeBlock) {
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
                                                           block:^{
-        if (self->_challengeBlock) {
-          NSURL *requestURL = self->_request.URL;
-          NSString *host = requestURL.host;
-          NSURLProtectionSpace *pspace =
-              [[NSURLProtectionSpace alloc] initWithHost:host
-                                                    port:requestURL.port.integerValue
-                                                protocol:requestURL.scheme
-                                                   realm:nil
-                                    authenticationMethod:NSURLAuthenticationMethodHTTPBasic];
-          id<NSURLAuthenticationChallengeSender> unusedSender =
-              (id<NSURLAuthenticationChallengeSender>)[NSNull null];
-          NSURLAuthenticationChallenge *challenge =
-              [[NSURLAuthenticationChallenge alloc] initWithProtectionSpace:pspace
-                                                         proposedCredential:nil
-                                                       previousFailureCount:0
-                                                            failureResponse:nil
-                                                                      error:nil
-                                                                     sender:unusedSender];
-          self->_challengeBlock(self, challenge, ^(NSURLSessionAuthChallengeDisposition disposition,
-                                             NSURLCredential * GTM_NULLABLE_TYPE credential){
-            // We could change the responseData and responseError based on the disposition,
-            // but it's easier for apps to just supply the expected data and error
-            // directly to the test block. So this simulation ignores the disposition.
-          });
-        }
+        NSURL *requestURL = self->_request.URL;
+        NSString *host = requestURL.host;
+        NSURLProtectionSpace *pspace =
+            [[NSURLProtectionSpace alloc] initWithHost:host
+                                                  port:requestURL.port.integerValue
+                                              protocol:requestURL.scheme
+                                                 realm:nil
+                                  authenticationMethod:NSURLAuthenticationMethodHTTPBasic];
+        id<NSURLAuthenticationChallengeSender> unusedSender =
+            (id<NSURLAuthenticationChallengeSender>)[NSNull null];
+        NSURLAuthenticationChallenge *challenge =
+            [[NSURLAuthenticationChallenge alloc] initWithProtectionSpace:pspace
+                                                       proposedCredential:nil
+                                                     previousFailureCount:0
+                                                          failureResponse:nil
+                                                                    error:nil
+                                                                   sender:unusedSender];
+        challengeBlock(self, challenge, ^(NSURLSessionAuthChallengeDisposition disposition,
+                                          NSURLCredential * GTM_NULLABLE_TYPE credential){
+          // We could change the responseData and responseError based on the disposition,
+          // but it's easier for apps to just supply the expected data and error
+          // directly to the test block. So this simulation ignores the disposition.
+        });
       }];
     }
 
