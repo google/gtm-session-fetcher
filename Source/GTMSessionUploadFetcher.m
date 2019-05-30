@@ -1782,6 +1782,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 // Public properties.
 @synthesize currentOffset = _currentOffset,
+            allowsCellularAccess = _allowsCellularAccess,
             delegateCompletionHandler = _delegateCompletionHandler,
             chunkFetcher = _chunkFetcher,
             lastChunkRequest = _lastChunkRequest,
