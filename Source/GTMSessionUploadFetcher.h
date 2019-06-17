@@ -156,7 +156,7 @@ typedef void (^GTMSessionUploadFetcherCancellationHandler)(
 //
 // Unlike other callbacks, since this is related specifically to the stopFetching flow it is not
 // cleared by stopFetching. It will instead clear itself after it is invoked or if the completion
-// has occured before stopFetching is called.
+// has occurred before stopFetching is called.
 @property(atomic, copy, GTM_NULLABLE) GTMSessionUploadFetcherCancellationHandler
     cancellationHandler;
 
