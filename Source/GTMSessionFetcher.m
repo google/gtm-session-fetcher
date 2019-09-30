@@ -18,6 +18,9 @@
 #endif
 
 #import "GTMSessionFetcher.h"
+#if TARGET_OS_OSX
+#import <AppKit/AppKit.h>
+#endif
 
 #import <sys/utsname.h>
 
