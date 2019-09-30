@@ -369,6 +369,27 @@
   #endif // __has_feature(objc_generics)
 #endif  // GTM_NSArrayOf
 
+// When creating background sessions to perform out-of-process uploads and
+// downloads, on app launch any background sessions must be reconnected in
+// order to receive events that occurred while the app was not running.
+//
+// The fetcher will automatically attempt to recreate the sessions on app
+// start, but doing so reads from NSUserDefaults. This may have launch-time
+// performance impacts.
+//
+// To avoid launch performance impacts, on iPhone/iPad/Mac the
+// GTMSessionFetcher class will register for the app launch notification
+//
+// To force the older behavior to reconnect directly in +load, define
+// GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD = 1.
+#ifndef GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD
+  #if TARGET_OS_IOS || TARGET_OS_OSX
+    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD 0
+  #else
+    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD 1
+  #endif
+#endif
+
 // For iOS, the fetcher can declare itself a background task to allow fetches
 // to finish when the app leaves the foreground.
 //

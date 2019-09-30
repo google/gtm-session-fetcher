@@ -212,9 +212,32 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if !GTMSESSION_UNIT_TESTING
 + (void)load {
+#if GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD
   [self fetchersForBackgroundSessions];
-}
+#elif TARGET_OS_IPHONE
+  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+  [nc addObserver:self
+         selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
+             name:UIApplicationDidFinishLaunchingNotification
+           object:nil];
+#elif TARGET_OS_OSX
+  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+  [nc addObserver:self
+         selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
+             name:NSApplicationDidFinishLaunchingNotification
+           object:nil];
 #endif
+}
+
++ (void)reconnectFetchersForBackgroundSessionsOnAppLaunch:(NSNotification *)notification {
+  // Give all other app-did-launch handlers a chance to complete before
+  // reconnecting the fetchers. Not doing this may lead to reconnecting
+  // before the app delegate has a chance to run.
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self fetchersForBackgroundSessions];
+  });
+}
+#endif  // !GTMSESSION_UNIT_TESTING
 
 + (instancetype)fetcherWithRequest:(GTM_NULLABLE NSURLRequest *)request {
   return [[self alloc] initWithRequest:request configuration:nil];
