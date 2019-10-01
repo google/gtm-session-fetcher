@@ -90,6 +90,34 @@ GTM_ASSUME_NONNULL_END
   #endif
 #endif
 
+// When creating background sessions to perform out-of-process uploads and
+// downloads, on app launch any background sessions must be reconnected in
+// order to receive events that occurred while the app was not running.
+//
+// The fetcher will automatically attempt to recreate the sessions on app
+// start, but doing so reads from NSUserDefaults. This may have launch-time
+// performance impacts.
+//
+// To avoid launch performance impacts, on iPhone/iPad/Mac with iOS 13+ and
+// macOS 10.15+ the GTMSessionFetcher class will register for the app launch
+// notification and perform the reconnect then.
+//
+// Apps targetting older SDKs can opt into the new behavior by defining
+// GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH=1.
+//
+// Apps targetting new SDKs can force the old behavior by defining
+// GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH = 0.
+#ifndef GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
+  // Default to the on-launch behavior
+  #if (TARGET_OS_OSX && defined(MAC_OS_X_VERSION_10_15) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_15) \
+       || (TARGET_OS_IOS && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0))
+    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 1
+  #else
+    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 0
+  #endif
+#endif
+
+
 @interface GTMSessionFetcher ()
 
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
@@ -215,20 +243,20 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
 #if !GTMSESSION_UNIT_TESTING
 + (void)load {
-#if GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LOAD
-  [self fetchersForBackgroundSessions];
-#elif TARGET_OS_IPHONE
+#if GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH && TARGET_OS_IPHONE
   NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
   [nc addObserver:self
          selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
              name:UIApplicationDidFinishLaunchingNotification
            object:nil];
-#elif TARGET_OS_OSX
+#elif GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH && TARGET_OS_OSX
   NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
   [nc addObserver:self
          selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
              name:NSApplicationDidFinishLaunchingNotification
            object:nil];
+#else
+  [self fetchersForBackgroundSessions];
 #endif
 }
 
