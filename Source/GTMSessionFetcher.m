@@ -102,10 +102,10 @@ GTM_ASSUME_NONNULL_END
 // macOS 10.15+ the GTMSessionFetcher class will register for the app launch
 // notification and perform the reconnect then.
 //
-// Apps targetting older SDKs can opt into the new behavior by defining
+// Apps targeting older SDKs can opt into the new behavior by defining
 // GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH=1.
 //
-// Apps targetting new SDKs can force the old behavior by defining
+// Apps targeting new SDKs can force the old behavior by defining
 // GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH = 0.
 #ifndef GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
   // Default to the on-launch behavior
