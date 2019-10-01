@@ -27,7 +27,7 @@ case "${BUILD_MODE}" in
   iOS)
     CMD_BUILDER+=(
         -scheme "iOS Framework"
-        -destination "platform=iOS Simulator,name=iPhone 6,OS=latest"
+        -destination "platform=iOS Simulator,name=iPhone 8,OS=latest"
     )
     ;;
   OSX)
