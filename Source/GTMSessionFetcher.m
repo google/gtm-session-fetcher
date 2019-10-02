@@ -18,9 +18,6 @@
 #endif
 
 #import "GTMSessionFetcher.h"
-#if TARGET_OS_OSX
-#import <AppKit/AppKit.h>
-#endif
 
 #import <sys/utsname.h>
 
@@ -250,11 +247,16 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
              name:UIApplicationDidFinishLaunchingNotification
            object:nil];
 #elif GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH && TARGET_OS_OSX
-  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-  [nc addObserver:self
-         selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
-             name:NSApplicationDidFinishLaunchingNotification
-           object:nil];
+  // Weakly link the application-did-finish-launching notification name, since command-line
+  // Mac clients may not link AppKit.
+  extern NSNotificationName NSApplicationDidFinishLaunchingNotification __attribute__((weak_import));
+  if (NSApplicationDidFinishLaunchingNotification != NULL) {
+    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+    [nc addObserver:self
+           selector:@selector(reconnectFetchersForBackgroundSessionsOnAppLaunch:)
+               name:NSApplicationDidFinishLaunchingNotification
+             object:nil];
+  }
 #else
   [self fetchersForBackgroundSessions];
 #endif
