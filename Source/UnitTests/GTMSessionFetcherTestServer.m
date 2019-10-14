@@ -112,7 +112,12 @@ static NSString *const kEtag = @"GoodETag";
   NSData* data = [self dataUsingEncoding:NSUTF8StringEncoding];
 
   unsigned char MD5Digest[CC_MD5_DIGEST_LENGTH];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  // MD5 is deprecated in the iOS 13/OSX 10.15 headers, but is the explicit hash used for digest
+  // authentication, used here only for tests.
   CC_MD5(data.bytes, (CC_LONG)data.length, MD5Digest);
+#pragma clang diagnostic pop
   NSMutableString *MD5DigestString = [NSMutableString stringWithCapacity:2 * CC_MD5_DIGEST_LENGTH];
   for (int i = 0; i < CC_MD5_DIGEST_LENGTH; ++i) {
     [MD5DigestString appendFormat:@"%02x", (unsigned int)MD5Digest[i]];
