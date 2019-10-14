@@ -92,6 +92,13 @@ GTM_ASSUME_NONNULL_END
   #endif
 #endif
 
+#if ((TARGET_OS_IPHONE && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0) || \
+     (TARGET_OS_OSX && defined(MAC_OS_X_VERSION_10_15) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_15))
+#define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
+#else
+#define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
+#endif
+
 @interface GTMSessionFetcher ()
 
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
@@ -647,7 +654,15 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         _configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
       }
 #if !GTM_ALLOW_INSECURE_REQUESTS
+#if GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
+      if (@available(iOS 13, tvOS 13, watchOS 6, macOS 10.15, *)) {
+        _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
+      } else {
+        _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
+      }
+#else
       _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
+#endif  // GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
 #endif
     }  // !_configuration
     _configuration.HTTPCookieStorage = self.cookieStorage;
