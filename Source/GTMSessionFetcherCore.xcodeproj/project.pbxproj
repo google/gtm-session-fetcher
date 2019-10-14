@@ -1161,6 +1161,7 @@
 					"-Widiomatic-parentheses",
 					"-Wimplicit-atomic-properties",
 				);
+				WATCHOS_DEPLOYMENT_TARGET = 2.0;
 			};
 			name = Debug;
 		};
@@ -1240,6 +1241,7 @@
 					"-Widiomatic-parentheses",
 					"-Wimplicit-atomic-properties",
 				);
+				WATCHOS_DEPLOYMENT_TARGET = 2.0;
 			};
 			name = Release;
 		};
