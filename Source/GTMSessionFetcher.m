@@ -99,6 +99,16 @@ GTM_ASSUME_NONNULL_END
 #define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
 #endif
 
+#if ((defined(TARGET_OS_MACCATALYST) && TARGET_OS_MACCATALYST) || \
+     (TARGET_OS_OSX && defined(__MAC_10_15) && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_15) || \
+     (TARGET_OS_IOS && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0) || \
+     (TARGET_OS_WATCH && defined(__WATCHOS_6_0) && __WATCHOS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) || \
+     (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MIN_REQUIRED >= __TVOS_13_0))
+#define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
+#else
+#define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 0
+#endif
+
 @interface GTMSessionFetcher ()
 
 @property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
@@ -2367,8 +2377,24 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     // It looks like the implementation of SecTrustEvaluate() on Mac grabs a global lock,
     // so it may be redundant for us to also lock, but it's easy to synchronize here
     // anyway.
-    SecTrustResultType trustEval = kSecTrustResultInvalid;
     BOOL shouldAllow;
+#if GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR
+    CFErrorRef errorRef = NULL;
+    @synchronized ([GTMSessionFetcher class]) {
+      GTMSessionMonitorSynchronized([GTMSessionFetcher class]);
+
+      // SecTrustEvaluateWithError handles both the "proceed" and "unspecified" cases,
+      // so it is not necessary to check the trust result the evaluation returns true.
+      shouldAllow = SecTrustEvaluateWithError(serverTrust, &errorRef);
+    }
+
+    if (errorRef) {
+      GTMSESSION_LOG_DEBUG(@"Error %d evaluating trust for %@",
+                           (int)CFErrorGetCode(errorRef), request);
+      CFRelease(errorRef);
+    }
+#else
+    SecTrustResultType trustEval = kSecTrustResultInvalid;
     OSStatus trustError;
     @synchronized([GTMSessionFetcher class]) {
       GTMSessionMonitorSynchronized([GTMSessionFetcher class]);
@@ -2392,6 +2418,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                              CFBridgingRelease(SecTrustCopyProperties(serverTrust)));
       }
     }
+#endif  // GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR
     handler(serverTrust, shouldAllow);
 
     CFRelease(serverTrust);
