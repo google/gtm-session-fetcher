@@ -30,13 +30,33 @@
 
 #if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
 
+#if ((TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0) || \
+     (TARGET_OS_OSX && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_12))
+  // For apps targetting recent only versions of iOS/Mac, use WKWebView rather
+  // than UIWebView/NSWebView.
+  #define GTM_USE_WKWEBVIEW 1
+  #import <WebKit/WebKit.h>
+  typedef WKWebView GTMWebView;
+#else
+  #define GTM_USE_WKWEBVIEW 0
+  typedef UIWebView GTMWebView;
+#endif
+
 static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 // A minimal controller will be used to wrap a web view for displaying the
 // log files.
-@interface GTMSessionFetcherLoggingWebViewController : UIViewController<UIWebViewDelegate>
+@interface GTMSessionFetcherLoggingWebViewController : UIViewController
 - (id)initWithURL:(NSURL *)htmlURL title:(NSString *)title opensScrolledToEnd:(BOOL)opensScrolled;
 @end
+
+#if GTM_USE_WKWEBVIEW
+@interface GTMSessionFetcherLoggingWebViewController () <WKNavigationDelegate>
+@end
+#else
+@interface GTMSessionFetcherLoggingWebViewController () <UIWebViewDelegate>
+@end
+#endif
 
 #pragma mark - Table View Controller
 
@@ -234,10 +254,14 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 }
 
 - (void)loadView {
-  UIWebView *webView = [[UIWebView alloc] init];
+  GTMWebView *webView = [[GTMWebView alloc] init];
   webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth
                               | UIViewAutoresizingFlexibleHeight);
+#if GTM_USE_WKWEBVIEW
+  webView.navigationDelegate = self;
+#else
   webView.delegate = self;
+#endif
   self.view = webView;
 }
 
@@ -251,23 +275,25 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
   [[self webView] goBack];
 }
 
-- (UIWebView *)webView {
-  return (UIWebView *)self.view;
+- (GTMWebView *)webView {
+  return (GTMWebView *)self.view;
 }
 
-#pragma mark - WebView delegate
-
-- (void)webViewDidFinishLoad:(UIWebView *)webView {
+- (void)didFinishLoadingHTML {
   if (opensScrolledToEnd_) {
     // Scroll to the bottom, because the most recent entry is at the end.
-    NSString* javascript = [NSString stringWithFormat:@"window.scrollBy(0, %ld);", NSIntegerMax];
+    NSString *javascript = [NSString stringWithFormat:@"window.scrollBy(0, %ld);", (long)NSIntegerMax];
+#if GTM_USE_WKWEBVIEW
+    [[self webView] evaluateJavaScript:javascript completionHandler:nil];
+#else
     [[self webView] stringByEvaluatingJavaScriptFromString:javascript];
+#endif
     opensScrolledToEnd_ = NO;
   }
 
   // Instead of the nav controller's back button, provide a simple
   // webview back button when it's needed.
-  BOOL canGoBack = [webView canGoBack];
+  BOOL canGoBack = [[self webView] canGoBack];
   UIBarButtonItem *backItem = nil;
   if (canGoBack) {
     // This hides the nav back button.
@@ -278,6 +304,18 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
   }
   self.navigationItem.leftBarButtonItem = backItem;
 }
+
+#pragma mark - WebView delegate
+
+#if GTM_USE_WKWEBVIEW
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+  [self didFinishLoadingHTML];
+}
+#else
+- (void)webViewDidFinishLoad:(UIWebView *)webView {
+  [self didFinishLoadingHTML];
+}
+#endif  // GTM_USE_WKWEBVIEW
 
 @end
 
