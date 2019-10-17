@@ -257,7 +257,11 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
   GTMWebView *webView = [[GTMWebView alloc] init];
   webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth
                               | UIViewAutoresizingFlexibleHeight);
+#if GTM_USE_WKWEBVIEW
   webView.navigationDelegate = self;
+#else
+  webView.delegate = self;
+#endif
   self.view = webView;
 }
 
