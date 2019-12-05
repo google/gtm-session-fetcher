@@ -2707,20 +2707,18 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
       // but totalBytesWritten > totalBytesExpectedToWrite, so setting to unkown in these cases.
       totalBytesExpectedToWrite = NSURLSessionTransferSizeUnknown;
     }
-    // We won't hold on to download progress block during the enqueue;
-    // it's ok to not send it if the upload finishes.
 
-    [self invokeOnCallbackQueueUnlessStopped:^{
-      GTMSessionFetcherDownloadProgressBlock progressBlock;
-      @synchronized(self) {
-        GTMSessionMonitorSynchronized(self);
+    GTMSessionFetcherDownloadProgressBlock progressBlock;
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
 
-        progressBlock = self->_downloadProgressBlock;
-      }
-      if (progressBlock) {
+      progressBlock = self->_downloadProgressBlock;
+    }
+    if (progressBlock) {
+      [self invokeOnCallbackQueueUnlessStopped:^{
         progressBlock(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
-      }
-    }];
+      }];
+    }
   }  // @synchronized(self)
 }
 
