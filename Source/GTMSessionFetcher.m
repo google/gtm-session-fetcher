@@ -2709,11 +2709,7 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
     }
 
     GTMSessionFetcherDownloadProgressBlock progressBlock;
-    @synchronized(self) {
-      GTMSessionMonitorSynchronized(self);
-
-      progressBlock = self->_downloadProgressBlock;
-    }
+    progressBlock = self->_downloadProgressBlock;
     if (progressBlock) {
       [self invokeOnCallbackQueueUnlessStopped:^{
         progressBlock(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite);
