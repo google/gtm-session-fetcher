@@ -679,7 +679,18 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
 #elif GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
       if (@available(iOS 13, tvOS 13, watchOS 6, macOS 10.15, *)) {
+#if TARGET_OS_IOS
+        // Early seeds of iOS 13 don't actually support the selector and several
+        // months later, those seeds are still in use, so validate if the selector
+        // is supported.
+        if ([_configuration respondsToSelector:@selector(setTLSMinimumSupportedProtocolVersion:)]) {
+          _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
+        } else {
+          _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
+        }
+#else
         _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
+#endif  // TARGET_OS_IOS
       } else {
         _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
       }
