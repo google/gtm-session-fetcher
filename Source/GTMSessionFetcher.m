@@ -639,36 +639,19 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         NSMapTable *sessionIdentifierToFetcherMap = [[self class] sessionIdentifierToFetcherMap];
         [sessionIdentifierToFetcherMap setObject:self forKey:self.sessionIdentifier];
 
-#if (TARGET_OS_TV \
-     || TARGET_OS_WATCH \
-     || (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
-     || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0))
-        // iOS 8/10.10 builds require the new backgroundSessionConfiguration method name.
-        _configuration =
-            [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
-#elif (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10) \
-    || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0)
-        // Do a runtime check to avoid a deprecation warning about using
-        // +backgroundSessionConfiguration: on iOS 8.
-        if ([NSURLSessionConfiguration respondsToSelector:@selector(backgroundSessionConfigurationWithIdentifier:)]) {
-          // Running on iOS 8+/OS X 10.10+.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability"
-// Disable unguarded availability warning as we can't use the @availability macro until we require
-// all clients to build with Xcode 9 or above.
+        if (@available(iOS 8.0, macOS 10.10, *)) {
           _configuration =
               [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
-#pragma clang diagnostic pop
         } else {
-          // Running on iOS 7/OS X 10.9.
+#if ((!TARGET_OS_IPHONE && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10) \
+     || (TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0))
+          // If building with support for iOS 7 or < macOS 10.10, allow using the older
+          // -backgroundSessionConfiguration: method, otherwise leave it out to avoid deprecated
+          // API warnings/errors.
           _configuration =
               [NSURLSessionConfiguration backgroundSessionConfiguration:sessionIdentifier];
-        }
-#else
-        // Building with an SDK earlier than iOS 8/OS X 10.10.
-        _configuration =
-            [NSURLSessionConfiguration backgroundSessionConfiguration:sessionIdentifier];
 #endif
+        }
         self.usingBackgroundSession = YES;
         self.canShareSession = NO;
       } else {
@@ -895,21 +878,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     newSessionTask.taskDescription = _taskDescription;
   }
   if (_taskPriority >= 0) {
-#if TARGET_OS_TV || TARGET_OS_WATCH
-    BOOL hasTaskPriority = YES;
-#elif (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_10) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_10) \
-    || (TARGET_OS_IPHONE && defined(__IPHONE_8_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0)
-    BOOL hasTaskPriority = YES;
-#else
-    BOOL hasTaskPriority = [newSessionTask respondsToSelector:@selector(setPriority:)];
-#endif
-    if (hasTaskPriority) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability"
-// Disable unguarded availability warning as we can't use the @availability macro until we require
-// all clients to build with Xcode 9 or above.
+    if (@available(iOS 8.0, macOS 10.10, *)) {
       newSessionTask.priority = _taskPriority;
-#pragma clang diagnostic pop
     }
   }
 
