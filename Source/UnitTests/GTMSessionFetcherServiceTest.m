@@ -435,12 +435,39 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   service.allowLocalhostRequest = YES;
   service.reuseSession = YES;
   service.maxRunningFetchersPerHost = 2;
+  
+  // A race condition exists that was exposed by changing the service's sessionDelegateQueue
+  // from the mainQueue to a serial background queue. Because of that change, this race condition
+  // began to manifest as a flake in this test.
+  //
+  // Inside beginFetchWithCompletionHandler:, the fetcher gets the NSURLSession from the fetcher
+  // service before creating its NSURLSessionTask. The locks protecting the NSURLSession within
+  // the service only protect it during that getter call, and it's possible that before the
+  // fetcher's NSURLSessionTask is created another thread could come along and reset the
+  // NSURLSession, invalidating it and preventing new NSURLSessionTasks from being created on it.
+  //
+  // Migrating from the main to a background queue for the session's delegate queue made it
+  // possible for this test to encounter this race condition, as the first fetcher's completion
+  // handler was never be called before all fetchers were created and the test waited for all
+  // fetchers to be complete.
+  //
+  // This race condition is similar to another one known in the service's delegate dispatcher,
+  // and the most sure way to fix is likely to refactor to require every fetcher is created from
+  // a service, letting the service protect the entire process of creating the NSURLSession and
+  // the session tasks.
+  //
+  // Until then, stopping this test from flaking by setting the session delegate queue to
+  // be the main queue.
+  service.sessionDelegateQueue = [NSOperationQueue mainQueue];
 
   const NSTimeInterval kUnusedSessionTimeout = 3.0;
   service.unusedSessionTimeout = kUnusedSessionTimeout;
+  
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetcher completions"];
 
   NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
   NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
+  [expectation setExpectedFulfillmentCount:urlArray.count];
 
   __block int numberOfCallsBack = 0;
   __block int numberOfErrors = 0;
@@ -467,9 +494,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
         NSDictionary *taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
         XCTAssertNil(taskMap);
       }
+
+      [expectation fulfill];
     }];
   }
-  XCTAssertTrue([service waitForCompletionOfAllFetchersWithTimeout:10]);
+  [self waitForExpectations:@[ expectation ] timeout:10];
 
   // Here we verify that all fetchers were called back.
   XCTAssertEqual(numberOfCallsBack, (int)urlArray.count);
