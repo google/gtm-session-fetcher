@@ -3197,6 +3197,14 @@ didCompleteWithError:(NSError *)error {
   }
 
   [self destroyRetryTimer];
+  
+#if GTM_BACKGROUND_TASK_FETCHING
+  // Don't keep a background task active while awaiting retry, which can lead to the
+  // app exceeding the allotted time for keeping the background task open, causing the
+  // system to terminate the app. When the retry starts, a new background task will
+  // be created.
+  [self endBackgroundTask];
+#endif  // GTM_BACKGROUND_TASK_FETCHING
 
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
