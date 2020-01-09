@@ -22,8 +22,9 @@ To update the version number and push a release:
     Top left of the [project's release page](https://github.com/google/gtm-session-fetcher/releases)
     is _Draft a new release_.
 
-    The tag should be X.Y.Z where the number _exactly_ matches the one you
-    provided to the `update_version.py` script.
+    The tag should be vX.Y.Z where the version number X.Y.Z _exactly_ matches
+    the one you provided to the `update_version.py` script. (GTMSessionFetcher
+    has a `v` prefix on its tags.)
 
     For the description call out any major changes in the release. Usually a
     reference to the pull request and a short description is sufficient.
