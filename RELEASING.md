@@ -38,6 +38,7 @@ To update the version number and push a release:
         ```
 
         If you used the update script above, this should pass without problems.
+
     1.  Publish the pod:
 
         ```sh
