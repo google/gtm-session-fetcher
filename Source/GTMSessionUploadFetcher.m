@@ -1389,7 +1389,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   chunkFetcher.useUploadTask = !isQueryFetch;
 #if !GTM_DISABLE_FETCHER_TEST_BLOCK
   chunkFetcher.testBlock = self.testBlock;
-#endif  // GTM_DISABLE_FETCHER_TEST_BLOCK
+#endif  // !GTM_DISABLE_FETCHER_TEST_BLOCK
 
   if (self.uploadFileURL && !isQueryFetch && self.useBackgroundSession) {
     [chunkFetcher createSessionIdentifierWithMetadata:[self uploadSessionIdentifierMetadata]];
