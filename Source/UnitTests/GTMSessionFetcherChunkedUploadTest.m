@@ -30,6 +30,15 @@
   _service = [[GTMSessionFetcherService alloc] init];
   _service.reuseSession = YES;
 
+  // These tests were originally written with the delegate queue as the main queue; changing
+  // the default off the main queue seems to have caused several flaking issues with the tests,
+  // not due to incorrect behavior from the fetcher but due to the tests not expecting the
+  // multi-threaded behavior in their assertions.
+  //
+  // Changing the session delegate queue back to the main queue to let the tests run correctly
+  // until the can get sorted out.
+  _service.sessionDelegateQueue = [NSOperationQueue mainQueue];
+
   [super setUp];
 }
 
