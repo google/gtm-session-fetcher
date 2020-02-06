@@ -551,8 +551,11 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                            fetchRequest);
     }
 #endif
+    // If priorSessionIdentifier is allowed to stay non-nil, a background session can
+    // still be created.
+    priorSessionIdentifier = nil;
     [self setSessionIdentifierInternal:nil];
-    self.useBackgroundSession = NO;
+    self.usingBackgroundSession = NO;
   }
 
 #if GTM_ALLOW_INSECURE_REQUESTS
@@ -902,7 +905,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 #if GTM_BACKGROUND_TASK_FETCHING
   id<GTMUIApplicationProtocol> app = [[self class] fetcherUIApplication];
   // Background tasks seem to interfere with out-of-process uploads and downloads.
-  if (app && !self.skipBackgroundTask && !self.useBackgroundSession) {
+  if (app && !self.skipBackgroundTask && !self.usingBackgroundSession) {
     // Tell UIApplication that we want to continue even when the app is in the
     // background.
 #if DEBUG
