@@ -551,8 +551,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
                            fetchRequest);
     }
 #endif
-    // If priorSessionIdentifier is allowed to stay nil, it will still create a background
-    // session.
+    // If priorSessionIdentifier is allowed to stay non-nil, a background session can
+    // still be created.
     priorSessionIdentifier = nil;
     [self setSessionIdentifierInternal:nil];
     self.usingBackgroundSession = NO;
