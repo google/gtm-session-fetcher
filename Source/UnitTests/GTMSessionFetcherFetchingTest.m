@@ -194,6 +194,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(fetcher.downloadProgressBlock);
   XCTAssertNil(fetcher.willCacheURLResponseBlock);
   XCTAssertNil(fetcher.retryBlock);
+  if (@available(iOS 10.0, macOS 10.12, tvOS 10.0, watchOS 3.0, *)) {
+    XCTAssertNil(fetcher.metricsCollectionBlock);
+  }
   XCTAssertNil(fetcher.testBlock);
 
   if ([fetcher isKindOfClass:[GTMSessionUploadFetcher class]]) {
@@ -1847,6 +1850,120 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testInsecureRequests_WithoutFetcherService {
   _fetcherService = nil;
   [self testInsecureRequests];
+}
+
+- (void)testCollectingMetrics_WithSuccessfulFetch API_AVAILABLE(ios(10.0), macosx(10.12),
+                                                                tvos(10.0), watchos(3.0)) {
+  if (!_isServerRunning) return;
+
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+  __block NSURLSessionTaskMetrics *collectedMetrics = nil;
+
+  fetcher.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
+    collectedMetrics = metrics;
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertNotNil(collectedMetrics);
+  XCTAssertEqual(collectedMetrics.transactionMetrics.count, 1);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].fetchStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].connectStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].connectEndDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].requestStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].requestEndDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseEndDate);
+}
+
+- (void)testCollectingMetrics_WithSuccessfulFetch_WithoutFetcherService API_AVAILABLE(
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+  _fetcherService = nil;
+  [self testCollectingMetrics_WithSuccessfulFetch];
+}
+
+- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect API_AVAILABLE(ios(10.0), macosx(10.12),
+                                                                          tvos(10.0),
+                                                                          watchos(3.0)) {
+  if (!_isServerRunning) return;
+
+  // Fetch a live, invalid URL
+  NSString *badURLString = @"http://localhost:86/";
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:badURLString];
+
+  __block NSURLSessionTaskMetrics *collectedMetrics = nil;
+  fetcher.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
+    collectedMetrics = metrics;
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNotNil(error);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertNotNil(collectedMetrics);
+  XCTAssertEqual(collectedMetrics.transactionMetrics.count, 1);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].fetchStartDate);
+
+  // Connetion not established, and therefore the following metrics do not exist.
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].connectStartDate);
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].connectEndDate);
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].requestStartDate);
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].requestEndDate);
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].responseStartDate);
+  XCTAssertNil(collectedMetrics.transactionMetrics[0].responseEndDate);
+}
+
+- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect_WithoutFetcherService API_AVAILABLE(
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+  _fetcherService = nil;
+  [self testCollectingMetrics_WithWrongFetch_FaildToConnect];
+}
+
+- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode API_AVAILABLE(ios(10.0), macosx(10.12),
+                                                                         tvos(10.0), watchos(3.0)) {
+  if (!_isServerRunning) return;
+
+  NSString *statusURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                      parameters:@{@"status" : @"400"}];
+
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:statusURLString];
+
+  __block NSURLSessionTaskMetrics *collectedMetrics = nil;
+  fetcher.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
+    collectedMetrics = metrics;
+  };
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNotNil(error);
+  }];
+  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  XCTAssertNotNil(collectedMetrics);
+  XCTAssertEqual(collectedMetrics.transactionMetrics.count, 1);
+
+  // A 400 HTTP response is still a complete response, and therefore these metrics exist.
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].fetchStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].connectStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].connectEndDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].requestStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].requestEndDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseStartDate);
+  XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseEndDate);
+}
+
+- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode_WithoutFetcherService API_AVAILABLE(
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+  _fetcherService = nil;
+  [self testCollectingMetrics_WithWrongFetch_BadStatusCode];
 }
 
 #pragma mark - TestBlock Tests
