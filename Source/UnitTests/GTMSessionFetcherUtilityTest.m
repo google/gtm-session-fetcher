@@ -109,7 +109,11 @@
 #if TARGET_OS_TV
   XCTAssertTrue([result hasPrefix:@"Apple_TV/"], @"%@", result);
 #elif TARGET_OS_IPHONE
-  XCTAssertTrue([result hasPrefix:@"iPhone"], @"%@", result);
+  if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+    XCTAssertTrue([result hasPrefix:@"iPad"], @"%@", result);
+  } else {
+    XCTAssertTrue([result hasPrefix:@"iPhone"], @"%@", result);
+  }
 #else
   XCTAssertTrue([result hasPrefix:@"MacOSX/"], @"%@", result);
 #endif

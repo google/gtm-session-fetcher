@@ -30,6 +30,15 @@
   _service = [[GTMSessionFetcherService alloc] init];
   _service.reuseSession = YES;
 
+  // These tests were originally written with the delegate queue as the main queue; changing
+  // the default off the main queue seems to have caused several flaking issues with the tests,
+  // not due to incorrect behavior from the fetcher but due to the tests not expecting the
+  // multi-threaded behavior in their assertions.
+  //
+  // Changing the session delegate queue back to the main queue to let the tests run correctly
+  // until the can get sorted out.
+  _service.sessionDelegateQueue = [NSOperationQueue mainQueue];
+
   [super setUp];
 }
 
@@ -50,12 +59,14 @@
 
   NSData *smallData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:13];
   NSURL *testURL = [NSURL URLWithString:@"http://test.example.com/foo"];
-  NSURLRequest *request = [NSURLRequest requestWithURL:testURL];
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:testURL];
+  request.allowsCellularAccess = NO;
 
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
                                                                              chunkSize:75000
                                                                         fetcherService:_service];
+  XCTAssertFalse(fetcher.allowsCellularAccess);
   fetcher.uploadData = smallData;
 
   NSData *fakedResultData = [@"Snuffle." dataUsingEncoding:NSUTF8StringEncoding];
@@ -89,10 +100,13 @@
   __block NSRange uploadedRange = NSMakeRange(0, 0);
   NSRange expectedRange = NSMakeRange(0, bigUploadData.length);
 
+  // Try a cellular allowed request.
+  request.allowsCellularAccess = YES;
   fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                uploadMIMEType:@"text/plain"
                                                     chunkSize:75000
                                                fetcherService:_service];
+  XCTAssertTrue(fetcher.allowsCellularAccess);
   fetcher.uploadData = nil;
   [fetcher setUploadDataLength:(int64_t)expectedRange.length
                       provider:^(int64_t offset, int64_t length,

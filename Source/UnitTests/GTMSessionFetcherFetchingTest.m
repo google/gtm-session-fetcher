@@ -164,6 +164,26 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)assertCallbacksReleasedForFetcher:(GTMSessionFetcher *)fetcher {
+  // Because the sessionDelegateQueue no longer defaults to the main queue, there is a race
+  // condition when asserting the release of all fetcher callback blocks, which will usually
+  // occur on the sessionDelegateQueue and may not have finished running. Bounce through the
+  // delegate queue to ensure any operation currently running there has had a chance to release
+  // the callbacks before making the test assertions.
+  //
+  // This is not a race condition for production, only the tests, which are asserting they are
+  // nil after the fetch has completed.
+  NSOperationQueue *queue = fetcher.sessionDelegateQueue;
+  if (queue) {
+    XCTestExpectation *expectation = [self expectationWithDescription:@"delegate queue op"];
+    [queue addOperationWithBlock:^{
+      // With the execution of this block, the session delegate queue will have completed the
+      // post-dispatch operation that might trigger arriving at these assertions.
+      [expectation fulfill];
+    }];
+    // The expectation should complete almost immediately.
+    [self waitForExpectations:@[ expectation ] timeout:1.0];
+  }
+  
   XCTAssertNil(fetcher.completionHandler);
   XCTAssertNil(fetcher.configurationBlock);
   XCTAssertNil(fetcher.didReceiveResponseBlock);
