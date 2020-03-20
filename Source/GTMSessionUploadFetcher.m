@@ -1507,7 +1507,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                             responseHeaders);
 #endif
     if (isUploadStatusStopped ||
-        _uploadFileLength == 0 ||
+        (!_uploadData && _uploadFileLength == 0) ||
         (_currentOffset > _uploadFileLength && _uploadFileLength > 0)) {
       // This was the last chunk.
       if (error == nil && uploadStatus == kStatusCancelled) {
