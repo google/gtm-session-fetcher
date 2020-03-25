@@ -820,4 +820,29 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [session invalidateAndCancel];
 }
 
+- (void)testFetcherUsingMetricsCollectionBlockFromFetcherService API_AVAILABLE(ios(10.0),
+                                                                               macosx(10.12),
+                                                                               tvos(10.0),
+                                                                               watchos(3.0)) {
+  if (!_isServerRunning) return;
+
+  __block NSURLSessionTaskMetrics *collectedMetrics = nil;
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
+    collectedMetrics = metrics;
+  };
+
+  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertNotNil(fetchData);
+    XCTAssertNil(fetchError);
+  }];
+
+  [service waitForCompletionOfAllFetchersWithTimeout:10];
+
+  XCTAssertNotNil(collectedMetrics);
+}
+
 @end
