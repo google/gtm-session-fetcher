@@ -171,20 +171,20 @@
 		4F5566C81862981000D6D62C /* FetcherMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcherMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F63A7AA19831052004D4315 /* GTMSessionFetcherChunkedUploadTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherChunkedUploadTest.m; path = UnitTests/GTMSessionFetcherChunkedUploadTest.m; sourceTree = SOURCE_ROOT; };
 		4F63A7AD19831242004D4315 /* GTMSessionFetcherFetchingTest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherFetchingTest.h; path = UnitTests/GTMSessionFetcherFetchingTest.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMGatherInputStream.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMGatherInputStream.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E7618D6B2CC00CA4B4C /* GTMMIMEDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMMIMEDocument.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMMIMEDocument.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E7818D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMReadMonitorInputStream.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMReadMonitorInputStream.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E7A18D6B2CD00CA4B4C /* GTMSessionFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcher.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcher.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E7C18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcherLogging.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcherLogging.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E7E18D6B2CD00CA4B4C /* GTMSessionFetcherService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetcherService.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcherService.m; sourceTree = SOURCE_ROOT; };
-		4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GTMSessionUploadFetcher.h; sourceTree = SOURCE_ROOT; };
-		4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionUploadFetcher.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7418D6B2CC00CA4B4C /* GTMGatherInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMGatherInputStream.h; path = GTMSessionFetcher/GTMGatherInputStream.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMGatherInputStream.m; path = GTMSessionFetcher/GTMGatherInputStream.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7618D6B2CC00CA4B4C /* GTMMIMEDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMMIMEDocument.h; path = GTMSessionFetcher/GTMMIMEDocument.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMMIMEDocument.m; path = GTMSessionFetcher/GTMMIMEDocument.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7818D6B2CD00CA4B4C /* GTMReadMonitorInputStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMReadMonitorInputStream.h; path = GTMSessionFetcher/GTMReadMonitorInputStream.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMReadMonitorInputStream.m; path = GTMSessionFetcher/GTMReadMonitorInputStream.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7A18D6B2CD00CA4B4C /* GTMSessionFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcher.h; path = GTMSessionFetcher/GTMSessionFetcher.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcher.m; path = GTMSessionFetcher/GTMSessionFetcher.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7C18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherLogging.h; path = GTMSessionFetcher/GTMSessionFetcherLogging.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherLogging.m; path = GTMSessionFetcher/GTMSessionFetcherLogging.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E7E18D6B2CD00CA4B4C /* GTMSessionFetcherService.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionFetcherService.h; path = GTMSessionFetcher/GTMSessionFetcherService.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionFetcherService.m; path = GTMSessionFetcher/GTMSessionFetcherService.m; sourceTree = SOURCE_ROOT; };
+		4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = GTMSessionUploadFetcher.h; path = GTMSessionFetcher/GTMSessionUploadFetcher.h; sourceTree = SOURCE_ROOT; };
+		4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = GTMSessionUploadFetcher.m; path = GTMSessionFetcher/GTMSessionUploadFetcher.m; sourceTree = SOURCE_ROOT; };
 		4F6F7EA518D6B3CE00CA4B4C /* FTAAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FTAAppDelegate.h; path = TestApps/FetcherOSXTestApp/FTAAppDelegate.h; sourceTree = SOURCE_ROOT; };
 		4F6F7EA618D6B3CE00CA4B4C /* FTAAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FTAAppDelegate.m; path = TestApps/FetcherOSXTestApp/FTAAppDelegate.m; sourceTree = SOURCE_ROOT; };
 		4F6F7EA718D6B3CE00CA4B4C /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = MainMenu.xib; path = TestApps/FetcherOSXTestApp/MainMenu.xib; sourceTree = SOURCE_ROOT; };
@@ -780,6 +780,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 				Base,
 			);
