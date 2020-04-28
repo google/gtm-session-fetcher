@@ -12,14 +12,20 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "GTMSessionFetcher",
-            targets: ["GTMSessionFetcher"])
+            name: "GTMSessionFetcherCore",
+            targets: ["GTMSessionFetcherCore"]
+        )
     ],
     targets: [
         .target(
-            name: "GTMSessionFetcher",
+            name: "GTMSessionFetcherCore",
             path: "Source/GTMSessionFetcher",
             publicHeadersPath: "."
+        ),
+        .testTarget(
+            name: "GTMSessionFetcherCoreTests",
+            dependencies: ["GTMSessionFetcherCore"],
+            path: "Source/UnitTests"
         )
     ]
 )
