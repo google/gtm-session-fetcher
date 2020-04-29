@@ -120,6 +120,10 @@
 }
 
 - (void)testGTMFetcherApplicationIdentifier {
+// Swift Packages do not have the notion of bundles,
+// and the actual identifier might change from release to release,
+// or wether was built using Xcode or swift command.
+#if !SWIFT_PACKAGE
   NSBundle *bundle = [NSBundle bundleForClass:[self class]];
   NSString *result = GTMFetcherApplicationIdentifier(bundle);
 #if TARGET_OS_TV
@@ -129,9 +133,11 @@
 #else
   XCTAssertEqualObjects(result, @"com.google.FetcherMacTests/1.0");
 #endif
+#endif // !SWIFT_PACKAGE
 }
 
 - (void)testGTMFetcherStandardVersionString {
+#if !SWIFT_PACKAGE
   // Test with test bundle.
   NSBundle *bundle = [NSBundle bundleForClass:[self class]];
   NSString *result = GTMFetcherStandardUserAgentString(bundle);
@@ -168,6 +174,7 @@
        (long)version.majorVersion, (long)version.minorVersion, (long)version.patchVersion];
   XCTAssertEqualObjects(result, expected);
 #endif
+#endif // !SWIFT_PACKAGE
 }
 
 - (void)testGTMDataFromInputStream {

@@ -91,6 +91,40 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSBundle *testBundle = [NSBundle bundleForClass:[self class]];
   XCTAssertNotNil(testBundle);
 
+#if SWIFT_PACKAGE
+  // Swift Pacage Manager does not support resources distribution currently,
+  // therefore the "gettysburgaddress.txt" file must be copied manually to the test bundle.
+  static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+      NSString *gettysburg = @""\
+      "Four score and seven years ago our fathers brought forth on this continent, a"\
+      "new nation, conceived in liberty, and dedicated to the proposition that all men"\
+      "are created equal.";
+
+      NSString * resourcePath = [testBundle resourcePath];
+      XCTAssertNotNil(resourcePath);
+
+      if (![[NSFileManager defaultManager] fileExistsAtPath:resourcePath]) {
+          NSError *createDirectoryError = nil;
+          if (![[NSFileManager defaultManager] createDirectoryAtPath:resourcePath
+                                         withIntermediateDirectories:true
+                                                          attributes:nil
+                                                               error:&createDirectoryError]) {
+            XCTFail("Failed to create the Resources directory, error: %@", createDirectoryError);
+          }
+      }
+
+      NSString *gettysburgPath = [resourcePath stringByAppendingPathComponent:@"gettysburgaddress.txt"];
+      NSError *writeError = nil;
+      if (![gettysburg writeToFile:gettysburgPath
+                        atomically:true
+                          encoding:NSUTF8StringEncoding
+                             error:&writeError]) {
+        XCTFail("Failed to write `gettysburgaddress.txt` bundle Resource, error: %@", writeError);
+      }
+    });
+#endif
+
   NSString *docFolder = [testBundle resourcePath];
   return docFolder;
 }

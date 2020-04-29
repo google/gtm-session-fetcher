@@ -220,6 +220,15 @@ static NSString *const kEtag = @"GoodETag";
   return [NSURL URLWithString:urlString];
 }
 
+- (NSURL *)localURLForFileUsingAppend:(NSString *)name {
+  // We need to create http URLs referring to the desired
+  // resource to be found by the http server running locally.
+  // Return a localhost:port URL for the test file
+
+  NSString *urlString = [NSString stringWithFormat:@"http://localhost:%d", _server.port];
+  return [[NSURL URLWithString:urlString] URLByAppendingPathComponent:name];
+}
+
 - (NSURL *)localv6URLForFile:(NSString *)name {
   // Return an IPv6-style localhost URL, useful for testing changes in host.
   NSString *urlString = [NSString stringWithFormat:@"http://[::1]:%d/%@", _server.port, name];
