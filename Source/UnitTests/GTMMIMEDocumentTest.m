@@ -19,7 +19,11 @@
 
 #import <XCTest/XCTest.h>
 
+#if SWIFT_PACKAGE
+@import GTMSessionFetcherFull;
+#else
 #import "GTMMIMEDocument.h"
+#endif
 
 @interface GTMMIMEDocumentTest : XCTestCase
 @end

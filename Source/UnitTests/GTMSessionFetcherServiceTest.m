@@ -20,7 +20,11 @@
 #import <XCTest/XCTest.h>
 
 #import "GTMSessionFetcherTestServer.h"
+#if SWIFT_PACKAGE
+@import GTMSessionFetcherCore;
+#else
 #import "GTMSessionFetcherService.h"
+#endif
 
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;

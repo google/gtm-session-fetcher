@@ -19,9 +19,13 @@
 #import <stdlib.h>
 
 #import "GTMSessionFetcherTestServer.h"
+#if SWIFT_PACKAGE
+@import GTMSessionFetcherCore;
+#else
 #import "GTMSessionFetcher.h"
 #import "GTMSessionFetcherLogging.h"
 #import "GTMSessionUploadFetcher.h"
+#endif
 
 GTM_ASSUME_NONNULL_BEGIN
 

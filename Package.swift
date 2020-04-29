@@ -31,24 +31,48 @@ let package = Package(
     targets: [
         .target(
             name: "GTMSessionFetcherCore",
-            path: "Source/GTMSessionFetcher/Core",
-            publicHeadersPath: "."
+            path: "Source",
+            sources:[
+                "GTMSessionFetcher.h",
+                "GTMSessionFetcher.m",
+                "GTMSessionFetcherLogging.h",
+                "GTMSessionFetcherLogging.m",
+                "GTMSessionFetcherService.h",
+                "GTMSessionFetcherService.m",
+                "GTMSessionUploadFetcher.h",
+                "GTMSessionUploadFetcher.m"
+            ],
+            publicHeadersPath: "SwiftPackage"
         ),
         .target(
             name: "GTMSessionFetcherFull",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source/GTMSessionFetcher/Full",
-            publicHeadersPath: "."
+            path: "Source",
+            sources: [
+                "GTMGatherInputStream.h",
+                "GTMGatherInputStream.m",
+                "GTMGatherInputStream.h",
+                "GTMGatherInputStream.m",
+                "GTMMIMEDocument.h",
+                "GTMMIMEDocument.m",
+                "GTMReadMonitorInputStream.h",
+                "GTMReadMonitorInputStream.m",
+            ],
+            publicHeadersPath: "SwiftPackage"
         ),
         .target(
             name: "GTMSessionFetcherLogView",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source/GTMSessionFetcher/LogView",
-            publicHeadersPath: "."
+            path: "Source",
+            sources: [
+                "GTMSessionFetcherLogViewController.h",
+                "GTMSessionFetcherLogViewController.m"
+            ],
+            publicHeadersPath: "SwiftPackage"
         ),
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
-            dependencies: ["GTMSessionFetcherFull"],
+            dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
             path: "Source/UnitTests"
         )
     ]
