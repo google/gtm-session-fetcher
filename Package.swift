@@ -12,19 +12,43 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "GTMSessionFetcher",
+            targets: ["GTMSessionFetcherCore", "GTMSessionFetcherFull"]
+        ),
+        .library(
             name: "GTMSessionFetcherCore",
             targets: ["GTMSessionFetcherCore"]
+        ),
+        .library(
+            name: "GTMSessionFetcherFull",
+            targets: ["GTMSessionFetcherFull"]
+        ),
+        .library(
+            name: "GTMSessionFetcherLogView",
+            targets: ["GTMSessionFetcherLogView"]
         )
     ],
     targets: [
         .target(
             name: "GTMSessionFetcherCore",
-            path: "Source/GTMSessionFetcher",
+            path: "Source/GTMSessionFetcher/Core",
+            publicHeadersPath: "."
+        ),
+        .target(
+            name: "GTMSessionFetcherFull",
+            dependencies: ["GTMSessionFetcherCore"],
+            path: "Source/GTMSessionFetcher/Full",
+            publicHeadersPath: "."
+        ),
+        .target(
+            name: "GTMSessionFetcherLogView",
+            dependencies: ["GTMSessionFetcherCore"],
+            path: "Source/GTMSessionFetcher/LogView",
             publicHeadersPath: "."
         ),
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
-            dependencies: ["GTMSessionFetcherCore"],
+            dependencies: ["GTMSessionFetcherFull"],
             path: "Source/UnitTests"
         )
     ]
