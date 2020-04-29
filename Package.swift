@@ -51,8 +51,6 @@ let package = Package(
             sources: [
                 "GTMGatherInputStream.h",
                 "GTMGatherInputStream.m",
-                "GTMGatherInputStream.h",
-                "GTMGatherInputStream.m",
                 "GTMMIMEDocument.h",
                 "GTMMIMEDocument.m",
                 "GTMReadMonitorInputStream.h",
