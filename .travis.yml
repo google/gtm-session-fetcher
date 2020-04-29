@@ -3,7 +3,6 @@ osx_image: xcode11.1
 jobs:
   include:
     - stage: Swift PM
-      osx_image: xcode11.4
       script:
       # Build the project using Swift PM
         - swift build
