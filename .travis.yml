@@ -1,29 +1,26 @@
 language: objective-c
 osx_image: xcode11.1
+env:
+  - MODE=OSX CFG=Debug
+  - MODE=OSX CFG=Release
+  - MODE=iOS CFG=Debug
+  - MODE=iOS CFG=Release
+  - MODE=tvOS CFG=Debug
+  - MODE=tvOS CFG=Release
+  - MODE=watchOS CFG=Debug
+  - MODE=watchOS CFG=Release
+script:
+  - ./.travis.sh "${MODE}" "${CFG}"
+notifications:
+  email: false
+
 jobs:
-  include:
-    - stage: Swift PM
+  - include:
+    - name: "Swift PM"
       script:
-      # Build the project using Swift PM
-        - swift build
-      # Test the project using Swift PM
-        - swift test
+      - swift build --configuration release
+      - swift test --configuration release
 
-    - stage: Xcode Tests
-      env:
-        - MODE=OSX CFG=Debug
-        - MODE=OSX CFG=Release
-        - MODE=iOS CFG=Debug
-        - MODE=iOS CFG=Release
-        - MODE=tvOS CFG=Debug
-        - MODE=tvOS CFG=Release
-        - MODE=watchOS CFG=Debug
-        - MODE=watchOS CFG=Release
-      script:
-        - ./.travis.sh "${MODE}" "${CFG}"
-      notifications:
-        email: false
-
-      branches:
-        except:
-          - google
+branches:
+  except:
+    - google
