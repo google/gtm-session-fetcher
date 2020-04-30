@@ -1,4 +1,5 @@
 language: objective-c
+os: osx
 osx_image: xcode11.1
 env:
   - MODE=OSX CFG=Debug
@@ -9,18 +10,9 @@ env:
   - MODE=tvOS CFG=Release
   - MODE=watchOS CFG=Debug
   - MODE=watchOS CFG=Release
+  - MODE=swiftpm CFG=Debug
+  - MODE=swiftpm CFG=Release
 script:
   - ./.travis.sh "${MODE}" "${CFG}"
 notifications:
   email: false
-
-jobs:
-  - include:
-    - name: "Swift PM"
-      script:
-      - swift build --configuration release
-      - swift test --configuration release
-
-branches:
-  except:
-    - google
