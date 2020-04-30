@@ -3,7 +3,7 @@
 set -eu
 
 if [[ "$#" -ne 2 ]]; then
-  echo "Usage: $0 {iOS|OSX|tvOS} {Debug|Release|Both}"
+  echo "Usage: $0 {iOS|OSX|tvOS|watchOS|swiftpm} {Debug|Release|Both}"
   exit 10
 fi
 
@@ -16,7 +16,17 @@ RunXcodeBuild() {
   xcodebuild "$@"
 }
 
-CMD_BUILDER=(
+# Report then run the build
+RunSwift() {
+  echo swift "$@"
+  swift "$@"
+}
+
+# Default to xcodebuild
+BUILD_TOOL="xcodebuild"
+
+# Helpers to build up xcodebuild commands
+XCODE_CMD_BUILDER=(
   -project Source/GTMSessionFetcherCore.xcodeproj
 )
 XCODE_ACTIONS=(
@@ -25,24 +35,27 @@ XCODE_ACTIONS=(
 
 case "${BUILD_MODE}" in
   iOS)
-    CMD_BUILDER+=(
+    XCODE_CMD_BUILDER+=(
         -scheme "iOS Framework"
         -destination "platform=iOS Simulator,name=iPhone 8,OS=latest"
     )
     ;;
   OSX)
-    CMD_BUILDER+=(-scheme "OS X Framework")
+    XCODE_CMD_BUILDER+=(-scheme "OS X Framework")
     ;;
   tvOS)
-    CMD_BUILDER+=(
+    XCODE_CMD_BUILDER+=(
         -scheme "tvOS Framework"
         -destination "platform=tvOS Simulator,name=Apple TV,OS=latest"
     )
     ;;
   watchOS)
-    CMD_BUILDER+=(-scheme "watchOS Framework")
+    XCODE_CMD_BUILDER+=(-scheme "watchOS Framework")
     # XCTest doesn't support watchOS.
     XCODE_ACTIONS=( build )
+    ;;
+  swiftpm)
+    BUILD_TOOL="swift"
     ;;
   *)
     echo "Unknown BUILD_MODE: ${BUILD_MODE}"
@@ -50,16 +63,34 @@ case "${BUILD_MODE}" in
     ;;
 esac
 
+declare -a CMD_CONFIGS
 case "${BUILD_CFG}" in
   Debug|Release)
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration "${BUILD_CFG}" "${XCODE_ACTIONS[@]}"
+    CMD_CONFIGS+=("${BUILD_CFG}")
     ;;
   Both)
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Debug "${XCODE_ACTIONS[@]}"
-    RunXcodeBuild "${CMD_BUILDER[@]}" -configuration Release "${XCODE_ACTIONS[@]}"
+    CMD_CONFIGS+=("Debug" "Release")
     ;;
   *)
     echo "Unknown BUILD_CFG: ${BUILD_CFG}"
     exit 12
     ;;
 esac
+
+# Loop over the command configs (Debug|Release)
+for CMD_CONFIG in "${CMD_CONFIGS[@]}"; do
+  case "${BUILD_TOOL}" in
+    xcodebuild)
+      RunXcodeBuild "${XCODE_CMD_BUILDER[@]}" -configuration "${CMD_CONFIG}" "${XCODE_ACTIONS[@]}"
+      ;;
+    swift)
+      LOWER_CMD_CONFIG="$(echo "${CMD_CONFIG}" | tr "[:upper:]" "[:lower:]")"
+      RunSwift build --configuration "${LOWER_CMD_CONFIG}"
+      RunSwift test --configuration "${LOWER_CMD_CONFIG}"
+      ;;
+    *)
+      echo "Unknown BUILD_TOOL: ${BUILD_TOOL}"
+      exit 13
+      ;;
+  esac
+done
