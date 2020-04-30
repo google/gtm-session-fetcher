@@ -20,7 +20,11 @@
 #import <XCTest/XCTest.h>
 
 #import "GTMSessionFetcherTestServer.h"
+#if SWIFT_PACKAGE
+@import GTMSessionFetcherCore;
+#else
 #import "GTMSessionFetcherService.h"
+#endif
 
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
@@ -737,8 +741,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   XCTestExpectation *expectReceiveResponse = [self expectationWithDescription:@"Received response"];
   NSString *gettysburgPath = [_testServer localPathForFile:kValidFileName];
-  NSString *echoHeadersPath = [gettysburgPath stringByAppendingString:@"?echo-headers=true"];
-  NSURL *validFileURL = [_testServer localURLForFile:echoHeadersPath];
+  NSURL *gettysburgFileURL = [_testServer localURLForFileUsingAppend:gettysburgPath];
+  NSURLComponents *validFileURLComponents = [[NSURLComponents alloc] initWithURL:gettysburgFileURL
+                                                         resolvingAgainstBaseURL:NO];
+  validFileURLComponents.query = @"?echo-headers=true";
+  NSURL *validFileURL = validFileURLComponents.URL;
   GTMSessionFetcher *fetcher = [service fetcherWithURL:validFileURL];
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {

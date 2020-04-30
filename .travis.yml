@@ -14,6 +14,13 @@ script:
 notifications:
   email: false
 
+jobs:
+  - include:
+    - name: "Swift PM"
+      script:
+      - swift build --configuration release
+      - swift test --configuration release
+
 branches:
   except:
     - google

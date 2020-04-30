@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if TARGET_OS_IOS || TARGET_OS_MACCATALYST
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -320,3 +324,5 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 @end
 
 #endif  // !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
+
+#endif  // TARGET_OS_IOS || TARGET_OS_MACCATALYST

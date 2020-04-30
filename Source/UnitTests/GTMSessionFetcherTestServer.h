@@ -44,9 +44,10 @@ typedef enum {
 @property(atomic, copy) NSString *defaultContentType;
 
 // Utilities for users.
-- (NSURL *)localURLForFile:(NSString *)name;     // http://localhost:port/filename
-- (NSURL *)localv6URLForFile:(NSString *)name;   // http://[::1]:port/filename
-- (NSString *)localPathForFile:(NSString *)name; // docRoot/filename
+- (NSURL *)localURLForFile:(NSString *)name;            // http://localhost:port/filename
+- (NSURL *)localURLForFileUsingAppend:(NSString *)name; // http://localhost:port/filename
+- (NSURL *)localv6URLForFile:(NSString *)name;          // http://[::1]:port/filename
+- (NSString *)localPathForFile:(NSString *)name;        // docRoot/filename
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code;
 + (NSData *)generatedBodyDataWithLength:(NSUInteger)length;
