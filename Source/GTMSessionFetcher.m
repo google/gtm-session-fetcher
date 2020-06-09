@@ -573,7 +573,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     //
     // file: and data: schemes are usually safe if they are hardcoded in the client or provided
     // by a trusted source, but since it's fairly rare to need them, it's safest to make clients
-    // explicitly whitelist them.
+    // explicitly allow them.
     BOOL isSecure =
         requestScheme != nil && [requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame;
     if (!isSecure) {
