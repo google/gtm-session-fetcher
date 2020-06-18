@@ -622,7 +622,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 
   BOOL isRecreatingSession = (self.sessionIdentifier != nil) && (fetchRequest == nil);
 
-  self.canShareSession = !isRecreatingSession && !self.usingBackgroundSession;
+  self.canShareSession = (_service != nil) && !isRecreatingSession && !self.usingBackgroundSession;
 
   if (!self.session && self.canShareSession) {
     self.session = [_service sessionForFetcherCreation];
