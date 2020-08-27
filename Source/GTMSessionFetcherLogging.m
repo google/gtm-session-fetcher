@@ -226,7 +226,7 @@ static NSString *gLoggingProcessName = nil;
 }
 
 + (NSString *)htmlFileName {
-  return @"aperçu_http_log.html";
+  return @"apercu_http_log.html";
 }
 
 + (void)deleteLogDirectoriesOlderThanDate:(NSDate *)cutoffDate {
