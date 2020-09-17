@@ -1,2 +1,7 @@
+Package.pins
+Package.resolved
+.swiftpm
+.build
+
 # Any place they exist.
 .DS_Store
