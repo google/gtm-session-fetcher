@@ -52,6 +52,7 @@ NSString *const kGTMSessionFetcherElapsedIntervalWithRetriesKey = @"kGTMSessionF
 static NSString *const kGTMSessionIdentifierPrefix = @"com.google.GTMSessionFetcher";
 static NSString *const kGTMSessionIdentifierDestinationFileURLMetadataKey = @"_destURL";
 static NSString *const kGTMSessionIdentifierBodyFileURLMetadataKey        = @"_bodyURL";
+static NSString *const kGTMSessionIdentifierClientReconnectMetadataKey    = @"_clientWillReconnect";
 
 // The default max retry interview is 10 minutes for uploads (POST/PUT/PATCH),
 // 1 minute for downloads.
@@ -191,6 +192,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   NSURLResponse *_response;
   NSString *_sessionIdentifier;
   BOOL _wasCreatedFromBackgroundSession;
+  BOOL _clientWillReconnectBackgroundSession;
   BOOL _didCreateSessionIdentifier;
   NSString *_sessionIdentifierUUID;
   BOOL _userRequestedBackgroundSession;
@@ -1377,7 +1379,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
       fetcher = [self fetcherWithSessionIdentifier:sessionIdentifier];
       GTMSESSION_ASSERT_DEBUG(fetcher != nil,
                               @"Unexpected invalid session identifier: %@", sessionIdentifier);
-      [fetcher beginFetchWithCompletionHandler:nil];
+      if (!fetcher.clientWillReconnectBackgroundSession) {
+        [fetcher beginFetchWithCompletionHandler:nil];
+      }
     }
     GTM_LOG_BACKGROUND_SESSION(@"%@ restoring session %@ by creating fetcher %@ %p",
                                [self class], sessionIdentifier, fetcher, fetcher);
@@ -1474,6 +1478,9 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   if (_bodyFileURL) {
     defaultUserInfo[kGTMSessionIdentifierBodyFileURLMetadataKey] = [_bodyFileURL absoluteString];
   }
+  if (_clientWillReconnectBackgroundSession) {
+    defaultUserInfo[kGTMSessionIdentifierClientReconnectMetadataKey] = @"YES";
+  }
   return (defaultUserInfo.count > 0) ? defaultUserInfo : nil;
 }
 
@@ -1490,6 +1497,12 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
   if (bodyFileURLString) {
     _bodyFileURL = [NSURL URLWithString:bodyFileURLString];
     GTM_LOG_BACKGROUND_SESSION(@"Restoring body file URL: %@", _bodyFileURL);
+  }
+  NSString *clientReconnectString = metadata[kGTMSessionIdentifierClientReconnectMetadataKey];
+  if (clientReconnectString) {
+    _clientWillReconnectBackgroundSession = [clientReconnectString boolValue];
+    GTM_LOG_BACKGROUND_SESSION(@"Restoring clientWillReconnectBackgroundSession: %@",
+                               (_clientWillReconnectBackgroundSession ? @"YES" : @"NO"));
   }
 }
 
@@ -3447,6 +3460,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             configurationBlock = _configurationBlock,
             sessionTask = _sessionTask,
             wasCreatedFromBackgroundSession = _wasCreatedFromBackgroundSession,
+            clientWillReconnectBackgroundSession = _clientWillReconnectBackgroundSession,
             sessionUserInfo = _sessionUserInfo,
             taskDescription = _taskDescription,
             taskPriority = _taskPriority,
