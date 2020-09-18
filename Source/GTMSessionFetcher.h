@@ -791,6 +791,12 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Indicates a fetcher created to finish a background session task.
 @property(atomic, readonly) BOOL wasCreatedFromBackgroundSession;
 
+// Indicates the client has committed to reconnecting this background session when
+// the app restarts. If this value is YES, the session fetcher will not automatically
+// call beginFetchWithCompletionHandler: on the restored fetcher on app start, and
+// the session will not handle system events until the client explicitly does.
+@property(atomic, assign) BOOL clientWillReconnectBackgroundSession;
+
 // Additional user-supplied data to encode into the session identifier. Since session identifier
 // length limits are unspecified, this should be kept small. Key names beginning with an underscore
 // are reserved for use by the fetcher.
