@@ -905,21 +905,31 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 #else
     NSString *bgTaskName = @"GTMSessionFetcher";
 #endif
-    __block UIBackgroundTaskIdentifier bgTaskID = [app beginBackgroundTaskWithName:bgTaskName
-                                                                 expirationHandler:^{
+    // Since a request can be started from any thread, we also have to ensure the
+    // variable for accessing it is safe across the initial thread and the handler
+    // (incase it gets failed immediately from the app already heading into the
+    // background).
+    __block UIBackgroundTaskIdentifier guardedTaskID = UIBackgroundTaskInvalid;
+    UIBackgroundTaskIdentifier returnedTaskID =
+        [app beginBackgroundTaskWithName:bgTaskName expirationHandler:^{
       // Background task expiration callback - this block is always invoked by
       // UIApplication on the main thread.
-      if (bgTaskID != UIBackgroundTaskInvalid) {
+      UIBackgroundTaskIdentifier localTaskID;
+      @synchronized(self) {
+        localTaskID = guardedTaskID;
+      }
+      if (localTaskID != UIBackgroundTaskInvalid) {
         @synchronized(self) {
-          if (bgTaskID == self.backgroundTaskIdentifier) {
+          if (localTaskID == self.backgroundTaskIdentifier) {
             self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
           }
         }
-        [app endBackgroundTask:bgTaskID];
+        [app endBackgroundTask:localTaskID];
       }
     }];
     @synchronized(self) {
-      self.backgroundTaskIdentifier = bgTaskID;
+      guardedTaskID = returnedTaskID;
+      self.backgroundTaskIdentifier = returnedTaskID;
     }
   }
 #endif
