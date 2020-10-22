@@ -4669,7 +4669,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
   }
 }
 
-+ (NSArray *)functionsHoldingSynchronizationOnObject:(id)object {
++ (NSArray * GTM_NULLABLE_TYPE)functionsHoldingSynchronizationOnObject:(id)object {
   Class threadKey = [GTMSessionSyncMonitorInternal class];
   NSValue *localObjectKey = [NSValue valueWithNonretainedObject:object];
 
