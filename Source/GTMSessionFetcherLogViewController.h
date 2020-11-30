@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if TARGET_OS_IOS || TARGET_OS_MACCATALYST
+
 #if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
 
 #import <UIKit/UIKit.h>
@@ -64,3 +68,5 @@
 @end
 
 #endif  // !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
+
+#endif  // TARGET_OS_IOS || TARGET_OS_MACCATALYST
