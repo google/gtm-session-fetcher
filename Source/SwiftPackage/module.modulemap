@@ -1,3 +1,9 @@
+module GTMSessionFetcher {
+    umbrella "GTMSessionFetcher"
+
+    export *
+}
+
 module GTMSessionFetcherCore {
     umbrella "GTMSessionFetcherCore"
 
