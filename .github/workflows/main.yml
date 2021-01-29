@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  xcode:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        TGT: ["macOS", "iOS", "tvOS", "watchOS"]
+        MODE: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and Test
+      run:  |
+        XCODE_ACTIONS=( build test )
+        XCODE_SCHEME="${{ matrix.TGT }} Framework"
+        XCODE_EXTRA=( )
+        case "${{matrix.TGT}}" in
+          iOS)
+            XCODE_EXTRA+=(-destination "platform=iOS Simulator,name=iPhone 8,OS=latest")
+            ;;
+          macOS)
+            XCODE_SCHEME="OS X Framework"
+            ;;
+          tvOS)
+            XCODE_EXTRA+=(-destination "platform=tvOS Simulator,name=Apple TV,OS=latest")
+            ;;
+          watchOS)
+            XCODE_ACTIONS=( build )
+            ;;
+        esac
+
+        xcodebuild \
+          -project Source/GTMSessionFetcherCore.xcodeproj \
+          -scheme "${XCODE_SCHEME}" \
+          "${XCODE_EXTRA[@]}" \
+          "${XCODE_ACTIONS[@]}"
+
+  swiftpm:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        MODE: ["debug", "release"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and Test
+      run:  |
+        swift build --configuration ${{ matrix.MODE }}
+        swift test --configuration ${{ matrix.MODE }}
