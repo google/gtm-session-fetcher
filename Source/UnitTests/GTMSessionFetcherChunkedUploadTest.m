@@ -85,12 +85,15 @@
   fetcher.useBackgroundSession = NO;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
 
+  XCTestExpectation *expectation =
+      [self expectationWithDescription:@"NSData upload test completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, fakedResultData);
       XCTAssertNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -127,7 +130,7 @@
   fetcher.useBackgroundSession = NO;
   fetcher.allowedInsecureSchemes = @[ @"http" ];
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  expectation = [self expectationWithDescription:@"upload data provider completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, fakedResultData);
       XCTAssertNil(error);
@@ -582,7 +585,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -640,7 +648,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 2;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -715,7 +728,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   };
 #pragma clang diagnostic pop
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 3;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(data, [self gettysburgAddress]);
     XCTAssertNil(error);
@@ -772,7 +790,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 3;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -822,7 +845,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 3;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -868,7 +896,11 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher. Since the expected stop count is 1, no need to hold reference again.
+  __unused XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -907,6 +939,10 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.retryEnabled = YES;
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher. Since the expected fulfillment count is 1, no need for further references.
+  __unused XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data);
     XCTAssertEqual(error.code, (NSInteger)502);
@@ -943,7 +979,11 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher. Since the expected fulfillment count is 1, no need for further references.
+  __unused XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [NSData data]);
       XCTAssertEqual(error.code, (NSInteger)501);
@@ -980,7 +1020,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 2;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     // Test that server result is returned (success or failure).
     // The current test server don't accept POST requests with empty body.
@@ -1029,7 +1074,11 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  __unused XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     // The current test server don't accept POST requests with empty body.
     XCTAssertNil(data);
@@ -1074,7 +1123,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -1115,7 +1169,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
@@ -1160,7 +1219,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
     XCTFail("Success should not call cancellation handler.");
   };
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(data, [self gettysburgAddress]);
     XCTAssertNil(error);
@@ -1244,7 +1308,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(data, [self gettysburgAddress]);
     XCTAssertNil(error);
@@ -1291,14 +1360,18 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   [fetcher setProperty:@20000
                 forKey:kPauseAtKey];
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 5;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
       [expectation fulfill];
   }];
-  [fetcher waitForCompletionWithTimeout:_timeoutInterval];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1379,14 +1452,18 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   [fetcher setProperty:@20000
                 forKey:kPauseAtKey];
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 5;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
       [expectation fulfill];
   }];
-  [fetcher waitForCompletionWithTimeout:_timeoutInterval];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1461,10 +1538,15 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
     [expectation fulfill];
   };
 
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 3;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTFail(@"Canceled fetcher should not have called back");
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertEqual(fnctr.fetchStarted, 3);
@@ -1475,7 +1557,6 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   // After cancellation fires, it should be removed.
   XCTAssertNil(fetcher.cancellationHandler);
 }
@@ -1534,12 +1615,21 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher,
 
   fnctr = [[FetcherNotificationsCounter alloc] init];
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // Stop notification expectation will be fulfilled by receiving the notifications from
+  // GTMSessionFetcher.
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  // Expect 6 start/stop notifications from fetchers (the upload fetcher + 5 chunk fetchers).
+  stopExpectation.expectedFulfillmentCount = 6;
+
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload",
