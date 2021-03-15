@@ -1857,6 +1857,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 
   [holdSelf destroyRetryTimer];
 
+  BOOL sendStopNotification = YES;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1923,14 +1924,19 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
         if (!hasCanceledTask) {
           [oldSession finishTasksAndInvalidate];
         } else {
+          sendStopNotification = NO;
           _sessionNeedingInvalidation = oldSession;
         }
       }
     }
   }  // @synchronized(self)
 
-  // send the stopped notification
-  [self sendStopNotificationIfNeeded];
+  // If the NSURLSession needs to be invalidated, but needs to wait until the delegate method
+  // URLSession:task:didCompleteWithError: is called, delay sending the fetch stopped notification
+  // until then; otherwise send it now.
+  if (sendStopNotification) {
+    [self sendStopNotificationIfNeeded];
+  }
 
   [_authorizer stopAuthorizationForRequest:request];
 
