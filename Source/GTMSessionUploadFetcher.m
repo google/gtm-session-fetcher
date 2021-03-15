@@ -1974,6 +1974,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return [super isFetching];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-implementations"
 - (BOOL)waitForCompletionWithTimeout:(NSTimeInterval)timeoutInSeconds {
   NSDate *timeoutDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
 
@@ -1999,6 +2001,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
   return YES;
 }
+#pragma clang diagnostic pop
 
 @end
 

@@ -1138,6 +1138,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // to a shared session.
 @property(atomic, strong, GTM_NULL_RESETTABLE) NSOperationQueue *sessionDelegateQueue;
 
+// DEPRECATED: Callers should use XCTestExpectation instead.
+//
 // Spin the run loop or sleep the thread, discarding events, until the fetch has completed.
 //
 // This is only for use in testing or in tools without a user interface.
@@ -1146,7 +1148,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // sufficient reason for rejection from the app store.
 //
 // Returns NO if timed out.
-- (BOOL)waitForCompletionWithTimeout:(NSTimeInterval)timeoutInSeconds;
+- (BOOL)waitForCompletionWithTimeout:(NSTimeInterval)timeoutInSeconds
+    __deprecated_msg("Use XCTestExpectation instead");
 
 // Test block is optional for testing.
 //
