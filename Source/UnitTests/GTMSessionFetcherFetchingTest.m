@@ -312,6 +312,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #pragma clang diagnostic pop
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
@@ -346,8 +347,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         XCTAssertEqualObjects([(NSHTTPURLResponse *)proposedResponseToCache.response allHeaderFields],
                               [(NSHTTPURLResponse *)fetcher.response allHeaderFields]);
       }
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssert(wasConfigBlockCalled);
@@ -373,6 +375,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqualObjects(config.HTTPCookieStorage, cookieStorage);
   };
 
+  expectation = [self expectationWithDescription:@"Cookies found"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(data, [self gettysburgAddress], @"Unexpected data.");
 
@@ -381,8 +384,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSDictionary *allHeaderFields = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
       NSString *cookiesSent = [allHeaderFields objectForKey:@"FoundCookies"];
       XCTAssertEqualObjects(cookiesSent, cookieExpected);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   if (!_fetcherService) {
     XCTAssert(wasConfigBlockCalled);
@@ -444,15 +448,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     });
   }];
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                 data:data
                                                error:error];
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
-  [self assertCallbacksReleasedForFetcher:fetcher];
-
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
@@ -495,13 +499,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     }
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:accumulatedData
                                                  error:error];
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -533,6 +539,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *badURLString = @"http://localhost:86/";
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:badURLString];
+  XCTestExpectation *expectation = [self expectationWithDescription:badURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       if (data) {
         NSString *str = [[NSString alloc] initWithData:data
@@ -546,8 +553,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
       XCTAssertNil(retriesDone);
       XCTAssertNil(elapsedInterval);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -557,6 +565,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                       parameters:@{ @"status": @"400" }];
 
   fetcher = [self fetcherWithURLString:statusURLString];
+  expectation = [self expectationWithDescription:statusURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *statusStr = [[self->_testServer class] JSONBodyStringForStatus:400];
       NSData *errorBodyData = [statusStr dataUsingEncoding:NSUTF8StringEncoding];
@@ -577,8 +586,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:400];
         XCTAssertEqualObjects(dataStr, expectedStr, @"Expected JSON status data");
       }
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -611,11 +621,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
   fetcher.bodyFileURL = [NSURL fileURLWithPath:@"/bad/path/here.txt"];
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data);
     XCTAssertEqual(error.code, NSFileReadNoSuchFileError);
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -645,13 +657,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       // We'll verify we fetched from the server the actual data on disk.
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -696,10 +710,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                   dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL));
     [finishExpectation fulfill];
   }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval
-                               handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 
   //
   // Setting a specific queue should call back on that queue.
@@ -724,10 +736,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
               );
     [finishExpectation fulfill];
   }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval
-                               handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
 }
 
 - (void)testCallbackQueue_WithoutFetcherService {
@@ -756,13 +766,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       response(stream);
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       // We'll verify we fetched from the server the actual data on disk.
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -807,13 +819,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.allowLocalhostRequest = YES;
   XCTAssertNotNil(fetcher);
 
+  XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       // We'll verify we fetched from the server the actual data on disk.
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -853,14 +867,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [_testServer setHTTPAuthenticationType:kGTMHTTPAuthenticationTypeBasic
                                 username:@"user"
                                 password:@"password"];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"basic authentication"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       // We'll verify we fetched from the server the actual data on disk.
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
       XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
 #if TARGET_OS_TV || TARGET_OS_IPHONE
@@ -875,14 +891,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [_testServer setHTTPAuthenticationType:kGTMHTTPAuthenticationTypeDigest
                                 username:@"user"
                                 password:@"password"];
+  expectation = [self expectationWithDescription:@"digest authentication"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       // We'll verify we fetched from the server the actual data on disk.
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
       XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 #endif
 
@@ -900,12 +918,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [_testServer setHTTPAuthenticationType:kGTMHTTPAuthenticationTypeBasic
                                 username:@"user"
                                 password:@"password"];
+  expectation = [self expectationWithDescription:@"bad credential"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       XCTAssertEqual(error.code, (NSInteger)NSURLErrorCancelled, @"%@", error);
       XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -964,15 +984,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [calledChallengeDisposition fulfill];
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                 data:data
                                                error:error];
     XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -1006,14 +1026,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"synchronous authorizer"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
           [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error, @"unexpected error");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1021,14 +1043,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
+  expectation = [self expectationWithDescription:@"asynchronous authorizer"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
           [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error, @"unexpected error");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1037,14 +1061,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
   ((TestAuthorizer *)fetcher.authorizer).willFailWithError = YES;
+  expectation = [self expectationWithDescription:@"asynchronous authorizer error"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     NSString *authHdr =
       [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
     XCTAssertNil(authHdr);
     XCTAssertNil(data);
     XCTAssertNotNil(error);
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1061,12 +1087,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       response(NO);
   };
 
+  expectation = [self expectationWithDescription:@"expired synchronous authorizer no retry"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertNil(authHdr);
       XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1083,13 +1111,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       response(NO);
   };
 
+  expectation = [self expectationWithDescription:@"expired asynchronous authorizer no retry"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
           [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertNil(authHdr);
       XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1103,13 +1133,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       response(YES);
   };
 
+  expectation = [self expectationWithDescription:@"expired synchronous authorizer auto refresh"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1123,14 +1155,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     response(YES);
   };
 
+  expectation = [self expectationWithDescription:@"expired asynchronous authorizer auto refresh"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       NSString *authHdr =
           [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
       XCTAssertEqualObjects(authHdr, kGoodBearerValue);
       XCTAssertEqualObjects(data, [self gettysburgAddress]);
       XCTAssertNil(error);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check notifications.
@@ -1173,16 +1207,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
-  __block BOOL didCallBlock = NO;
+  XCTestExpectation *redirectExpectation = [self expectationWithDescription:@"redirect called"];
   fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
                                 NSURLRequest *redirectRequest,
                                 GTMSessionFetcherWillRedirectResponse response) {
       XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
                 ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
-      didCallBlock = YES;
       response(redirectRequest);
+      [redirectExpectation fulfill];
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
@@ -1207,9 +1242,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqual(cookies.count, (NSUInteger)1);
       NSHTTPCookie *firstCookie = cookies.firstObject;
       XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
-  XCTAssertTrue(didCallBlock);
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -1252,16 +1287,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
-  __block BOOL didCallBlock = NO;
+  XCTestExpectation *redirectExpectation = [self expectationWithDescription:@"redirect block"];
   fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
                                 NSURLRequest *redirectRequest,
                                 GTMSessionFetcherWillRedirectResponse response) {
     XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
               ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
-    didCallBlock = YES;
     response(NULL);
+    [redirectExpectation fulfill];
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     // Check that a redirect was performed
     NSURL *requestURL = [NSURL URLWithString:localURLString];
@@ -1286,9 +1322,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     XCTAssertEqual(cookies.count, (NSUInteger)1);
     NSHTTPCookie *firstCookie = cookies.firstObject;
     XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
-  XCTAssertTrue(didCallBlock);
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -1367,6 +1403,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                     retryBlock:countRetriesBlock
                               maxRetryInterval:5.0 // retry intervals of 1, 2, 4
                                       userData:@1000];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"retry timeout completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNotNil(data, @"error data is expected");
       XCTAssertEqual(fetcher.statusCode, (NSInteger)503);
@@ -1376,8 +1413,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
       XCTAssertEqual(retriesDone.integerValue, 3);
       XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+      [expectation fulfill];
    }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1386,11 +1424,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                            parameters:@{ @"sleep": @"10" }];
-
   fetcher = [self fetcherForRetryWithURLString:timeoutFileURLString
                                     retryBlock:countRetriesBlock
                               maxRetryInterval:5.0 // retry interval of 1, then exceed 3*max timout
                                       userData:@1000];
+  expectation = [self expectationWithDescription:@"retry server sleep completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data, @"error data unexpected");
       XCTAssertEqual(fetcher.statusCode, (NSInteger)408, @"%@", error);
@@ -1400,8 +1438,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
       XCTAssertEqual(retriesDone.integerValue, 1);
       XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1411,6 +1450,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                     retryBlock:countRetriesBlock
                               maxRetryInterval:10.0 // retry intervals of 1, 2, 4, 8
                                       userData:@2];
+  expectation = [self expectationWithDescription:@"retry twice completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNotNil(data);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)503, @"%@", error);
@@ -1420,8 +1460,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
       XCTAssertEqual(retriesDone.integerValue, 2);
       XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -1432,12 +1473,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                     retryBlock:fixRequestBlock
                               maxRetryInterval:30.0
                                       userData:@1000];
+  expectation = [self expectationWithDescription:@"retry fix URL"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNotNil(data);
       XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
       XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
@@ -1495,6 +1538,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     totalWritten = totalBytesWritten;
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       XCTAssertNil(error);
@@ -1504,8 +1548,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                               error:NULL];
       XCTAssertEqualObjects(fetchedContents, origContents);
       XCTAssertEqual(totalWritten, origLength, @"downloadProgressBlock not called");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   [self removeTemporaryFileURL:destFileURL];
@@ -1545,6 +1590,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *validDataURLString = [NSString stringWithFormat:@"data:,%@", escapedContents];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validDataURLString];
   fetcher.destinationFileURL = destFileURL;
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
       XCTAssertNil(error);
@@ -1553,8 +1599,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                            encoding:NSUTF8StringEncoding
                                                               error:NULL];
       XCTAssertEqualObjects(fetchedContents, origContents);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   [self removeTemporaryFileURL:destFileURL];
@@ -1603,6 +1650,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       totalWritten = totalBytesWritten;
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(data);
 
@@ -1617,7 +1665,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                        @"The length of error data should match the size of totalBytesWritten.");
         XCTAssertNotNil(error.userInfo[kGTMSessionFetcherStatusDataContentTypeKey]);
       }
-
 
       // Check for two error codes because of the discrepancy between iOS 8 and iOS 9 plus
       // described above
@@ -1636,9 +1683,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         // If the error was NSURLErrorFileDoesNotExist sometimes downloadProgressBlock was
         // called so totalWritten > 0, sometimes not.
       }
+      [expectation fulfill];
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // There should be no file to delete.
@@ -1667,6 +1715,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   // This test exercises the workaround for Radar 18471901. See comments in GTMSessionFetcher.m
   int const kFetcherCreationCount = 1000;
+  
+  // Notification-based expectations. These will be posted when each fetcher starts and when each
+  // fetcher stops. Setting a fulfillment count allows waiting on all fetchers started/stopped
+  // during this loop, all at once.
+  XCTestExpectation *startExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStartedNotification object:nil handler:nil];
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  startExpectation.expectedFulfillmentCount = kFetcherCreationCount;
+  stopExpectation.expectedFulfillmentCount = kFetcherCreationCount;
+
   for (int i = 0; i < kFetcherCreationCount; ++i) {
     GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"http://example.com/tst"];
     fetcher.useBackgroundSession = NO;
@@ -1675,8 +1734,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTFail(@"Download not canceled");
     }];
     [fetcher stopFetching];
-    XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   }
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@", fnctr.fetchersStartedDescriptions);
   XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
@@ -1714,6 +1773,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validURLString];
   fetcher.destinationFileURL = destFileURL;
   GTMSessionFetcher* __weak weakFetcher = fetcher;
+  XCTestExpectation *stopExpectation = [self expectationWithDescription:@"stop fetching"];
   fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
                                   int64_t totalBytesWritten,
                                   int64_t totalBytesExpectedToWrite) {
@@ -1728,6 +1788,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                   @"%lld !> %lld", totalBytesWritten, totalWritten);
     dispatch_async(dispatch_get_main_queue(), ^{
       [weakFetcher stopFetching];
+      [stopExpectation fulfill];
     });
     totalWritten = totalBytesWritten;
   };
@@ -1735,29 +1796,33 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // NSURLSession's invoking of the resume data block is too unreliable to create an
   // expectation for use in continuous testing.
   __block NSData *resumeData = nil;
-  __block BOOL wasResumeDataBlockCalled = NO;
+  XCTestExpectation *resumeDataExpectation =
+      [[XCTestExpectation alloc] initWithDescription:@"resume data"];
   fetcher.resumeDataBlock = ^(NSData *data){
-    wasResumeDataBlockCalled = YES;
     resumeData = data;
+    [resumeDataExpectation fulfill];
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTFail(@"initial download not canceled");
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectations:@[ stopExpectation ] timeout:_timeoutInterval];
 
+  // NSURLSession's invoking of the resume data block has proven too unreliable to use the
+  // XCTestCase expectation waiting methods in continuious testing, so instead use an explicit
+  // XCTWaiter to wait on the resume data, and examine the result code.
+  //
+  // Once stopFetching has been called, give NSURLSession a second to provide resume data or
+  // bail on this test.
+  XCTWaiter *waiter = [[XCTWaiter alloc] initWithDelegate:nil];
+  XCTWaiterResult waiterResult = [waiter waitForExpectations:@[ resumeDataExpectation ]
+                                                     timeout:1.0];
   [self assertCallbacksReleasedForFetcher:fetcher];
-
-  // Since we don't totally reliably get the resume data callback, we can't wait on an expectation
-  // on it. Instead we'll spin manually.
-  while (resumeData == nil && [fetcher.initialBeginFetchDate timeIntervalSinceNow] > -0.3) {
-    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-  }
 
   if (resumeData == nil) {
     // Sometimes NSURLSession decides it cannot resume; bail on the test.
-    if (!wasResumeDataBlockCalled) {
+    if (waiterResult == XCTWaiterResultTimedOut) {
       NSLog(@"*** %@ did not have its resumeDataBlock called; skipping test",
             [self currentTestName]);
     } else {
@@ -1782,6 +1847,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                   @"%lld !> %lld", totalBytesWritten, totalWritten);
     totalWritten = totalBytesWritten;
   };
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  // At this point, only expecting one stop notification, so no change to fulfillment count.
+  stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqual(data.length, (NSUInteger)0);
     XCTAssertNil(error);
@@ -1791,8 +1860,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                    @"Incorrect file size downloaded");
     XCTAssertTrue([written isEqual:expectedResponseData], @"downloaded data not expected");
     XCTAssertEqual(totalWritten, kExpectedResponseLen, @"downloadProgressBlock not called");
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   [self removeTemporaryFileURL:destFileURL];
@@ -1870,15 +1940,18 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       fetcher.allowLocalhostRequest = YES;
     }
     NSInteger expectedErrorCode = records[i].errorCode;
+    XCTestExpectation *expectation =
+        [self expectationWithDescription:[NSString stringWithFormat:@"completion handler: index %d", i]];
     [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       if (expectedErrorCode == 0) {
         XCTAssertNotNil(data, @"index %i -- %@", i, urlString);
       } else {
         XCTAssertEqual(error.code, expectedErrorCode, @"index %i -- %@ -- %@", i, urlString, error);
       }
+      [expectation fulfill];
     }];
-    XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
   }
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 - (void)testInsecureRequests_WithoutFetcherService {
@@ -1898,10 +1971,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     collectedMetrics = metrics;
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertNotNil(collectedMetrics);
@@ -1936,10 +2011,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     collectedMetrics = metrics;
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNotNil(error);
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertNotNil(collectedMetrics);
@@ -1971,14 +2048,18 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:statusURLString];
 
   __block NSURLSessionTaskMetrics *collectedMetrics = nil;
+  XCTestExpectation *metricsExpectation = [self expectationWithDescription:@"metrics collection"];
   fetcher.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
     collectedMetrics = metrics;
+    [metricsExpectation fulfill];
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNotNil(error);
+    [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertNotNil(collectedMetrics);
@@ -2030,13 +2111,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(fakedResultError);
       XCTAssertEqualObjects(data, fakedResultData);
       XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
       XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
@@ -2089,13 +2172,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
-  __block int numberOfRetryBlockInvokes = 0;
+  XCTestExpectation *retryExpectation = [self expectationWithDescription:@"retry block"];
+  retryExpectation.expectedFulfillmentCount = 3;
   fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
                          GTMSessionFetcherRetryResponse response) {
-      ++numberOfRetryBlockInvokes;  // Retries after 1, 2, 4 seconds.
+      // Should retry after 1, 2, 4 seconds.
       response(YES);
+      [retryExpectation fulfill];
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  XCTestExpectation *stopExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification object:nil handler:nil];
+  stopExpectation.expectedFulfillmentCount = 4;
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(error.domain, fakedResultError.domain);
       XCTAssertEqual(error.code, fakedResultError.code, @"%@", error);
@@ -2104,9 +2193,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertNil(data);
       XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
       XCTAssertEqualObjects(fetcher.responseHeaders[@"Alaskan"], @"Malamute");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
-  XCTAssertEqual(numberOfRetryBlockInvokes, 3);
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertEqual(fnctr.fetchStarted, 4, @"%@", fnctr.fetchersStartedDescriptions);
@@ -2200,6 +2289,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, downloadData, fakedResultError);
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"data completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(error);
       XCTAssertEqualObjects(data, downloadData);
@@ -2214,9 +2304,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       XCTAssertEqualObjects(initialResponse, fetcher.response);
 
       XCTAssertEqualObjects(proposedResponseToCache.response, fetcher.response);
+      [expectation fulfill];
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -2262,6 +2353,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, downloadData, fakedResultError);
   };
 
+  expectation = [self expectationWithDescription:@"file completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(error);
       XCTAssertNil(data);
@@ -2274,9 +2366,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
       XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+      [expectation fulfill];
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   [self removeTemporaryFileURL:uploadFileURL];
@@ -2319,6 +2412,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, downloadData, fakedResultError);
   };
 
+  expectation = [self expectationWithDescription:@"stream completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(error);
       XCTAssertNil(data);
@@ -2329,9 +2423,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
       XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
       XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+      [expectation fulfill];
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 }
 
@@ -2426,6 +2521,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     testResponse(fakedResultResponse, downloadData, fakedResultError);
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"stream download fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(error);
     XCTAssertNil(data);
@@ -2435,9 +2531,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
     XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
     XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+    [expectation fulfill];
   }];
 
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  // Since this is a helper method, wait on the specific expectation rather than all.
+  [self waitForExpectations:@[ expectation ] timeout:_timeoutInterval];
   [self assertCallbacksReleasedForFetcher:fetcher];
 }
 
@@ -2472,12 +2570,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       testResponse(nil, nil, fakedResultError);
   };
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNotNil(error);
       XCTAssertNil(data);
       XCTAssertEqual(fetcher.statusCode, 0);
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
@@ -2525,13 +2625,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   // First fetch should be handled by the test block.
   //
+  XCTestExpectation *expectation = [self expectationWithDescription:@"test block fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertNil(fakedResultError);
       XCTAssertEqualObjects(data, fakedResultData);
       XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
       XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   //
@@ -2542,12 +2644,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher = [self fetcherWithURLString:localURLString];
   fetcher.allowLocalhostRequest = YES;
 
+  expectation = [self expectationWithDescription:@"http server fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
                                                   data:data
                                                  error:error];
+      [expectation fulfill];
   }];
-  XCTAssertTrue([fetcher waitForCompletionWithTimeout:_timeoutInterval], @"timed out");
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   XCTAssertEqual(fnctr.fetchStarted, 2, @"%@", fnctr.fetchersStartedDescriptions);
