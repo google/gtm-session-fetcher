@@ -1869,10 +1869,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     // Total bytes written should increase monotonically.
     XCTAssertTrue(totalBytesWritten > totalWritten,
                   @"%lld !> %lld", totalBytesWritten, totalWritten);
-    dispatch_async(dispatch_get_main_queue(), ^{
-      [weakFetcher stopFetching];
-      [stopExpectation fulfill];
-    });
+    
+    if (totalWritten == 0) { // Ensure stopFetching and fulfilling the expectation happens only once
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [weakFetcher stopFetching];
+        [stopExpectation fulfill];
+      });
+    }
     totalWritten = totalBytesWritten;
   };
 
