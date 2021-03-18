@@ -172,6 +172,8 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
                                   fakedResponse:(NSHTTPURLResponse *)fakedResponse
                                      fakedError:(GTM_NULLABLE NSError *)fakedErrorOrNil;
 
+// DEPRECATED: Callers should use XCTestExpectation instead.
+//
 // Spin the run loop and discard events (or, if not on the main thread, just sleep the thread)
 // until all running and delayed fetchers have completed.
 //
@@ -181,7 +183,8 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 // sufficient reason for rejection from the app store.
 //
 // Returns NO if timed out.
-- (BOOL)waitForCompletionOfAllFetchersWithTimeout:(NSTimeInterval)timeoutInSeconds;
+- (BOOL)waitForCompletionOfAllFetchersWithTimeout:(NSTimeInterval)timeoutInSeconds
+    __deprecated_msg("Use XCTestExpectation instead");
 
 @end
 
