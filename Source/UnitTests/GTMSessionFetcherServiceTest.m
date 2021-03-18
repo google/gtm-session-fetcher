@@ -26,6 +26,24 @@
 #import "GTMSessionFetcherService.h"
 #endif
 
+// Helper macro to create fetcher start/stop notification expectations. These use alloc/init
+// directly to prevent them being waited for by wait helper methods on XCTestCase.
+#define CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(START_COUNT, STOP_COUNT) \
+    XCTestExpectation *fetcherStartedExpectation__ = \
+        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification]; \
+    XCTestExpectation *fetcherStoppedExpectation__ = \
+        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification]; \
+    fetcherStartedExpectation__.expectedFulfillmentCount = (START_COUNT); \
+    fetcherStartedExpectation__.assertForOverFulfill = YES; \
+    fetcherStoppedExpectation__.expectedFulfillmentCount = (STOP_COUNT); \
+    fetcherStoppedExpectation__.assertForOverFulfill = YES;
+
+// Helper macro to wait on the notification expectations created by the CREATE_START_STOP macro.
+// Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
+#define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS() \
+    [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
+                      timeout:5.0];
+
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
 @end
@@ -306,6 +324,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       validFileURL, altValidURL, validFileURL, altValidURL, validFileURL, altValidURL
   ];
 
+  // Expect two started/stopped fetchers for each host, for 4 total.
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
+
   // Create and start all the fetchers.
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
@@ -330,6 +351,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   [service stopAllFetchers];
 
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
   XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)0, @"hosts running");
   XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)0, @"hosts delayed");
   XCTAssertNotNil(service.stoppedAllFetchersDate);
@@ -349,34 +372,32 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
   NSMutableSet *uniqueSessions = [NSMutableSet set];
   NSMutableSet *uniqueTasks = [NSMutableSet set];
-  __block NSUInteger completedFetchCounter = 0;
+
+  // Creating tasks for the array twice, so double expected counts.
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(urlArray.count * 2, urlArray.count * 2);
 
   //
   // Create and start all the fetchers without reusing the session.
   //
   service.reuseSession = NO;
-  NSMutableArray *expectations = [NSMutableArray array];
+  XCTestExpectation *completionExpectation = [self expectationWithDescription:@"non-reuse completion"];
+  completionExpectation.expectedFulfillmentCount = urlArray.count;
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
-    XCTestExpectation *expectation = [self expectationWithDescription:
-        [NSString stringWithFormat:@"non-reuse completion: %@", fileURL.absoluteString]];
-    [expectations addObject:expectation];
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-      ++completedFetchCounter;
       XCTAssertNotNil(fetchData);
       XCTAssertNil(fetchError);
-      [expectation fulfill];
+      [completionExpectation fulfill];
     }];
     [uniqueSessions addObject:[NSValue valueWithNonretainedObject:fetcher.session]];
     [uniqueTasks addObject:[NSValue valueWithNonretainedObject:fetcher.sessionTask]];
 
     XCTAssertEqual(fetcher.session.delegate, fetcher);
   }
-  
-  [self waitForExpectations:expectations timeout:10];
+
+  [self waitForExpectations:@[ completionExpectation ] timeout:10];
 
   // We should have one unique session per fetcher.
-  XCTAssertEqual(completedFetchCounter, urlArray.count);
   XCTAssertEqual(uniqueTasks.count, urlArray.count);
   XCTAssertEqual(uniqueSessions.count, urlArray.count, @"%@", uniqueSessions);
   XCTAssertNil([service session]);
@@ -392,30 +413,26 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [uniqueSessions removeAllObjects];
   [uniqueTasks removeAllObjects];
   [service resetSession];
-  completedFetchCounter = 0;
 
   service.reuseSession = YES;
-  expectations = [NSMutableArray array];
+  completionExpectation = [self expectationWithDescription:@"reuse completion"];
+  completionExpectation.expectedFulfillmentCount = urlArray.count;
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
-    XCTestExpectation *expectation = [self expectationWithDescription:
-        [NSString stringWithFormat:@"reuse completion: %@", fileURL.absoluteString]];
-    [expectations addObject:expectation];
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-      ++completedFetchCounter;
       XCTAssertNotNil(fetchData);
       XCTAssertNil(fetchError);
-      [expectation fulfill];
+      [completionExpectation fulfill];
     }];
     [uniqueSessions addObject:[NSValue valueWithNonretainedObject:fetcher.session]];
     [uniqueTasks addObject:[NSValue valueWithNonretainedObject:fetcher.sessionTask]];
 
     XCTAssertEqual(fetcher.session.delegate, service.sessionDelegate);
   }
-  [self waitForExpectations:expectations timeout:10];
+
+  [self waitForExpectations:@[ completionExpectation ] timeout:10];
 
   // We should have used two sessions total.
-  XCTAssertEqual(completedFetchCounter, urlArray.count);
   XCTAssertEqual(uniqueTasks.count, urlArray.count);
   XCTAssertEqual(uniqueSessions.count, (NSUInteger)1, @"%@", uniqueSessions);
 
@@ -429,23 +446,23 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertNotNil(session);
 
   // Wait up to 5 seconds for the sessions to become invalid.
-  XCTestExpectation *exp = [self expectationWithDescription:@"sessioninvalid"];
-
-  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-  id observer = [nc addObserverForName:kGTMSessionFetcherServiceSessionBecameInvalidNotification
+  XCTestExpectation *exp =
+      [self expectationForNotification:kGTMSessionFetcherServiceSessionBecameInvalidNotification
                                 object:service
-                                 queue:nil
-                            usingBlock:^(NSNotification *note) {
-    NSURLSession *invalidSession = [note.userInfo objectForKey:kGTMSessionFetcherServiceSessionKey];
+                               handler:^(NSNotification *notification) {
+    NSURLSession *invalidSession =
+        [notification.userInfo objectForKey:kGTMSessionFetcherServiceSessionKey];
     XCTAssertEqualObjects(invalidSession, session);
-    [exp fulfill];
+    return YES;
   }];
-  [self waitForExpectationsWithTimeout:5.0 handler:nil];
+
+  [self waitForExpectations:@[ exp ] timeout:5.0];
+
+  // Ensure all started fetchers have stopped.
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   // Unlike right after the fetches finish, now the session should be nil.
   XCTAssertNil(service.session);
-
-  [nc removeObserver:observer];
 }
 
 - (void)testSessionAbandonment {
@@ -455,7 +472,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   service.allowLocalhostRequest = YES;
   service.reuseSession = YES;
   service.maxRunningFetchersPerHost = 2;
-  
+
   // A race condition exists that was exposed by changing the service's sessionDelegateQueue
   // from the mainQueue to a serial background queue. Because of that change, this race condition
   // began to manifest as a flake in this test.
@@ -482,12 +499,14 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   const NSTimeInterval kUnusedSessionTimeout = 3.0;
   service.unusedSessionTimeout = kUnusedSessionTimeout;
-  
+
   XCTestExpectation *expectation = [self expectationWithDescription:@"fetcher completions"];
 
   NSURL *validFileURL = [_testServer localURLForFile:kValidFileName];
   NSArray *urlArray = @[ validFileURL, validFileURL, validFileURL, validFileURL ];
   [expectation setExpectedFulfillmentCount:urlArray.count];
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(urlArray.count, urlArray.count);
 
   __block int numberOfCallsBack = 0;
   __block int numberOfErrors = 0;
@@ -529,6 +548,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // NSURLSession; if not, we should try to figure out why this is inconsistent.
   // On the simulator, all are succeeding.
   XCTAssertLessThanOrEqual(numberOfErrors, 1);
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
 
 - (void)testThreadingStress {
@@ -547,6 +568,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   __block int completedFetchCounter = 0;
   int const kNumberOfFetchersToCreate = 100;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(kNumberOfFetchersToCreate, kNumberOfFetchersToCreate);
 
   // Keep track of fetch failures that are probably due to our test server
   // failing to keep up.
@@ -593,6 +616,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   if (overloadIndexes.count) {
     NSLog(@"Server overloads: %@", overloadIndexes);
   }
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   // We should have one unique session per fetcher.
   XCTAssertEqual(completedFetchCounter, kNumberOfFetchersToCreate);
@@ -643,7 +668,10 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       testResponse(fakedResultResponse, fakedResultData, fakedResultError);
   };
 
-  for (int idx = 1; idx < 5; idx++) {
+  const int kNumberOfFetchersToCreate = 4;
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(kNumberOfFetchersToCreate, kNumberOfFetchersToCreate);
+
+  for (int idx = 1; idx <= kNumberOfFetchersToCreate; idx++) {
     XCTestExpectation *fetcherCompletedExpectation =
         [self expectationWithDescription:[NSString stringWithFormat:@"fetcher completed %d", idx]];
     NSString *urlStr = [NSString stringWithFormat:@"http://%@/%d", host, idx];
@@ -670,6 +698,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   [self waitForExpectationsWithTimeout:10 handler:nil];
 
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
   XCTAssertEqual([service.runningFetchersByHost objectForKey:host].count,
                  (NSUInteger)0);
 }
@@ -678,6 +708,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // No test server needed.
   _testServer = nil;
   _isServerRunning = NO;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(2, 2);
 
   // Test with data.
   NSData *data = [@"abcdefg" dataUsingEncoding:NSUTF8StringEncoding];
@@ -710,6 +742,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     [expectFinishedWithError fulfill];
   }];
   [self waitForExpectationsWithTimeout:10 handler:nil];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
 
 // Test to ensure that the service's default user-agent does not override a user-agent set on the
@@ -737,6 +771,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 // the user-agent in the configuration.
 - (void)testUserAgentFromSessionConfiguration {
   if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
   NSString *const kUserAgentHeader = @"User-Agent";
   NSString *const kUserAgentValue = @"TestUserAgentFromSessionConfig";
@@ -781,6 +817,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }];
 
   [self waitForExpectationsWithTimeout:10 handler:nil];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
 
 - (void)testDelegateDispatcherForFetcher {
@@ -848,6 +886,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
                                                                                watchos(3.0)) {
   if (!_isServerRunning) return;
 
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
   __block NSURLSessionTaskMetrics *collectedMetrics = nil;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
@@ -866,6 +906,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }];
 
   [self waitForExpectationsWithTimeout:10 handler:nil];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   XCTAssertNotNil(collectedMetrics);
 }
