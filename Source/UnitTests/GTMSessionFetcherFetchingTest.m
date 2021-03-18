@@ -2089,6 +2089,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                                           tvos(10.0),
                                                                           watchos(3.0)) {
   if (!_isServerRunning) return;
+  
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
   // Fetch a live, invalid URL
   NSString *badURLString = @"http://localhost:86/";
@@ -2107,6 +2109,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
+  
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   XCTAssertNotNil(collectedMetrics);
   XCTAssertEqual(collectedMetrics.transactionMetrics.count, 1);
