@@ -4593,9 +4593,12 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle) {
     identifier = GTMFetcherCleanedUserAgentString(identifier);
 
     // If there's a version number, append that
-    NSString *version = [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    NSString *version = [bundle objectForInfoDictionaryKey:@"GTMUserAgentVersion"];
     if (version.length == 0) {
-      version = [bundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+      version = [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+      if (version.length == 0) {
+        version = [bundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+      }
     }
 
     // Clean up whitespace and special characters

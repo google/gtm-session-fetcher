@@ -590,6 +590,9 @@ NSString *GTMFetcherStandardUserAgentString(NSBundle * GTM_NULLABLE_TYPE bundle)
 // The bundle ID may be overridden as the base identifier string by
 // adding to the bundle's Info.plist a "GTMUserAgentID" key.
 //
+// The application version may be overridden by adding to the bundle's
+// Info.plist a "GTMUserAgentVersion" key.
+//
 // If no bundle ID or override is available, the process name preceded
 // by "proc_" is used.
 NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
