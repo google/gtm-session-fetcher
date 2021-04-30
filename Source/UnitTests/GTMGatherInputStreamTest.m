@@ -75,10 +75,7 @@
   NSArray *array = [NSArray array];
   NSInputStream *input = [GTMGatherInputStream streamWithArray:array];
 
-  [self doReadTestForInputStream:input
-                  expectedString:@""
-                 usingSmallReads:NO
-                      testMethod:_cmd];
+  [self doReadTestForInputStream:input expectedString:@"" usingSmallReads:NO testMethod:_cmd];
 }
 
 - (void)testGatherStreamWithEmptyParts {
@@ -120,7 +117,6 @@
                  usingSmallReads:NO
                       testMethod:_cmd];
 }
-
 
 // We read one byte at a time to make sure that many calls to read work properly.
 - (void)testGatherStreamWithManyCalls {

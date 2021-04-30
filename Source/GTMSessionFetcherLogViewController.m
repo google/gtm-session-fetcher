@@ -29,21 +29,21 @@
 #import "GTMSessionFetcherLogging.h"
 
 #ifndef STRIP_GTM_FETCH_LOGGING
-  #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.
+#error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.
 #endif
 
 #if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
 
 #if ((TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0) || \
      (TARGET_OS_OSX && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_12))
-  // For apps targetting recent only versions of iOS/Mac, use WKWebView rather
-  // than UIWebView/NSWebView.
-  #define GTM_USE_WKWEBVIEW 1
-  #import <WebKit/WebKit.h>
-  typedef WKWebView GTMWebView;
+// For apps targetting recent only versions of iOS/Mac, use WKWebView rather
+// than UIWebView/NSWebView.
+#define GTM_USE_WKWEBVIEW 1
+#import <WebKit/WebKit.h>
+typedef WKWebView GTMWebView;
 #else
-  #define GTM_USE_WKWEBVIEW 0
-  typedef UIWebView GTMWebView;
+#define GTM_USE_WKWEBVIEW 0
+typedef UIWebView GTMWebView;
 #endif
 
 static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
@@ -65,7 +65,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 #pragma mark - Table View Controller
 
 @interface GTMSessionFetcherLogViewController ()
-@property (nonatomic, copy) void (^callbackBlock)(void);
+@property(nonatomic, copy) void (^callbackBlock)(void);
 @end
 
 @implementation GTMSessionFetcherLogViewController {
@@ -87,26 +87,23 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     NSString *processName = [GTMSessionFetcher loggingProcessName];
 
     NSURL *logsURL = [NSURL fileURLWithPath:logsFolderPath];
-    NSMutableArray *mutableURLs =
-        [[fm contentsOfDirectoryAtURL:logsURL
-           includingPropertiesForKeys:@[ NSURLCreationDateKey ]
-                              options:0
-                                error:&error] mutableCopy];
+    NSMutableArray *mutableURLs = [[fm contentsOfDirectoryAtURL:logsURL
+                                     includingPropertiesForKeys:@[ NSURLCreationDateKey ]
+                                                        options:0
+                                                          error:&error] mutableCopy];
 
     // Remove non-log files that lack the process name prefix,
     // and remove the "newest" symlink.
     NSString *symlinkSuffix = [GTMSessionFetcher symlinkNameSuffix];
-    NSIndexSet *nonLogIndexes = [mutableURLs indexesOfObjectsPassingTest:
-        ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
-      NSString *name = [obj lastPathComponent];
-         return (![name hasPrefix:processName]
-                 || [name hasSuffix:symlinkSuffix]);
-    }];
+    NSIndexSet *nonLogIndexes =
+        [mutableURLs indexesOfObjectsPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+          NSString *name = [obj lastPathComponent];
+          return (![name hasPrefix:processName] || [name hasSuffix:symlinkSuffix]);
+        }];
     [mutableURLs removeObjectsAtIndexes:nonLogIndexes];
 
     // Sort to put the newest logs at the top of the list.
-    [mutableURLs sortUsingComparator:^NSComparisonResult(NSURL *url1,
-                                                         NSURL *url2) {
+    [mutableURLs sortUsingComparator:^NSComparisonResult(NSURL *url1, NSURL *url2) {
       NSDate *date1, *date2;
       [url1 getResourceValue:&date1 forKey:NSURLCreationDateKey error:NULL];
       [url2 getResourceValue:&date2 forKey:NSURLCreationDateKey error:NULL];
@@ -145,15 +142,13 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 #pragma mark - Table view data source
 
-- (NSInteger)tableView:(UITableView *)tableView
- numberOfRowsInSection:(NSInteger)section {
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
   return (NSInteger)logsFolderURLs_.count;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView
          cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-  UITableViewCell *cell =
-      [tableView dequeueReusableCellWithIdentifier:kHTTPLogsCell];
+  UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:kHTTPLogsCell];
   if (cell == nil) {
     cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
                                   reuseIdentifier:kHTTPLogsCell];
@@ -168,8 +163,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 #pragma mark - Table view delegate
 
-- (void)tableView:(UITableView *)tableView
-    didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
   NSURL *folderURL = logsFolderURLs_[(NSUInteger)indexPath.row];
   NSString *htmlName = [GTMSessionFetcher htmlFileName];
   NSURL *htmlURL = [folderURL URLByAppendingPathComponent:htmlName isDirectory:NO];
@@ -194,7 +188,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     NSURL *folderURL = logsFolderURLs_[(NSUInteger)indexPath.row];
     if ([[NSFileManager defaultManager] removeItemAtURL:folderURL error:NULL]) {
       [logsFolderURLs_ removeObjectAtIndex:(NSUInteger)indexPath.row];
-      [tableView deleteRowsAtIndexPaths:@[indexPath]
+      [tableView deleteRowsAtIndexPaths:@[ indexPath ]
                        withRowAnimation:UITableViewRowAnimationAutomatic];
     }
   }
@@ -202,8 +196,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 #pragma mark -
 
-+ (UINavigationController *)controllerWithTarget:(id)target
-                                        selector:(SEL)selector {
++ (UINavigationController *)controllerWithTarget:(id)target selector:(SEL)selector {
   UINavigationController *navController = [[UINavigationController alloc] init];
   GTMSessionFetcherLogViewController *logViewController =
       [[GTMSessionFetcherLogViewController alloc] init];
@@ -259,8 +252,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 - (void)loadView {
   GTMWebView *webView = [[GTMWebView alloc] init];
-  webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth
-                              | UIViewAutoresizingFlexibleHeight);
+  webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
 #if GTM_USE_WKWEBVIEW
   webView.navigationDelegate = self;
 #else
@@ -286,7 +278,8 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 - (void)didFinishLoadingHTML {
   if (opensScrolledToEnd_) {
     // Scroll to the bottom, because the most recent entry is at the end.
-    NSString *javascript = [NSString stringWithFormat:@"window.scrollBy(0, %ld);", (long)NSIntegerMax];
+    NSString *javascript =
+        [NSString stringWithFormat:@"window.scrollBy(0, %ld);", (long)NSIntegerMax];
 #if GTM_USE_WKWEBVIEW
     [[self webView] evaluateJavaScript:javascript completionHandler:nil];
 #else

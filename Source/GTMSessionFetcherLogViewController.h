@@ -63,8 +63,7 @@
 //   - (void)logsDone:(UINavigationController *)navController
 //
 // The target and selector may be nil.
-+ (UINavigationController *)controllerWithTarget:(id)target
-                                        selector:(SEL)selector;
++ (UINavigationController *)controllerWithTarget:(id)target selector:(SEL)selector;
 @end
 
 #endif  // !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER

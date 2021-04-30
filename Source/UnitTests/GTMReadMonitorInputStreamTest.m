@@ -68,7 +68,6 @@
 
   [monitorStream open];
   while ([monitorStream hasBytesAvailable]) {
-
     unsigned char buffer[101];
     NSUInteger numBytesToRead = (arc4random() % 100) + 1;
 
@@ -81,14 +80,12 @@
   [monitorStream close];
 
   // Verify we read all the data.
-  XCTAssertEqualObjects(readData, testData,
-                       @"read data doesn't match stream data");
+  XCTAssertEqualObjects(readData, testData, @"read data doesn't match stream data");
 
   // Verify the callback saw the same data.
   XCTAssertEqualObjects(_monitoredData, testData,
-                       @"callback progress doesn't match actual progress");
+                        @"callback progress doesn't match actual progress");
 }
-
 
 - (void)inputStream:(GTMReadMonitorInputStream *)stream
      readIntoBuffer:(uint8_t *)buffer

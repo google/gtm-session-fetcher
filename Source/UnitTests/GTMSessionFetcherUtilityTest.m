@@ -36,7 +36,6 @@
                           endString:(NSString *)endStr;
 @end
 
-
 @implementation GTMSessionFetcherUtilityTest
 
 #if !STRIP_GTM_FETCH_LOGGING
@@ -138,7 +137,7 @@
 #else
   XCTAssertEqualObjects(result, @"com.google.FetcherMacTests/1.0");
 #endif
-#endif // !SWIFT_PACKAGE
+#endif  // !SWIFT_PACKAGE
 }
 
 - (void)testGTMFetcherStandardVersionString {
@@ -149,14 +148,14 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability"
-// Disable unguarded availability warning as we can't use the @availability macro until we require
-// all clients to build with Xcode 9 or above.
+  // Disable unguarded availability warning as we can't use the @availability macro until we require
+  // all clients to build with Xcode 9 or above.
   NSOperatingSystemVersion version = [NSProcessInfo processInfo].operatingSystemVersion;
 #pragma clang diagnostic pop
 #if TARGET_OS_IPHONE
   // iOS, tvOS, watchOS
-  NSString *versionStr = [NSString stringWithFormat:@"%ld.%ld",
-                          (long)version.majorVersion, (long)version.minorVersion];
+  NSString *versionStr = [NSString
+      stringWithFormat:@"%ld.%ld", (long)version.majorVersion, (long)version.minorVersion];
   if (version.patchVersion > 0) {
     versionStr = [versionStr stringByAppendingFormat:@".%ld", (long)version.patchVersion];
   }
@@ -176,10 +175,11 @@
   // macOS
   NSString *expected =
       [NSString stringWithFormat:@"com.google.FetcherMacTests/1.0 MacOSX/%ld.%ld.%ld",
-       (long)version.majorVersion, (long)version.minorVersion, (long)version.patchVersion];
+                                 (long)version.majorVersion, (long)version.minorVersion,
+                                 (long)version.patchVersion];
   XCTAssertEqualObjects(result, expected);
 #endif
-#endif // !SWIFT_PACKAGE
+#endif  // !SWIFT_PACKAGE
 }
 
 - (void)testGTMDataFromInputStream {
@@ -217,9 +217,8 @@
   NSURL *tempFileURL = [tempDirURL URLByAppendingPathComponent:NSStringFromSelector(_cmd)
                                                    isDirectory:NO];
   NSError *fileError;
-  XCTAssertTrue([inputData writeToURL:tempFileURL
-                              options:NSDataWritingAtomic
-                                error:&fileError], @"%@", fileError);
+  XCTAssertTrue([inputData writeToURL:tempFileURL options:NSDataWritingAtomic error:&fileError],
+                @"%@", fileError);
 
   inputStream = [NSInputStream inputStreamWithURL:tempFileURL];
   result = GTMDataFromInputStream(inputStream, &streamError);
@@ -227,8 +226,8 @@
   XCTAssertNotEqual(result, inputData);
   XCTAssertNil(streamError);
 
-  XCTAssertTrue([[NSFileManager defaultManager] removeItemAtURL:tempFileURL
-                                                          error:&fileError], @"%@", fileError);
+  XCTAssertTrue([[NSFileManager defaultManager] removeItemAtURL:tempFileURL error:&fileError],
+                @"%@", fileError);
 
   // Test invalid stream.
   inputStream = [NSInputStream inputStreamWithFileAtPath:@"/////"];

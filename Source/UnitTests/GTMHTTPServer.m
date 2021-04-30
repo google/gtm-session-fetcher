@@ -151,7 +151,7 @@ static NSString *kResponseOffset = @"ResponseOffset";
 - (NSData *)serializedData;
 @end
 
-@interface GTMHTTPServer ()<NSStreamDelegate>
+@interface GTMHTTPServer () <NSStreamDelegate>
 
 @property(nonatomic, readonly) CFSocketRef socket;
 
@@ -159,8 +159,8 @@ static NSString *kResponseOffset = @"ResponseOffset";
 
 @end
 
-static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType,
-                           CFDataRef address, const void *data, void *info) {
+static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType, CFDataRef address,
+                           const void *data, void *info) {
   NSCAssert(callBackType == kCFSocketAcceptCallBack, @"Unexpected callBackType: %lu", callBackType);
   NSCAssert(data != NULL, @"Unexpected NULL data, socket wasn't included in callback");
 
@@ -184,7 +184,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 @synthesize socket = _socket;
 
 + (instancetype)startedServerWithDelegate:(id<GTMHTTPServerDelegate>)delegate {
-  GTMHTTPServer *server = [(GTMHTTPServer*)[self alloc] initWithDelegate:delegate];
+  GTMHTTPServer *server = [(GTMHTTPServer *)[self alloc] initWithDelegate:delegate];
   NSError *error = nil;
   if (![server start:&error]) {
     NSLog(@"Failed to start up %@ (error=%@)", NSStringFromClass(self), error);
@@ -216,7 +216,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   [self stop];
 }
 
-- (BOOL)start:(NSError * __autoreleasing *)error {
+- (BOOL)start:(NSError *__autoreleasing *)error {
   NSAssert(_socket == NULL, @"start called when we already have a _socket");
 
   if (error) *error = NULL;
@@ -224,7 +224,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   const int kDefaultProtocol = 0;
   __block int fd = socket(AF_INET6, SOCK_STREAM, kDefaultProtocol);
 
-  void (^startFailed)(NSInteger) = ^(NSInteger startFailureCode){
+  void (^startFailed)(NSInteger) = ^(NSInteger startFailureCode) {
     if (error) {
       *error = [[NSError alloc] initWithDomain:kGTMHTTPServerErrorDomain
                                           code:startFailureCode
@@ -252,22 +252,21 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   // enable address reuse quicker after we are done w/ our socket
   int yes = 1;
   int sock_opt = SO_REUSEADDR;
-  if (setsockopt(fd, SOL_SOCKET, sock_opt,
-                 (void *)&yes, (socklen_t)sizeof(yes)) != 0) {
-    NSLog(@"failed to mark the socket as reusable"); // COV_NF_LINE
+  if (setsockopt(fd, SOL_SOCKET, sock_opt, (void *)&yes, (socklen_t)sizeof(yes)) != 0) {
+    NSLog(@"failed to mark the socket as reusable");  // COV_NF_LINE
   }
 
   // bind
   struct sockaddr_in6 addr;
   memset(&addr, 0, sizeof(addr));
-  addr.sin6_len    = sizeof(addr);
+  addr.sin6_len = sizeof(addr);
   addr.sin6_family = AF_INET6;
-  addr.sin6_port   = htons(_port);
+  addr.sin6_port = htons(_port);
 
   // localhost-only
   addr.sin6_addr = in6addr_loopback;
 
-  if (bind(fd, (struct sockaddr*)(&addr), (socklen_t)sizeof(addr)) != 0) {
+  if (bind(fd, (struct sockaddr *)(&addr), (socklen_t)sizeof(addr)) != 0) {
     startFailed(kGTMHTTPServerBindFailedError);
     return NO;
   }
@@ -275,7 +274,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   // collect the port back out
   if (_port == 0) {
     socklen_t len = (socklen_t)sizeof(addr);
-    if (getsockname(fd, (struct sockaddr*)(&addr), &len) == 0) {
+    if (getsockname(fd, (struct sockaddr *)(&addr), &len) == 0) {
       _port = ntohs(addr.sin6_port);
     }
   }
@@ -348,9 +347,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 - (NSString *)description {
-  NSString *result =
-    [NSString stringWithFormat:@"%@<%p>{ port=%d status=%@ }",
-     [self class], self, _port, (_socket != NULL ? @"Started" : @"Stopped")];
+  NSString *result = [NSString stringWithFormat:@"%@<%p>{ port=%d status=%@ }", [self class], self,
+                                                _port, (_socket != NULL ? @"Started" : @"Stopped")];
   return result;
 }
 
@@ -399,7 +397,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
             response = [_delegate httpServer:self handleRequest:request];
           } @catch (NSException *e) {
             NSLog(@"Exception trying to handle http request: %@", e);
-          } // COV_NF_LINE - radar 5851992 only reachable w/ an uncaught exception, un-testable
+          }  // COV_NF_LINE - radar 5851992 only reachable w/ an uncaught exception, un-testable
 
           if (!response) {
             // No response, shut it down
@@ -440,8 +438,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
         NSUInteger kMaxWriteDataChunkSize = 32768;
         const uint8_t *buffer = response.bytes;
         NSUInteger maxLength = MIN((responseLength - offset), kMaxWriteDataChunkSize);
-        NSInteger bytesWritten = [outputStream write:&buffer[offset]
-                                           maxLength:maxLength];
+        NSInteger bytesWritten = [outputStream write:&buffer[offset] maxLength:maxLength];
         if (bytesWritten == -1) {
           [self closeConnection:connDict];
           return;
@@ -537,8 +534,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 
 - (NSString *)description {
   CFStringRef desc = CFCopyDescription(_message);
-  NSString *result =
-    [NSString stringWithFormat:@"%@<%p>{ message=%@ }", [self class], self, desc];
+  NSString *result = [NSString stringWithFormat:@"%@<%p>{ message=%@ }", [self class], self, desc];
   CFRelease(desc);
   return result;
 }
@@ -605,7 +601,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
           NSData *newBody = [NSData dataWithBytes:body.bytes length:(NSUInteger)contentLength];
           [self setBody:newBody];
           NSLog(@"Got %lu extra bytes on http request, ignoring them",
-                     (unsigned long)(bodyLength - (unsigned long)contentLength));
+                (unsigned long)(bodyLength - (unsigned long)contentLength));
         }
       }
     }
@@ -640,7 +636,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 
 - (void)setBody:(NSData *)body {
   if (!body) {
-    body = [NSData data]; // COV_NF_LINE - can only happen if we fail to make the new data object
+    body = [NSData data];  // COV_NF_LINE - can only happen if we fail to make the new data object
   }
   CFHTTPMessageSetBody(_message, (__bridge CFDataRef)body);
 }
@@ -663,9 +659,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 
 + (instancetype)responseWithString:(NSString *)plainText {
   NSData *body = [plainText dataUsingEncoding:NSUTF8StringEncoding];
-  return [self responseWithBody:body
-                    contentType:@"text/plain; charset=UTF-8"
-                     statusCode:200];
+  return [self responseWithBody:body contentType:@"text/plain; charset=UTF-8" statusCode:200];
 }
 
 + (instancetype)responseWithHTMLString:(NSString *)htmlString {
@@ -677,21 +671,15 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 + (instancetype)responseWithBody:(NSData *)body
                      contentType:(NSString *)contentType
                       statusCode:(int)statusCode {
-  return [[self alloc] initWithBody:body
-                        contentType:contentType
-                         statusCode:statusCode];
+  return [[self alloc] initWithBody:body contentType:contentType statusCode:statusCode];
 }
 
 + (instancetype)emptyResponseWithCode:(int)statusCode {
-  return [[self alloc] initWithBody:nil
-                        contentType:nil
-                         statusCode:statusCode];
+  return [[self alloc] initWithBody:nil contentType:nil statusCode:statusCode];
 }
 
 + (instancetype)redirectResponseWithRedirectURL:(NSURL *)redirectURL {
-  GTMHTTPResponseMessage *response = [[self alloc] initWithBody:nil
-                                                    contentType:nil
-                                                     statusCode:302];
+  GTMHTTPResponseMessage *response = [[self alloc] initWithBody:nil contentType:nil statusCode:302];
   [response setValue:[redirectURL absoluteString] forHeaderField:@"Location"];
   return response;
 }
@@ -713,13 +701,13 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   [self setValue:bodyLenStr forHeaderField:@"Content-Length"];
 }
 
-- (void)setValue:(NSString*)value forHeaderField:(NSString*)headerField {
+- (void)setValue:(NSString *)value forHeaderField:(NSString *)headerField {
   if (headerField.length == 0) return;
   if (value == nil) {
     value = @"";
   }
-  CFHTTPMessageSetHeaderFieldValue(_message,
-                                   (__bridge CFStringRef)headerField, (__bridge CFStringRef)value);
+  CFHTTPMessageSetHeaderFieldValue(_message, (__bridge CFStringRef)headerField,
+                                   (__bridge CFStringRef)value);
 }
 
 - (void)setHeaderValuesFromDictionary:(NSDictionary *)dict {
@@ -731,8 +719,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 
 - (NSString *)description {
   CFStringRef desc = CFCopyDescription(_message);
-  NSString *result =
-    [NSString stringWithFormat:@"%@<%p>{ message=%@ }", [self class], self, desc];
+  NSString *result = [NSString stringWithFormat:@"%@<%p>{ message=%@ }", [self class], self, desc];
   CFRelease(desc);
   return result;
 }
@@ -747,9 +734,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
     if ((statusCode < 100) || (statusCode > 599)) {
       return nil;
     }
-    _message = CFHTTPMessageCreateResponse(kCFAllocatorDefault,
-                                           statusCode, NULL,
-                                           kCFHTTPVersion1_1);
+    _message =
+        CFHTTPMessageCreateResponse(kCFAllocatorDefault, statusCode, NULL, kCFHTTPVersion1_1);
     if (!_message) {
       // COV_NF_START
       return nil;

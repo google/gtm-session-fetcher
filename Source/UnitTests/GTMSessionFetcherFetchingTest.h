@@ -14,9 +14,9 @@
  */
 
 #import <XCTest/XCTest.h>
+#import <stdlib.h>
 #import <sys/sysctl.h>
 #import <unistd.h>
-#import <stdlib.h>
 
 #import "GTMSessionFetcherTestServer.h"
 #if SWIFT_PACKAGE
@@ -59,21 +59,18 @@ extern NSString *const kGTMGettysburgFileName;
 //
 // Returns a localhost:port URL for the test file.
 - (NSString *)localURLStringToTestFileName:(NSString *)name;
-- (NSString *)localURLStringToTestFileName:(NSString *)name
-                                parameters:(NSDictionary *)params;
+- (NSString *)localURLStringToTestFileName:(NSString *)name parameters:(NSDictionary *)params;
 
 // Utility method for making a request with the object's timeout.
 - (NSMutableURLRequest *)requestWithURLString:(NSString *)urlString;
 
 @end
 
-
 @interface GTMSessionFetcher (FetchingTest)
 // During testing only, we may want to modify the request being fetched
 // after beginFetch has been called.
 - (GTM_NULLABLE NSMutableURLRequest *)mutableRequestForTesting;
 @end
-
 
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMFetcherAuthorizationProtocol>
@@ -95,11 +92,11 @@ extern NSString *const kGTMGettysburgFileName;
 // and ends.
 @class SubstituteUIApplicationTaskInfo;
 
-typedef void (^SubstituteUIApplicationExpirationCallback)
-    (NSUInteger numberOfBackgroundTasksToExpire,
-     NSArray <SubstituteUIApplicationTaskInfo *> * _Nullable tasksFailingToExpire);
+typedef void (^SubstituteUIApplicationExpirationCallback)(
+    NSUInteger numberOfBackgroundTasksToExpire,
+    NSArray<SubstituteUIApplicationTaskInfo *> *_Nullable tasksFailingToExpire);
 
-@interface SubstituteUIApplication : NSObject<GTMUIApplicationProtocol>
+@interface SubstituteUIApplication : NSObject <GTMUIApplicationProtocol>
 
 - (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
                                         expirationHandler:(nullable dispatch_block_t)handler;
@@ -114,7 +111,6 @@ extern NSString *const kSubUIAppBackgroundTaskEnded;
 
 #endif  // GTM_BACKGROUND_TASK_FETCHING
 
-
 @interface FetcherNotificationsCounter : NSObject
 @property(nonatomic) int fetchStarted;
 @property(nonatomic) int fetchStopped;
@@ -125,18 +121,17 @@ extern NSString *const kSubUIAppBackgroundTaskEnded;
 @property(nonatomic) int retryDelayStopped;
 @property(nonatomic) int uploadLocationObtained;
 
-@property(nonatomic) NSMutableArray *uploadChunkRequestPaths; // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkCommands; // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkOffsets; // of NSUInteger
-@property(nonatomic) NSMutableArray *uploadChunkLengths; // of NSUInteger
+@property(nonatomic) NSMutableArray *uploadChunkRequestPaths;  // of NSString
+@property(nonatomic) NSMutableArray *uploadChunkCommands;      // of NSString
+@property(nonatomic) NSMutableArray *uploadChunkOffsets;       // of NSUInteger
+@property(nonatomic) NSMutableArray *uploadChunkLengths;       // of NSUInteger
 
-@property(nonatomic) NSMutableArray *fetchersStartedDescriptions; // of NSString
-@property(nonatomic) NSMutableArray *fetchersStoppedDescriptions; // of NSString
+@property(nonatomic) NSMutableArray *fetchersStartedDescriptions;  // of NSString
+@property(nonatomic) NSMutableArray *fetchersStoppedDescriptions;  // of NSString
 
 @property(nonatomic) NSMutableArray *backgroundTasksStarted;  // of boxed UIBackgroundTaskIdentifier
-@property(nonatomic) NSMutableArray *backgroundTasksEnded;  // of boxed UIBackgroundTaskIdentifier
+@property(nonatomic) NSMutableArray *backgroundTasksEnded;    // of boxed UIBackgroundTaskIdentifier
 
 @end
 
 GTM_ASSUME_NONNULL_END
-

@@ -19,8 +19,8 @@
 
 #import "FTAAppDelegate.h"
 #import "GTMSessionFetcher.h"
-#import "GTMSessionUploadFetcher.h"
 #import "GTMSessionFetcherLogging.h"
+#import "GTMSessionUploadFetcher.h"
 
 @implementation FTAAppDelegate
 
@@ -39,12 +39,11 @@
   NSUInteger kUploadDataSize = 1000000;
   NSData *uploadData = [self generatedUploadDataWithLength:kUploadDataSize];
 
-
   NSURL *localUploadURL = [NSURL URLWithString:@"http://0.upload.google.com/null"];
   NSMutableURLRequest *request =
       [NSMutableURLRequest requestWithURL:localUploadURL
                               cachePolicy:NSURLRequestReloadIgnoringCacheData
-                          timeoutInterval:60*60];
+                          timeoutInterval:60 * 60];
   [request setHTTPMethod:@"POST"];
 
   GTMSessionFetcherService *fetcherService = [[GTMSessionFetcherService alloc] init];
