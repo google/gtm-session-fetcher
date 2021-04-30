@@ -28,21 +28,21 @@
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init
 // directly to prevent them being waited for by wait helper methods on XCTestCase.
-#define CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(START_COUNT, STOP_COUNT) \
-    XCTestExpectation *fetcherStartedExpectation__ = \
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification]; \
-    XCTestExpectation *fetcherStoppedExpectation__ = \
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification]; \
-    fetcherStartedExpectation__.expectedFulfillmentCount = (START_COUNT); \
-    fetcherStartedExpectation__.assertForOverFulfill = YES; \
-    fetcherStoppedExpectation__.expectedFulfillmentCount = (STOP_COUNT); \
-    fetcherStoppedExpectation__.assertForOverFulfill = YES;
+#define CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(START_COUNT, STOP_COUNT)                     \
+  XCTestExpectation *fetcherStartedExpectation__ =                                               \
+      [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification]; \
+  XCTestExpectation *fetcherStoppedExpectation__ =                                               \
+      [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification]; \
+  fetcherStartedExpectation__.expectedFulfillmentCount = (START_COUNT);                          \
+  fetcherStartedExpectation__.assertForOverFulfill = YES;                                        \
+  fetcherStoppedExpectation__.expectedFulfillmentCount = (STOP_COUNT);                           \
+  fetcherStoppedExpectation__.assertForOverFulfill = YES;
 
 // Helper macro to wait on the notification expectations created by the CREATE_START_STOP macro.
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
-#define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS() \
-    [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                      timeout:5.0];
+#define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
+  [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
+                    timeout:5.0];
 
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
@@ -74,7 +74,6 @@
 }
 
 @end
-
 
 @interface GTMSessionFetcherServiceTest : XCTestCase {
   GTMSessionFetcherTestServer *_testServer;
@@ -122,29 +121,29 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   // Utility blocks for counting array entries for a specific host.
   NSUInteger (^URLsPerHost)(NSArray *, NSString *) = ^(NSArray *URLs, NSString *host) {
-      NSUInteger counter = 0;
-      for (NSURL *url in URLs) {
-        if ([host isEqual:url.host]) {
-          counter++;
-        }
+    NSUInteger counter = 0;
+    for (NSURL *url in URLs) {
+      if ([host isEqual:url.host]) {
+        counter++;
       }
-      return counter;
+    }
+    return counter;
   };
 
-  NSUInteger (^FetchersPerHost) (NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
-      NSArray *fetcherURLs = [fetchers valueForKeyPath:@"request.URL"];
-      return URLsPerHost(fetcherURLs, host);
+  NSUInteger (^FetchersPerHost)(NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
+    NSArray *fetcherURLs = [fetchers valueForKeyPath:@"request.URL"];
+    return URLsPerHost(fetcherURLs, host);
   };
 
   // Utility block for finding the minimum priority fetcher for a specific host.
-  NSInteger (^PriorityPerHost) (NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
-      NSInteger val = NSIntegerMax;
-      for (GTMSessionFetcher *fetcher in fetchers) {
-        if ([host isEqual:fetcher.request.URL.host]) {
-          val = MIN(val, fetcher.servicePriority);
-        }
+  NSInteger (^PriorityPerHost)(NSArray *, NSString *) = ^(NSArray *fetchers, NSString *host) {
+    NSInteger val = NSIntegerMax;
+    for (GTMSessionFetcher *fetcher in fetchers) {
+      if ([host isEqual:fetcher.request.URL.host]) {
+        val = MIN(val, fetcher.servicePriority);
       }
-      return val;
+    }
+    return val;
   };
 
   // We'll verify we fetched from the server the same data that is on disk.
@@ -203,66 +202,70 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     [expectations addObject:expectation];
 
     // Fetcher start notification.
-    id startObserver = [nc addObserverForName:kGTMSessionFetcherStartedNotification
-                                       object:fetcher
-                                        queue:nil
-                                   usingBlock:^(NSNotification *note) {
-        // Verify that we have at most two fetchers running for this fetcher's host.
-        [running addObject:fetcher];
-        [pending removeObject:fetcher];
+    id startObserver = [nc
+        addObserverForName:kGTMSessionFetcherStartedNotification
+                    object:fetcher
+                     queue:nil
+                usingBlock:^(NSNotification *note) {
+                  // Verify that we have at most two fetchers running for this fetcher's host.
+                  [running addObject:fetcher];
+                  [pending removeObject:fetcher];
 
-        NSURLRequest *fetcherReq = fetcher.request;
-        NSURL *fetcherReqURL = fetcherReq.URL;
-        NSString *host = fetcherReqURL.host;
-        NSUInteger numberRunning = FetchersPerHost(running, host);
-        XCTAssertTrue(numberRunning > 0, @"count error");
-        XCTAssertTrue(numberRunning <= kMaxRunningFetchersPerHost, @"too many running");
+                  NSURLRequest *fetcherReq = fetcher.request;
+                  NSURL *fetcherReqURL = fetcherReq.URL;
+                  NSString *host = fetcherReqURL.host;
+                  NSUInteger numberRunning = FetchersPerHost(running, host);
+                  XCTAssertTrue(numberRunning > 0, @"count error");
+                  XCTAssertTrue(numberRunning <= kMaxRunningFetchersPerHost, @"too many running");
 
-        NSInteger pendingPriority = PriorityPerHost(pending, host);
-        XCTAssertTrue(fetcher.servicePriority <= pendingPriority,
-                      @"a pending fetcher has greater priority");
+                  NSInteger pendingPriority = PriorityPerHost(pending, host);
+                  XCTAssertTrue(fetcher.servicePriority <= pendingPriority,
+                                @"a pending fetcher has greater priority");
 
-        XCTAssert([service.issuedFetchers containsObject:fetcher], @"%@", fetcher);
+                  XCTAssert([service.issuedFetchers containsObject:fetcher], @"%@", fetcher);
 
-        NSArray *matches = [service issuedFetchersWithRequestURL:fetcherReqURL];
-        NSUInteger idx = NSNotFound;
-        if (matches) {
-          idx = [matches indexOfObjectIdenticalTo:fetcher];
-        }
-        XCTAssertTrue(idx != NSNotFound, @"Missing %@ in %@", fetcherReqURL, matches);
-        NSURL *fakeURL = [NSURL URLWithString:@"http://example.com/bad"];
-        matches = [service issuedFetchersWithRequestURL:fakeURL];
-        XCTAssertEqual(matches.count, (NSUInteger)0);
+                  NSArray *matches = [service issuedFetchersWithRequestURL:fetcherReqURL];
+                  NSUInteger idx = NSNotFound;
+                  if (matches) {
+                    idx = [matches indexOfObjectIdenticalTo:fetcher];
+                  }
+                  XCTAssertTrue(idx != NSNotFound, @"Missing %@ in %@", fetcherReqURL, matches);
+                  NSURL *fakeURL = [NSURL URLWithString:@"http://example.com/bad"];
+                  matches = [service issuedFetchersWithRequestURL:fakeURL];
+                  XCTAssertEqual(matches.count, (NSUInteger)0);
 
-        NSString *agent = [fetcherReq valueForHTTPHeaderField:@"User-Agent"];
-        XCTAssertEqualObjects(agent, kUserAgent);
-    }];
+                  NSString *agent = [fetcherReq valueForHTTPHeaderField:@"User-Agent"];
+                  XCTAssertEqualObjects(agent, kUserAgent);
+                }];
     [observers addObject:startObserver];
 
     // Fetcher stopped notification.
-    id stopObserver = [nc addObserverForName:kGTMSessionFetcherStoppedNotification
-                                      object:fetcher
-                                       queue:nil
-                                  usingBlock:^(NSNotification *note) {
-        // Verify that we only have two fetchers running.
-        [completed addObject:fetcher];
-        [running removeObject:fetcher];
+    id stopObserver = [nc
+        addObserverForName:kGTMSessionFetcherStoppedNotification
+                    object:fetcher
+                     queue:nil
+                usingBlock:^(NSNotification *note) {
+                  // Verify that we only have two fetchers running.
+                  [completed addObject:fetcher];
+                  [running removeObject:fetcher];
 
-        NSString *host = fetcher.request.URL.host;
+                  NSString *host = fetcher.request.URL.host;
 
-        NSUInteger numberRunning = FetchersPerHost(running, host);
-        NSUInteger numberPending = FetchersPerHost(pending, host);
-        NSUInteger numberCompleted = FetchersPerHost(completed, host);
+                  NSUInteger numberRunning = FetchersPerHost(running, host);
+                  NSUInteger numberPending = FetchersPerHost(pending, host);
+                  NSUInteger numberCompleted = FetchersPerHost(completed, host);
 
-        XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost, @"too many running");
-        XCTAssertLessThanOrEqual(numberPending + numberRunning + numberCompleted, URLsPerHost(urlArray, host),
+                  XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost,
+                                           @"too many running");
+                  XCTAssertLessThanOrEqual(
+                      numberPending + numberRunning + numberCompleted, URLsPerHost(urlArray, host),
                       @"%d issued running (pending:%u running:%u completed:%u)",
                       (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
                       (unsigned int)numberRunning, (unsigned int)numberCompleted);
 
-        // The stop notification may be posted on the main thread before or after the
-        // fetcher service has been notified the fetcher has stopped.
-    }];
+                  // The stop notification may be posted on the main thread before or after the
+                  // fetcher service has been notified the fetcher has stopped.
+                }];
     [observers addObject:stopObserver];
 
     [pending addObject:fetcher];
@@ -275,21 +278,21 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     // Start this fetcher.
     [fetchersInFlight addObject:fetcher];
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-        // Callback.
-        XCTAssert([fetchersInFlight containsObject:fetcher]);
-        [fetchersInFlight removeObjectIdenticalTo:fetcher];
+      // Callback.
+      XCTAssert([fetchersInFlight containsObject:fetcher]);
+      [fetchersInFlight removeObjectIdenticalTo:fetcher];
 
-        // The query should be empty except for the URL with a status code.
-        NSString *query = [fetcher.request.URL query];
-        BOOL isValidRequest = (query.length == 0);
-        if (isValidRequest) {
-          XCTAssertEqualObjects(fetchData, gettysburgAddress, @"Bad fetch data");
-          XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, fetchError.userInfo);
-        } else {
-          // This is the query with ?status=400.
-          XCTAssertEqual(fetchError.code, (NSInteger)400, @"expected error");
-        }
-        [expectation fulfill];
+      // The query should be empty except for the URL with a status code.
+      NSString *query = [fetcher.request.URL query];
+      BOOL isValidRequest = (query.length == 0);
+      if (isValidRequest) {
+        XCTAssertEqualObjects(fetchData, gettysburgAddress, @"Bad fetch data");
+        XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, fetchError.userInfo);
+      } else {
+        // This is the query with ?status=400.
+        XCTAssertEqual(fetchError.code, (NSInteger)400, @"expected error");
+      }
+      [expectation fulfill];
     }];
   }
 
@@ -320,9 +323,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSURL *altValidURL = [_testServer localv6URLForFile:kValidFileName];
 
   // Add three fetches for each URL.
-  NSArray *urlArray = @[
-      validFileURL, altValidURL, validFileURL, altValidURL, validFileURL, altValidURL
-  ];
+  NSArray *urlArray =
+      @[ validFileURL, altValidURL, validFileURL, altValidURL, validFileURL, altValidURL ];
 
   // Expect two started/stopped fetchers for each host, for 4 total.
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
@@ -331,8 +333,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-        // We shouldn't reach any of the callbacks.
-        XCTFail(@"Fetcher completed but should have been stopped");
+      // We shouldn't reach any of the callbacks.
+      XCTFail(@"Fetcher completed but should have been stopped");
     }];
   }
 
@@ -380,7 +382,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // Create and start all the fetchers without reusing the session.
   //
   service.reuseSession = NO;
-  XCTestExpectation *completionExpectation = [self expectationWithDescription:@"non-reuse completion"];
+  XCTestExpectation *completionExpectation =
+      [self expectationWithDescription:@"non-reuse completion"];
   completionExpectation.expectedFulfillmentCount = urlArray.count;
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
@@ -438,7 +441,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   // Inside the delegate dispatcher, there should be an empty map of tasks to fetchers.
   taskMap = [(id)service.sessionDelegate valueForKey:@"taskToFetcherMap"];
-  XCTAssertEqualObjects(taskMap, @{ });
+  XCTAssertEqualObjects(taskMap, @{});
 
   // Because we set kUnusedSessionDiscardInterval to 3 seconds earlier, there
   // should still be a remembered session immediately after the fetches finish.
@@ -450,11 +453,11 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       [self expectationForNotification:kGTMSessionFetcherServiceSessionBecameInvalidNotification
                                 object:service
                                handler:^(NSNotification *notification) {
-    NSURLSession *invalidSession =
-        [notification.userInfo objectForKey:kGTMSessionFetcherServiceSessionKey];
-    XCTAssertEqualObjects(invalidSession, session);
-    return YES;
-  }];
+                                 NSURLSession *invalidSession = [notification.userInfo
+                                     objectForKey:kGTMSessionFetcherServiceSessionKey];
+                                 XCTAssertEqualObjects(invalidSession, session);
+                                 return YES;
+                               }];
 
   [self waitForExpectations:@[ exp ] timeout:5.0];
 
@@ -520,8 +523,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
       // If NSURLSession had a suspended task, it won't have called its delegate,
       // so the fetcher will have manufactured a callback with a cancellation error.
-      XCTAssert((fetchData != nil && fetchError == nil)
-          || (fetchData == nil && fetchError.code == NSURLErrorCancelled),
+      XCTAssert((fetchData != nil && fetchError == nil) ||
+                    (fetchData == nil && fetchError.code == NSURLErrorCancelled),
                 @"error=%@, data=%@", fetchError, fetchData);
 
       // On the first completion, we'll reset the session.
@@ -600,8 +603,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
               dispatch_queue_get_label(queues[(index / 3) % queues.count]);
           const char *actualQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL);
           XCTAssert(strcmp(actualQueueLabel, expectedQueueLabel) == 0,
-                    @"queue mismatch on index %lu: %s (expected %s)",
-                    (unsigned long)index, actualQueueLabel, expectedQueueLabel);
+                    @"queue mismatch on index %lu: %s (expected %s)", (unsigned long)index,
+                    actualQueueLabel, expectedQueueLabel);
 
           XCTAssertNotNil(fetchData, @"index %lu", (unsigned long)index);
           XCTAssertNil(fetchError, @"index %lu", (unsigned long)index);
@@ -636,37 +639,37 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSString *host = @"bad.example.com";
   NSData *resultData = [@"Freebles" dataUsingEncoding:NSUTF8StringEncoding];
 
-  service.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      NSData *fakedResultData;
-      NSHTTPURLResponse *fakedResultResponse;
-      NSError *fakedResultError;
+  service.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        NSData *fakedResultData;
+        NSHTTPURLResponse *fakedResultResponse;
+        NSError *fakedResultError;
 
-      NSURL *requestURL = fetcherToTest.request.URL;
-      NSString *pathStr = requestURL.path.lastPathComponent;
-      BOOL isOdd = (([pathStr intValue] % 2) != 0);
-      if (isOdd) {
-        // Succeed.
-        fakedResultData = resultData;
-        fakedResultResponse = [[NSHTTPURLResponse alloc] initWithURL:requestURL
-                                                          statusCode:200
-                                                         HTTPVersion:@"HTTP/1.1"
-                                                        headerFields:@{ @"Bearded" : @"Collie" }];
-        fakedResultError = nil;
-      } else {
-        // Fail.
-        fakedResultData = nil;
-        fakedResultResponse = [[NSHTTPURLResponse alloc] initWithURL:requestURL
-                                                          statusCode:500
-                                                         HTTPVersion:@"HTTP/1.1"
-                                                        headerFields:@{ @"Afghan" : @"Hound" }];
-        fakedResultError = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                               code:500
-                                           userInfo:@{ kGTMSessionFetcherStatusDataKey : @"Oops" }];
-      }
+        NSURL *requestURL = fetcherToTest.request.URL;
+        NSString *pathStr = requestURL.path.lastPathComponent;
+        BOOL isOdd = (([pathStr intValue] % 2) != 0);
+        if (isOdd) {
+          // Succeed.
+          fakedResultData = resultData;
+          fakedResultResponse = [[NSHTTPURLResponse alloc] initWithURL:requestURL
+                                                            statusCode:200
+                                                           HTTPVersion:@"HTTP/1.1"
+                                                          headerFields:@{@"Bearded" : @"Collie"}];
+          fakedResultError = nil;
+        } else {
+          // Fail.
+          fakedResultData = nil;
+          fakedResultResponse = [[NSHTTPURLResponse alloc] initWithURL:requestURL
+                                                            statusCode:500
+                                                           HTTPVersion:@"HTTP/1.1"
+                                                          headerFields:@{@"Afghan" : @"Hound"}];
+          fakedResultError = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                                 code:500
+                                             userInfo:@{kGTMSessionFetcherStatusDataKey : @"Oops"}];
+        }
 
-      testResponse(fakedResultResponse, fakedResultData, fakedResultError);
-  };
+        testResponse(fakedResultResponse, fakedResultData, fakedResultError);
+      };
 
   const int kNumberOfFetchersToCreate = 4;
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(kNumberOfFetchersToCreate, kNumberOfFetchersToCreate);
@@ -678,21 +681,21 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     GTMSessionFetcher *fetcher = [service fetcherWithURLString:urlStr];
 
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-        BOOL isOdd = ((idx % 2) != 0);
-        if (isOdd) {
-          // Should have succeeded.
-          XCTAssertEqualObjects(fetchData, resultData);
-          XCTAssertNil(fetchError);
-          XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
-          XCTAssertEqualObjects(fetcher.responseHeaders[@"Bearded"], @"Collie");
-        } else {
-          // Should have failed.
-          XCTAssertNil(fetchData);
-          XCTAssertEqual(fetchError.code, (NSInteger)500);
-          XCTAssertEqual(fetcher.statusCode, 500);
-          XCTAssertEqualObjects(fetcher.responseHeaders[@"Afghan"], @"Hound");
-        }
-        [fetcherCompletedExpectation fulfill];
+      BOOL isOdd = ((idx % 2) != 0);
+      if (isOdd) {
+        // Should have succeeded.
+        XCTAssertEqualObjects(fetchData, resultData);
+        XCTAssertNil(fetchError);
+        XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+        XCTAssertEqualObjects(fetcher.responseHeaders[@"Bearded"], @"Collie");
+      } else {
+        // Should have failed.
+        XCTAssertNil(fetchData);
+        XCTAssertEqual(fetchError.code, (NSInteger)500);
+        XCTAssertEqual(fetcher.statusCode, 500);
+        XCTAssertEqualObjects(fetcher.responseHeaders[@"Afghan"], @"Hound");
+      }
+      [fetcherCompletedExpectation fulfill];
     }];
   }
 
@@ -700,8 +703,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-  XCTAssertEqual([service.runningFetchersByHost objectForKey:host].count,
-                 (NSUInteger)0);
+  XCTAssertEqual([service.runningFetchersByHost objectForKey:host].count, (NSUInteger)0);
 }
 
 - (void)testMockCreationMethod {
@@ -715,8 +717,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   NSData *data = [@"abcdefg" dataUsingEncoding:NSUTF8StringEncoding];
 
   GTMSessionFetcherService *service =
-      [GTMSessionFetcherService mockFetcherServiceWithFakedData:data
-                                                     fakedError:nil];
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:data fakedError:nil];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"http://example.invalid"];
 
   XCTestExpectation *expectFinishedWithData = [self expectationWithDescription:@"Called back"];
@@ -730,8 +731,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   // Test with error.
   NSError *error = [NSError errorWithDomain:@"example.com" code:-321 userInfo:nil];
-  service = [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil
-                                                           fakedError:error];
+  service = [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:error];
   fetcher = [service fetcherWithURLString:@"http://example.invalid"];
 
   XCTestExpectation *expectFinishedWithError = [self expectationWithDescription:@"Called back"];
@@ -781,7 +781,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // HTTPAdditionalHeaders property.
   NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
 
-  config.HTTPAdditionalHeaders = @{ kUserAgentHeader : kUserAgentValue };
+  config.HTTPAdditionalHeaders = @{kUserAgentHeader : kUserAgentValue};
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
 
@@ -875,8 +875,9 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
                                      delegateQueue:fetcher.sessionDelegateQueue];
   fetcher.session = session;
 
-  XCTAssertNotNil([service delegateDispatcherForFetcher:fetcher],
-                  @"dispatcher should be non-nil when session delegate is a proxy for the dispatcher");
+  XCTAssertNotNil(
+      [service delegateDispatcherForFetcher:fetcher],
+      @"dispatcher should be non-nil when session delegate is a proxy for the dispatcher");
   [session invalidateAndCancel];
 }
 

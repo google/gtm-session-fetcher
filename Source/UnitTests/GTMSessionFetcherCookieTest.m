@@ -49,7 +49,7 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   NSURL *subdomainURL = [NSURL URLWithString:@"http://frogbreath.example.com"];
 
   NSArray *foundCookies = [cookieStorage cookiesForURL:fullURL];
-  XCTAssertEqual(foundCookies.count, (NSUInteger) 0);
+  XCTAssertEqual(foundCookies.count, (NSUInteger)0);
 
   // Make two unique cookies
   NSHTTPCookie *testCookie1 =
@@ -118,8 +118,8 @@ static NSHTTPCookie *CookieWithProps(NSString *discard, NSString *domain, NSStri
   NSHTTPCookie *testCookie2 =
       CookieWithProps(@"TRUE", @"myexample.com", @"myexample", @"/", @"cook5=gnu");
 
-  [cookieStorage setCookies:@[ testCookie1a, testCookie1b, testCookie1c, testCookie1d,
-                               testCookie2 ]];
+  [cookieStorage
+      setCookies:@[ testCookie1a, testCookie1b, testCookie1c, testCookie1d, testCookie2 ]];
 
   // example.com retrieves the first two
   NSURL *subdomainURL = [NSURL URLWithString:@"http://example.com"];

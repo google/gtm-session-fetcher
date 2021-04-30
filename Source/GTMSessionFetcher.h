@@ -258,7 +258,6 @@
 //    response(suggestedWillRetry);
 //  };
 
-
 #import <Foundation/Foundation.h>
 
 #if TARGET_OS_IPHONE
@@ -271,47 +270,57 @@
 // By default it is stripped from non DEBUG builds. Developers can override
 // this in their project settings.
 #ifndef STRIP_GTM_FETCH_LOGGING
-  #if !DEBUG
-    #define STRIP_GTM_FETCH_LOGGING 1
-  #else
-    #define STRIP_GTM_FETCH_LOGGING 0
-  #endif
+#if !DEBUG
+#define STRIP_GTM_FETCH_LOGGING 1
+#else
+#define STRIP_GTM_FETCH_LOGGING 0
+#endif
 #endif
 
 // Logs in debug builds.
 #ifndef GTMSESSION_LOG_DEBUG
-  #if DEBUG
-    #define GTMSESSION_LOG_DEBUG(...) NSLog(__VA_ARGS__)
-  #else
-    #define GTMSESSION_LOG_DEBUG(...) do { } while (0)
-  #endif
+#if DEBUG
+#define GTMSESSION_LOG_DEBUG(...) NSLog(__VA_ARGS__)
+#else
+#define GTMSESSION_LOG_DEBUG(...) \
+  do {                            \
+  } while (0)
+#endif
 #endif
 
 // Asserts in debug builds (or logs in debug builds if GTMSESSION_ASSERT_AS_LOG
 // or NS_BLOCK_ASSERTIONS are defined.)
 #ifndef GTMSESSION_ASSERT_DEBUG
-  #if DEBUG && !defined(NS_BLOCK_ASSERTIONS) && !GTMSESSION_ASSERT_AS_LOG
-    #undef GTMSESSION_ASSERT_AS_LOG
-    #define GTMSESSION_ASSERT_AS_LOG 1
-  #endif
+#if DEBUG && !defined(NS_BLOCK_ASSERTIONS) && !GTMSESSION_ASSERT_AS_LOG
+#undef GTMSESSION_ASSERT_AS_LOG
+#define GTMSESSION_ASSERT_AS_LOG 1
+#endif
 
-  #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
-    #define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
-  #elif DEBUG
-    #define GTMSESSION_ASSERT_DEBUG(pred, ...) if (!(pred)) { NSLog(__VA_ARGS__); }
-  #else
-    #define GTMSESSION_ASSERT_DEBUG(pred, ...) do { } while (0)
-  #endif
+#if DEBUG && !GTMSESSION_ASSERT_AS_LOG
+#define GTMSESSION_ASSERT_DEBUG(...) NSAssert(__VA_ARGS__)
+#elif DEBUG
+#define GTMSESSION_ASSERT_DEBUG(pred, ...) \
+  if (!(pred)) {                           \
+    NSLog(__VA_ARGS__);                    \
+  }
+#else
+#define GTMSESSION_ASSERT_DEBUG(pred, ...) \
+  do {                                     \
+  } while (0)
+#endif
 #endif
 
 // Asserts in debug builds, logs in release builds (or logs in debug builds if
 // GTMSESSION_ASSERT_AS_LOG is defined.)
 #ifndef GTMSESSION_ASSERT_DEBUG_OR_LOG
-  #if DEBUG && !GTMSESSION_ASSERT_AS_LOG
-    #define GTMSESSION_ASSERT_DEBUG_OR_LOG(...) NSAssert(__VA_ARGS__)
-  #else
-    #define GTMSESSION_ASSERT_DEBUG_OR_LOG(pred, ...) if (!(pred)) { NSLog(__VA_ARGS__); }
-  #endif
+#if DEBUG && !GTMSESSION_ASSERT_AS_LOG
+#define GTMSESSION_ASSERT_DEBUG_OR_LOG(...) NSAssert(__VA_ARGS__)
+#else
+#define GTMSESSION_ASSERT_DEBUG_OR_LOG(pred, ...) \
+  if (!(pred)) {                                  \
+    NSLog(__VA_ARGS__);                           \
+  }
+#endif
 #endif
 
 // Macro useful for examining messages from NSURLSession during debugging.
@@ -322,42 +331,42 @@
 #endif
 
 #ifndef GTM_NULLABLE
-  #if __has_feature(nullability)  // Available starting in Xcode 6.3
-    #define GTM_NULLABLE_TYPE __nullable
-    #define GTM_NONNULL_TYPE __nonnull
-    #define GTM_NULLABLE nullable
-    #define GTM_NONNULL_DECL nonnull  // GTM_NONNULL is used by GTMDefines.h
-    #define GTM_NULL_RESETTABLE null_resettable
+#if __has_feature(nullability)  // Available starting in Xcode 6.3
+#define GTM_NULLABLE_TYPE __nullable
+#define GTM_NONNULL_TYPE __nonnull
+#define GTM_NULLABLE nullable
+#define GTM_NONNULL_DECL nonnull  // GTM_NONNULL is used by GTMDefines.h
+#define GTM_NULL_RESETTABLE null_resettable
 
-    #define GTM_ASSUME_NONNULL_BEGIN NS_ASSUME_NONNULL_BEGIN
-    #define GTM_ASSUME_NONNULL_END NS_ASSUME_NONNULL_END
-  #else
-    #define GTM_NULLABLE_TYPE
-    #define GTM_NONNULL_TYPE
-    #define GTM_NULLABLE
-    #define GTM_NONNULL_DECL
-    #define GTM_NULL_RESETTABLE
-    #define GTM_ASSUME_NONNULL_BEGIN
-    #define GTM_ASSUME_NONNULL_END
-  #endif  // __has_feature(nullability)
+#define GTM_ASSUME_NONNULL_BEGIN NS_ASSUME_NONNULL_BEGIN
+#define GTM_ASSUME_NONNULL_END NS_ASSUME_NONNULL_END
+#else
+#define GTM_NULLABLE_TYPE
+#define GTM_NONNULL_TYPE
+#define GTM_NULLABLE
+#define GTM_NONNULL_DECL
+#define GTM_NULL_RESETTABLE
+#define GTM_ASSUME_NONNULL_BEGIN
+#define GTM_ASSUME_NONNULL_END
+#endif  // __has_feature(nullability)
 #endif  // GTM_NULLABLE
 
 #ifndef GTM_DECLARE_GENERICS
-  #if __has_feature(objc_generics)
-    #define GTM_DECLARE_GENERICS 1
-  #else
-    #define GTM_DECLARE_GENERICS 0
-  #endif
+#if __has_feature(objc_generics)
+#define GTM_DECLARE_GENERICS 1
+#else
+#define GTM_DECLARE_GENERICS 0
+#endif
 #endif
 
 #ifndef GTM_NSArrayOf
-  #if GTM_DECLARE_GENERICS
-    #define GTM_NSArrayOf(value) NSArray<value>
-    #define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
-  #else
-    #define GTM_NSArrayOf(value) NSArray
-    #define GTM_NSDictionaryOf(key, value) NSDictionary
-  #endif // __has_feature(objc_generics)
+#if GTM_DECLARE_GENERICS
+#define GTM_NSArrayOf(value) NSArray<value>
+#define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
+#else
+#define GTM_NSArrayOf(value) NSArray
+#define GTM_NSDictionaryOf(key, value) NSDictionary
+#endif  // __has_feature(objc_generics)
 #endif  // GTM_NSArrayOf
 
 // For iOS, the fetcher can declare itself a background task to allow fetches
@@ -370,49 +379,50 @@
 // GTM_BACKGROUND_TASK_FETCHING to 0, or alternatively may set the
 // skipBackgroundTask property to YES.
 #if TARGET_OS_IPHONE && !TARGET_OS_WATCH && !defined(GTM_BACKGROUND_TASK_FETCHING)
-  #define GTM_BACKGROUND_TASK_FETCHING 1
+#define GTM_BACKGROUND_TASK_FETCHING 1
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if (TARGET_OS_TV \
-     || TARGET_OS_WATCH \
-     || (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) \
-     || (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
-  #ifndef GTM_USE_SESSION_FETCHER
-    #define GTM_USE_SESSION_FETCHER 1
-  #endif
+#if (TARGET_OS_TV || TARGET_OS_WATCH ||                          \
+     (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) &&    \
+      MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) || \
+     (TARGET_OS_IPHONE && defined(__IPHONE_9_0) &&               \
+      __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
+#ifndef GTM_USE_SESSION_FETCHER
+#define GTM_USE_SESSION_FETCHER 1
+#endif
 #endif
 
 #if !defined(GTMBridgeFetcher)
-  // These bridge macros should be identical in GTMHTTPFetcher.h and GTMSessionFetcher.h
-  #if GTM_USE_SESSION_FETCHER
-  // Macros to new fetcher class.
-    #define GTMBridgeFetcher GTMSessionFetcher
-    #define GTMBridgeFetcherService GTMSessionFetcherService
-    #define GTMBridgeFetcherServiceProtocol GTMSessionFetcherServiceProtocol
-    #define GTMBridgeAssertValidSelector GTMSessionFetcherAssertValidSelector
-    #define GTMBridgeCookieStorage GTMSessionCookieStorage
-    #define GTMBridgeCleanedUserAgentString GTMFetcherCleanedUserAgentString
-    #define GTMBridgeSystemVersionString GTMFetcherSystemVersionString
-    #define GTMBridgeApplicationIdentifier GTMFetcherApplicationIdentifier
-    #define kGTMBridgeFetcherStatusDomain kGTMSessionFetcherStatusDomain
-    #define kGTMBridgeFetcherStatusBadRequest GTMSessionFetcherStatusBadRequest
-  #else
-    // Macros to old fetcher class.
-    #define GTMBridgeFetcher GTMHTTPFetcher
-    #define GTMBridgeFetcherService GTMHTTPFetcherService
-    #define GTMBridgeFetcherServiceProtocol GTMHTTPFetcherServiceProtocol
-    #define GTMBridgeAssertValidSelector GTMAssertSelectorNilOrImplementedWithArgs
-    #define GTMBridgeCookieStorage GTMCookieStorage
-    #define GTMBridgeCleanedUserAgentString GTMCleanedUserAgentString
-    #define GTMBridgeSystemVersionString GTMSystemVersionString
-    #define GTMBridgeApplicationIdentifier GTMApplicationIdentifier
-    #define kGTMBridgeFetcherStatusDomain kGTMHTTPFetcherStatusDomain
-    #define kGTMBridgeFetcherStatusBadRequest kGTMHTTPFetcherStatusBadRequest
-  #endif  // GTM_USE_SESSION_FETCHER
+// These bridge macros should be identical in GTMHTTPFetcher.h and GTMSessionFetcher.h
+#if GTM_USE_SESSION_FETCHER
+// Macros to new fetcher class.
+#define GTMBridgeFetcher GTMSessionFetcher
+#define GTMBridgeFetcherService GTMSessionFetcherService
+#define GTMBridgeFetcherServiceProtocol GTMSessionFetcherServiceProtocol
+#define GTMBridgeAssertValidSelector GTMSessionFetcherAssertValidSelector
+#define GTMBridgeCookieStorage GTMSessionCookieStorage
+#define GTMBridgeCleanedUserAgentString GTMFetcherCleanedUserAgentString
+#define GTMBridgeSystemVersionString GTMFetcherSystemVersionString
+#define GTMBridgeApplicationIdentifier GTMFetcherApplicationIdentifier
+#define kGTMBridgeFetcherStatusDomain kGTMSessionFetcherStatusDomain
+#define kGTMBridgeFetcherStatusBadRequest GTMSessionFetcherStatusBadRequest
+#else
+// Macros to old fetcher class.
+#define GTMBridgeFetcher GTMHTTPFetcher
+#define GTMBridgeFetcherService GTMHTTPFetcherService
+#define GTMBridgeFetcherServiceProtocol GTMHTTPFetcherServiceProtocol
+#define GTMBridgeAssertValidSelector GTMAssertSelectorNilOrImplementedWithArgs
+#define GTMBridgeCookieStorage GTMCookieStorage
+#define GTMBridgeCleanedUserAgentString GTMCleanedUserAgentString
+#define GTMBridgeSystemVersionString GTMSystemVersionString
+#define GTMBridgeApplicationIdentifier GTMApplicationIdentifier
+#define kGTMBridgeFetcherStatusDomain kGTMHTTPFetcherStatusDomain
+#define kGTMBridgeFetcherStatusBadRequest kGTMHTTPFetcherStatusBadRequest
+#endif  // GTM_USE_SESSION_FETCHER
 #endif
 
 // When creating background sessions to perform out-of-process uploads and
@@ -433,12 +443,12 @@ extern "C" {
 // Apps targeting new SDKs can force the old behavior by defining
 // GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH = 0.
 #ifndef GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
-  // Default to the on-launch behavior for iOS 13+.
-  #if TARGET_OS_IOS && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
-    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 1
-  #else
-    #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 0
-  #endif
+// Default to the on-launch behavior for iOS 13+.
+#if TARGET_OS_IOS && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
+#define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 1
+#else
+#define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 0
+#endif
 #endif
 
 GTM_ASSUME_NONNULL_BEGIN
@@ -523,24 +533,28 @@ extern "C" {
 typedef void (^GTMSessionFetcherConfigurationBlock)(GTMSessionFetcher *fetcher,
                                                     NSURLSessionConfiguration *configuration);
 typedef void (^GTMSessionFetcherSystemCompletionHandler)(void);
-typedef void (^GTMSessionFetcherCompletionHandler)(NSData * GTM_NULLABLE_TYPE data,
-                                                   NSError * GTM_NULLABLE_TYPE error);
+typedef void (^GTMSessionFetcherCompletionHandler)(NSData *GTM_NULLABLE_TYPE data,
+                                                   NSError *GTM_NULLABLE_TYPE error);
 typedef void (^GTMSessionFetcherBodyStreamProviderResponse)(NSInputStream *bodyStream);
-typedef void (^GTMSessionFetcherBodyStreamProvider)(GTMSessionFetcherBodyStreamProviderResponse response);
-typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(NSURLSessionResponseDisposition disposition);
-typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(NSURLResponse *response,
-                                                         GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
-typedef void (^GTMSessionFetcherChallengeDispositionBlock)(NSURLSessionAuthChallengeDisposition disposition,
-                                                           NSURLCredential * GTM_NULLABLE_TYPE credential);
-typedef void (^GTMSessionFetcherChallengeBlock)(GTMSessionFetcher *fetcher,
-                                                NSURLAuthenticationChallenge *challenge,
-                                                GTMSessionFetcherChallengeDispositionBlock dispositionBlock);
-typedef void (^GTMSessionFetcherWillRedirectResponse)(NSURLRequest * GTM_NULLABLE_TYPE redirectedRequest);
+typedef void (^GTMSessionFetcherBodyStreamProvider)(
+    GTMSessionFetcherBodyStreamProviderResponse response);
+typedef void (^GTMSessionFetcherDidReceiveResponseDispositionBlock)(
+    NSURLSessionResponseDisposition disposition);
+typedef void (^GTMSessionFetcherDidReceiveResponseBlock)(
+    NSURLResponse *response, GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock);
+typedef void (^GTMSessionFetcherChallengeDispositionBlock)(
+    NSURLSessionAuthChallengeDisposition disposition,
+    NSURLCredential *GTM_NULLABLE_TYPE credential);
+typedef void (^GTMSessionFetcherChallengeBlock)(
+    GTMSessionFetcher *fetcher, NSURLAuthenticationChallenge *challenge,
+    GTMSessionFetcherChallengeDispositionBlock dispositionBlock);
+typedef void (^GTMSessionFetcherWillRedirectResponse)(
+    NSURLRequest *GTM_NULLABLE_TYPE redirectedRequest);
 typedef void (^GTMSessionFetcherWillRedirectBlock)(NSHTTPURLResponse *redirectResponse,
                                                    NSURLRequest *redirectRequest,
                                                    GTMSessionFetcherWillRedirectResponse response);
-typedef void (^GTMSessionFetcherAccumulateDataBlock)(NSData * GTM_NULLABLE_TYPE buffer);
-typedef void (^GTMSessionFetcherSimulateByteTransferBlock)(NSData * GTM_NULLABLE_TYPE buffer,
+typedef void (^GTMSessionFetcherAccumulateDataBlock)(NSData *GTM_NULLABLE_TYPE buffer);
+typedef void (^GTMSessionFetcherSimulateByteTransferBlock)(NSData *GTM_NULLABLE_TYPE buffer,
                                                            int64_t bytesWritten,
                                                            int64_t totalBytesWritten,
                                                            int64_t totalBytesExpectedToWrite);
@@ -549,23 +563,24 @@ typedef void (^GTMSessionFetcherReceivedProgressBlock)(int64_t bytesWritten,
 typedef void (^GTMSessionFetcherDownloadProgressBlock)(int64_t bytesWritten,
                                                        int64_t totalBytesWritten,
                                                        int64_t totalBytesExpectedToWrite);
-typedef void (^GTMSessionFetcherSendProgressBlock)(int64_t bytesSent,
-                                                   int64_t totalBytesSent,
+typedef void (^GTMSessionFetcherSendProgressBlock)(int64_t bytesSent, int64_t totalBytesSent,
                                                    int64_t totalBytesExpectedToSend);
-typedef void (^GTMSessionFetcherWillCacheURLResponseResponse)(NSCachedURLResponse * GTM_NULLABLE_TYPE cachedResponse);
-typedef void (^GTMSessionFetcherWillCacheURLResponseBlock)(NSCachedURLResponse *proposedResponse,
-                                                           GTMSessionFetcherWillCacheURLResponseResponse responseBlock);
+typedef void (^GTMSessionFetcherWillCacheURLResponseResponse)(
+    NSCachedURLResponse *GTM_NULLABLE_TYPE cachedResponse);
+typedef void (^GTMSessionFetcherWillCacheURLResponseBlock)(
+    NSCachedURLResponse *proposedResponse,
+    GTMSessionFetcherWillCacheURLResponseResponse responseBlock);
 typedef void (^GTMSessionFetcherRetryResponse)(BOOL shouldRetry);
 typedef void (^GTMSessionFetcherRetryBlock)(BOOL suggestedWillRetry,
-                                            NSError * GTM_NULLABLE_TYPE error,
+                                            NSError *GTM_NULLABLE_TYPE error,
                                             GTMSessionFetcherRetryResponse response);
 
 API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0))
 typedef void (^GTMSessionFetcherMetricsCollectionBlock)(NSURLSessionTaskMetrics *metrics);
 
-typedef void (^GTMSessionFetcherTestResponse)(NSHTTPURLResponse * GTM_NULLABLE_TYPE response,
-                                              NSData * GTM_NULLABLE_TYPE data,
-                                              NSError * GTM_NULLABLE_TYPE error);
+typedef void (^GTMSessionFetcherTestResponse)(NSHTTPURLResponse *GTM_NULLABLE_TYPE response,
+                                              NSData *GTM_NULLABLE_TYPE data,
+                                              NSError *GTM_NULLABLE_TYPE error);
 typedef void (^GTMSessionFetcherTestBlock)(GTMSessionFetcher *fetcherToTest,
                                            GTMSessionFetcherTestResponse testResponse);
 
@@ -581,7 +596,7 @@ void GTMSessionFetcherAssertValidSelector(id GTM_NULLABLE_TYPE obj, SEL GTM_NULL
 // Applications may use this as a starting point for their own user agent strings, perhaps
 // with additional sections appended.  Use GTMFetcherCleanedUserAgentString() below to
 // clean up any string being added to the user agent.
-NSString *GTMFetcherStandardUserAgentString(NSBundle * GTM_NULLABLE_TYPE bundle);
+NSString *GTMFetcherStandardUserAgentString(NSBundle *GTM_NULLABLE_TYPE bundle);
 
 // Make a generic name and version for the current application, like
 // com.example.MyApp/1.2.3 relying on the bundle identifier and the
@@ -595,7 +610,7 @@ NSString *GTMFetcherStandardUserAgentString(NSBundle * GTM_NULLABLE_TYPE bundle)
 //
 // If no bundle ID or override is available, the process name preceded
 // by "proc_" is used.
-NSString *GTMFetcherApplicationIdentifier(NSBundle * GTM_NULLABLE_TYPE bundle);
+NSString *GTMFetcherApplicationIdentifier(NSBundle *GTM_NULLABLE_TYPE bundle);
 
 // Make an identifier like "MacOSX/10.7.1" or "iPod_Touch/4.1 hw/iPod1_1"
 NSString *GTMFetcherSystemVersionString(void);
@@ -618,12 +633,11 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str);
 // queue before calling this function.
 //
 // Failure is indicated by a returned data value of nil.
-NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
+NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
 
 #if !GTM_USE_SESSION_FETCHER
 @protocol GTMHTTPFetcherServiceProtocol;
@@ -689,7 +703,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(atomic, assign) BOOL shouldAuthorizeAllRequests;
 
 - (void)authorizeRequest:(GTM_NULLABLE NSMutableURLRequest *)request
-       completionHandler:(void (^)(NSError * GTM_NULLABLE_TYPE error))handler;
+       completionHandler:(void (^)(NSError *GTM_NULLABLE_TYPE error))handler;
 
 #if GTM_USE_SESSION_FETCHER
 @property(atomic, weak, GTM_NULLABLE) id<GTMSessionFetcherServiceProtocol> fetcherService;
@@ -707,7 +721,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Set the target using +[GTMSessionFetcher setSubstituteUIApplication:]
 @protocol GTMUIApplicationProtocol <NSObject>
 - (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
-                                        expirationHandler:(void(^ __nullable)(void))handler;
+                                        expirationHandler:(void (^__nullable)(void))handler;
 - (void)endBackgroundTask:(UIBackgroundTaskIdentifier)identifier;
 @end
 #endif
@@ -803,7 +817,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Additional user-supplied data to encode into the session identifier. Since session identifier
 // length limits are unspecified, this should be kept small. Key names beginning with an underscore
 // are reserved for use by the fetcher.
-@property(atomic, strong, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *sessionUserInfo;
+@property(atomic, strong, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *
+    sessionUserInfo;
 
 // The human-readable description to be assigned to the task.
 @property(atomic, copy, GTM_NULLABLE) NSString *taskDescription;
@@ -873,7 +888,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 //
 // For builds with the iOS 9/OS X 10.11 and later SDKs, this property is required only when
 // the app specifies NSAppTransportSecurity/NSAllowsArbitraryLoads in the main bundle's Info.plist.
-@property(atomic, copy, GTM_NULLABLE) GTM_NSArrayOf(NSString *) *allowedInsecureSchemes;
+@property(atomic, copy, GTM_NULLABLE) GTM_NSArrayOf(NSString *) * allowedInsecureSchemes;
 
 // By default, the fetcher prohibits localhost requests unless this property is set,
 // or the GTM_ALLOW_INSECURE_REQUESTS build flag is set.
@@ -944,7 +959,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // the session task response.
 //
 // This is called on the callback queue.
-@property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
+@property(atomic, copy, GTM_NULLABLE)
+    GTMSessionFetcherDidReceiveResponseBlock didReceiveResponseBlock;
 
 // The delegate's optional challenge block may be used to inspect or alter
 // the session task challenge.
@@ -995,7 +1011,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // NSURLResponse. The user may prevent caching by passing nil to the block's response.
 //
 // This is called on the callback queue.
-@property(atomic, copy, GTM_NULLABLE) GTMSessionFetcherWillCacheURLResponseBlock willCacheURLResponseBlock;
+@property(atomic, copy, GTM_NULLABLE)
+    GTMSessionFetcherWillCacheURLResponseBlock willCacheURLResponseBlock;
 
 // Enable retrying; see comments at the top of this file.  Setting
 // retryEnabled=YES resets the min and max retry intervals.
@@ -1086,7 +1103,8 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(atomic, readonly) NSInteger statusCode;
 
 // Return the http headers from the response.
-@property(atomic, strong, readonly, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *responseHeaders;
+@property(atomic, strong, readonly, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, NSString *) *
+    responseHeaders;
 
 // The response, once it's been received.
 @property(atomic, strong, readonly, GTM_NULLABLE) NSURLResponse *response;
@@ -1111,9 +1129,10 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 @property(atomic, strong, GTM_NULLABLE) id userData;
 
 // Stored property values are retained solely for the convenience of the client.
-@property(atomic, copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) *properties;
+@property(atomic, copy, GTM_NULLABLE) GTM_NSDictionaryOf(NSString *, id) * properties;
 
-- (void)setProperty:(GTM_NULLABLE id)obj forKey:(NSString *)key;  // Pass nil for obj to remove the property.
+- (void)setProperty:(GTM_NULLABLE id)obj
+             forKey:(NSString *)key;  // Pass nil for obj to remove the property.
 - (GTM_NULLABLE id)propertyForKey:(NSString *)key;
 
 - (void)addPropertiesFromDictionary:(GTM_NSDictionaryOf(NSString *, id) *)dict;
@@ -1221,7 +1240,7 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 - (void)appendLoggedStreamData:(NSData *)dataToAdd;
 - (void)clearLoggedStreamData;
 
-#endif // STRIP_GTM_FETCH_LOGGING
+#endif  // STRIP_GTM_FETCH_LOGGING
 
 @end
 
@@ -1283,41 +1302,40 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
 // Only build the synchronization monitor code if NS_BLOCK_ASSERTIONS is not
 // defined or asserts are being logged instead.
 #if DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
-  #define __GTMSessionMonitorSynchronizedVariableInner(varname, counter) \
-      varname ## counter
-  #define __GTMSessionMonitorSynchronizedVariable(varname, counter)  \
-      __GTMSessionMonitorSynchronizedVariableInner(varname, counter)
+#define __GTMSessionMonitorSynchronizedVariableInner(varname, counter) varname##counter
+#define __GTMSessionMonitorSynchronizedVariable(varname, counter) \
+  __GTMSessionMonitorSynchronizedVariableInner(varname, counter)
 
-  #define GTMSessionMonitorSynchronized(obj)                                     \
-      NS_VALID_UNTIL_END_OF_SCOPE id                                             \
-        __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) =        \
-        [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj \
-                                                    allowRecursive:NO            \
-                                                     functionName:__func__]
+#define GTMSessionMonitorSynchronized(obj)                                                         \
+  NS_VALID_UNTIL_END_OF_SCOPE id __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) = \
+      [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj                     \
+                                                            allowRecursive:NO                      \
+                                                              functionName:__func__]
 
-  #define GTMSessionMonitorRecursiveSynchronized(obj)                            \
-      NS_VALID_UNTIL_END_OF_SCOPE id                                             \
-        __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) =        \
-        [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj \
-                                                    allowRecursive:YES           \
-                                                     functionName:__func__]
+#define GTMSessionMonitorRecursiveSynchronized(obj)                                                \
+  NS_VALID_UNTIL_END_OF_SCOPE id __GTMSessionMonitorSynchronizedVariable(__monitor, __COUNTER__) = \
+      [[GTMSessionSyncMonitorInternal alloc] initWithSynchronizationObject:obj                     \
+                                                            allowRecursive:YES                     \
+                                                              functionName:__func__]
 
-  #define GTMSessionCheckSynchronized(obj) {                                           \
-      GTMSESSION_ASSERT_DEBUG(                                                         \
-          [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
-          @"GTMSessionCheckSynchronized(" #obj ") failed: not sync'd"                  \
-          @" on " #obj " in %s. Call stack:\n%@",                                      \
-          __func__, [NSThread callStackSymbols]);                                      \
-      }
+#define GTMSessionCheckSynchronized(obj)                                             \
+  {                                                                                  \
+    GTMSESSION_ASSERT_DEBUG(                                                         \
+        [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
+        @"GTMSessionCheckSynchronized(" #obj ") failed: not sync'd"                  \
+        @" on " #obj " in %s. Call stack:\n%@",                                      \
+        __func__, [NSThread callStackSymbols]);                                      \
+  }
 
-  #define GTMSessionCheckNotSynchronized(obj) {                                       \
-      GTMSESSION_ASSERT_DEBUG(                                                        \
-        ![GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
-        @"GTMSessionCheckNotSynchronized(" #obj ") failed: was sync'd"                \
-        @" on " #obj " in %s by %@. Call stack:\n%@", __func__,                       \
-        [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj],  \
-        [NSThread callStackSymbols]);                                                 \
-      }
+#define GTMSessionCheckNotSynchronized(obj)                                                    \
+  {                                                                                            \
+    GTMSESSION_ASSERT_DEBUG(                                                                   \
+        ![GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj],          \
+        @"GTMSessionCheckNotSynchronized(" #obj ") failed: was sync'd"                         \
+        @" on " #obj " in %s by %@. Call stack:\n%@",                                          \
+        __func__, [GTMSessionSyncMonitorInternal functionsHoldingSynchronizationOnObject:obj], \
+        [NSThread callStackSymbols]);                                                          \
+  }
 
 // GTMSessionSyncMonitorInternal is a private class that keeps track of the
 // beginning and end of synchronized scopes.
@@ -1329,16 +1347,23 @@ NSData * GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NS
                                allowRecursive:(BOOL)allowRecursive
                                  functionName:(const char *)functionName;
 // Return the names of the functions that hold sync on the object, or nil if none.
-+ (NSArray * GTM_NULLABLE_TYPE)functionsHoldingSynchronizationOnObject:(id)object;
++ (NSArray *GTM_NULLABLE_TYPE)functionsHoldingSynchronizationOnObject:(id)object;
 @end
 
 #else
-  #define GTMSessionMonitorSynchronized(obj) do { } while (0)
-  #define GTMSessionMonitorRecursiveSynchronized(obj) do { } while (0)
-  #define GTMSessionCheckSynchronized(obj) do { } while (0)
-  #define GTMSessionCheckNotSynchronized(obj) do { } while (0)
+#define GTMSessionMonitorSynchronized(obj) \
+  do {                                     \
+  } while (0)
+#define GTMSessionMonitorRecursiveSynchronized(obj) \
+  do {                                              \
+  } while (0)
+#define GTMSessionCheckSynchronized(obj) \
+  do {                                   \
+  } while (0)
+#define GTMSessionCheckNotSynchronized(obj) \
+  do {                                      \
+  } while (0)
 #endif  // !DEBUG
 #endif  // __OBJC__
-
 
 GTM_ASSUME_NONNULL_END

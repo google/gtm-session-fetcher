@@ -32,26 +32,27 @@
 #import <Foundation/Foundation.h>
 
 #if GTM_IPHONE_SDK
-  #import <CFNetwork/CFNetwork.h>
-#endif // GTM_IPHONE_SDK
+#import <CFNetwork/CFNetwork.h>
+#endif  // GTM_IPHONE_SDK
 
 // Global contants needed for errors from start
 
 #undef _EXTERN
 #undef _INITIALIZE_AS
 #ifdef GTMHTTPSERVER_DEFINE_GLOBALS
-  #define _EXTERN
-  #define _INITIALIZE_AS(x) =x
+#define _EXTERN
+#define _INITIALIZE_AS(x) = x
 #else
-  #define _EXTERN extern
-  #define _INITIALIZE_AS(x)
+#define _EXTERN extern
+#define _INITIALIZE_AS(x)
 #endif
 
-_EXTERN NSString* const kGTMHTTPServerErrorDomain _INITIALIZE_AS(@"com.google.mactoolbox.HTTPServerDomain");
+_EXTERN NSString *const kGTMHTTPServerErrorDomain
+    _INITIALIZE_AS(@"com.google.mactoolbox.HTTPServerDomain");
 enum {
-  kGTMHTTPServerSocketCreateFailedError   = -100,
-  kGTMHTTPServerBindFailedError           = -101,
-  kGTMHTTPServerListenFailedError         = -102,
+  kGTMHTTPServerSocketCreateFailedError = -100,
+  kGTMHTTPServerBindFailedError = -101,
+  kGTMHTTPServerListenFailedError = -102,
   kGTMHTTPServerCFSocketCreateFailedError = -103,
 };
 
@@ -118,7 +119,7 @@ enum {
 + (instancetype)redirectResponseWithRedirectURL:(NSURL *)redirectURL;
 
 // TODO: add helper for expire/no-cache
-- (void)setValue:(NSString*)value forHeaderField:(NSString*)headerField;
+- (void)setValue:(NSString *)value forHeaderField:(NSString *)headerField;
 - (void)setHeaderValuesFromDictionary:(NSDictionary *)dict;
 
 @end

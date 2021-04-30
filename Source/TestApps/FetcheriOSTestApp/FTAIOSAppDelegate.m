@@ -20,22 +20,22 @@
 
 // Supports running a test case test within this app.
 // Update the kTestCase... constants to run the desired test.
-#define ENABLE_TEST_CASE_TESTING                0
+#define ENABLE_TEST_CASE_TESTING 0
 
 // Supports the out of process download acceptance test, since unit tests are not feasible for it.
 // When enabled, this app will download a test file and verify it downloaded the expected content.
 // Tap the Home button after the progress indicator starts. This kills the app, while not stopping
 // the download. The app will either be re-launched by the system if the download finishes or you
 // can re-launch the app to re-attach to the download and continue updating the progress bar.
-#define ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING  0
+#define ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING 0
 
 // Supports the out of process chunked upload acceptance test, since unit tests are not feasible for
-// it. When enabled, this app will upload a dynamically created test file to the test upload endpoint.
-// Tap the Home button after the progress indicator starts. This kills the app, while not stopping
-// the upload. The app will be re-launched when the current upload chunk finishes, so the app can
-// queue up the next chunk, if applicable. You can re-launch the app to re-attach to the upload
-// and continue updating the progress bar.
-#define ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING    0
+// it. When enabled, this app will upload a dynamically created test file to the test upload
+// endpoint. Tap the Home button after the progress indicator starts. This kills the app, while not
+// stopping the upload. The app will be re-launched when the current upload chunk finishes, so the
+// app can queue up the next chunk, if applicable. You can re-launch the app to re-attach to the
+// upload and continue updating the progress bar.
+#define ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING 0
 
 #define ENABLE_POST_TESTING 0
 
@@ -50,7 +50,6 @@ static NSString *const kTestCaseSelectorString = @"testCancelAndResumeFetchToFil
 
 #endif  // ENABLE_TEST_CASE_TESTING
 
-
 #import "GTMSessionFetcherService.h"
 
 #if ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING
@@ -61,19 +60,18 @@ static NSString *const kDownloadTestURLString = @"http://";
 
 #endif  // ENABLE_OUT_OF_PROCESS_DOWNLOAD_TESTING
 
-
 #if ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING
 
 #import "GTMSessionFetcherTestServer.h"
 #import "GTMSessionUploadFetcher.h"
 
 // Test upload > 2GB.
-static NSString *const kUploadTestURLString = @"http://0.upload.google.com/null";  // null upload server.
+static NSString *const kUploadTestURLString =
+    @"http://0.upload.google.com/null";  // null upload server.
 static NSUInteger const kBigUploadChunkSize = 500 * 1024 * 1024;
 static NSUInteger const kBigUploadChunkCount = 5;
 
 #endif  // ENABLE_OUT_OF_PROCESS_UPLOAD_TESTING
-
 
 #if ENABLE_POST_TESTING
 
@@ -82,7 +80,6 @@ static NSUInteger const kBigUploadChunkCount = 5;
 static NSUInteger const kPostDataSize = 512 * 1024;
 
 #endif  // ENABLE_POST_TESTING
-
 
 @interface FTAIOSAppRootViewController : UIViewController
 
@@ -121,8 +118,7 @@ static NSUInteger const kPostDataSize = 512 * 1024;
 
 - (void)applicationDidBecomeActive:(UIApplication *)application {
 #if ENABLE_TEST_CASE_TESTING
-  [self invokeTestSelectorString:kTestCaseSelectorString
-                   onClassString:kTestCaseClassString];
+  [self invokeTestSelectorString:kTestCaseSelectorString onClassString:kTestCaseClassString];
 #endif
 
 #if ENABLE_POST_TESTING
@@ -218,20 +214,19 @@ static NSUInteger const kPostDataSize = 512 * 1024;
 
   XCTestCase *testCase =
       [[NSClassFromString(testCaseClassString) alloc] initWithSelector:testCaseSelector];
-  NSAssert(testCase, @"Invalid testCase: %@ or selector: %@",
-                     testCaseClassString, testCaseSelectorString);
+  NSAssert(testCase, @"Invalid testCase: %@ or selector: %@", testCaseClassString,
+           testCaseSelectorString);
   XCTestRun *testRun = [[XCTestRun alloc] initWithTest:testCase];
   [testCase invokeTest];
 
   NSString *message =
-      [NSString stringWithFormat:@"Test count: %u\nFailure count: %u",
-                                 [testRun testCaseCount], [testRun totalFailureCount]];
-  UIAlertView *testResultsAlert =
-      [[UIAlertView alloc] initWithTitle:@"Test Run Complete"
-                                 message:message
-                                delegate:nil
-                       cancelButtonTitle:@"Cool"
-                       otherButtonTitles:nil];
+      [NSString stringWithFormat:@"Test count: %u\nFailure count: %u", [testRun testCaseCount],
+                                 [testRun totalFailureCount]];
+  UIAlertView *testResultsAlert = [[UIAlertView alloc] initWithTitle:@"Test Run Complete"
+                                                             message:message
+                                                            delegate:nil
+                                                   cancelButtonTitle:@"Cool"
+                                                   otherButtonTitles:nil];
   [testResultsAlert show];
 }
 
@@ -249,11 +244,10 @@ static NSUInteger const kPostDataSize = 512 * 1024;
   fetcher.bodyData = postData;
   [fetcher setRequestValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
 
-  fetcher.sendProgressBlock = ^(int64_t bytesSent,
-                                int64_t totalBytesSent,
-                                int64_t totalBytesExpectedToSend) {
-    NSLog(@"body post fetcher sent %lld/%lld", totalBytesSent, totalBytesExpectedToSend);
-  };
+  fetcher.sendProgressBlock =
+      ^(int64_t bytesSent, int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
+        NSLog(@"body post fetcher sent %lld/%lld", totalBytesSent, totalBytesExpectedToSend);
+      };
 
   NSLog(@"Starting post fetch");
   [fetcher beginFetchWithCompletionHandler:^(NSData *receivedData, NSError *error) {
@@ -282,7 +276,7 @@ static NSUInteger const kPostDataSize = 512 * 1024;
   if (fetcher) {
     NSURL *destinationFileURL = fetcher.destinationFileURL;
     fetcher.completionHandler = ^(NSData *data, NSError *error) {
-        [self downloadCompletedToFile:destinationFileURL error:error];
+      [self downloadCompletedToFile:destinationFileURL error:error];
     };
   } else {
     NSURL *destinationFileURL = [self downloadDestinationFileURL];
@@ -292,15 +286,14 @@ static NSUInteger const kPostDataSize = 512 * 1024;
     fetcher.allowLocalhostRequest = YES;
     fetcher.allowedInsecureSchemes = @[ @"http" ];
     [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-        [self downloadCompletedToFile:destinationFileURL error:error];
+      [self downloadCompletedToFile:destinationFileURL error:error];
     }];
   }
-  fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
-                                    int64_t totalBytesWritten,
-                                    int64_t totalBytesExpectedToWrite) {
-      float progress = (float)totalBytesWritten / (float)totalBytesExpectedToWrite;
-      [self setProgress:progress];
-  };
+  fetcher.downloadProgressBlock =
+      ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
+        float progress = (float)totalBytesWritten / (float)totalBytesExpectedToWrite;
+        [self setProgress:progress];
+      };
 }
 
 - (NSURL *)downloadDestinationFileURL {
@@ -324,17 +317,17 @@ static NSUInteger const kPostDataSize = 512 * 1024;
     if (didSucceed) {
       message = [NSString stringWithFormat:@"Data is correct"];
     } else {
-      message = [NSString stringWithFormat:@"Data is incorrect\n%d of %d bytes\n%@",
-                 (int)[downloadedData length], (int)[actualData length], error];
+      message =
+          [NSString stringWithFormat:@"Data is incorrect\n%d of %d bytes\n%@",
+                                     (int)[downloadedData length], (int)[actualData length], error];
     }
     [self setProgress:1];
   }
-  UIAlertView *downloadCompleteAlert =
-      [[UIAlertView alloc] initWithTitle:@"Finished download"
-                                 message:message
-                                delegate:nil
-                       cancelButtonTitle:(didSucceed ? @"Success" : @"Failed")
-                       otherButtonTitles:nil];
+  UIAlertView *downloadCompleteAlert = [[UIAlertView alloc]
+          initWithTitle:@"Finished download"
+                message:message
+               delegate:nil
+      cancelButtonTitle:(didSucceed ? @"Success" : @"Failed")otherButtonTitles:nil];
   [downloadCompleteAlert show];
 }
 
@@ -347,34 +340,33 @@ static NSUInteger const kPostDataSize = 512 * 1024;
   GTMSessionUploadFetcher *uploadFetcher = [uploadFetchers firstObject];
   if (uploadFetcher) {
     uploadFetcher.completionHandler = ^(NSData *data, NSError *error) {
-        [self uploadCompletedWithError:error];
+      [self uploadCompletedWithError:error];
     };
   } else {
     NSURL *requestURL = [NSURL URLWithString:kUploadTestURLString];
     NSMutableURLRequest *request =
         [NSMutableURLRequest requestWithURL:requestURL
                                 cachePolicy:NSURLRequestReloadIgnoringCacheData
-                            timeoutInterval:60*60];
+                            timeoutInterval:60 * 60];
     NSURL *bigFileURL = [self bigFileToUploadURL];
-    uploadFetcher =
-        [GTMSessionUploadFetcher uploadFetcherWithRequest:request
-                                           uploadMIMEType:@"text/plain"
-                                                chunkSize:kBigUploadChunkSize
-                                           fetcherService:nil];
+    uploadFetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                       uploadMIMEType:@"text/plain"
+                                                            chunkSize:kBigUploadChunkSize
+                                                       fetcherService:nil];
     uploadFetcher.allowedInsecureSchemes = @[ @"http" ];
     uploadFetcher.uploadFileURL = bigFileURL;
     uploadFetcher.retryEnabled = YES;
 
     // Start the upload.
     [uploadFetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-        [self uploadCompletedWithError:error];
+      [self uploadCompletedWithError:error];
     }];
   }
   uploadFetcher.sendProgressBlock =
       ^(int64_t bytesSent, int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
-          float progress = (float)totalBytesSent / (float)totalBytesExpectedToSend;
-          [self setProgress:progress];
-  };
+        float progress = (float)totalBytesSent / (float)totalBytesExpectedToSend;
+        [self setProgress:progress];
+      };
 }
 
 - (NSURL *)bigFileToUploadURL {

@@ -29,21 +29,21 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init
 // directly to prevent them being waited for by wait helper methods on XCTestCase.
-#define CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(START_COUNT, STOP_COUNT) \
-    XCTestExpectation *fetcherStartedExpectation__ = \
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification]; \
-    XCTestExpectation *fetcherStoppedExpectation__ = \
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification]; \
-    fetcherStartedExpectation__.expectedFulfillmentCount = (START_COUNT); \
-    fetcherStartedExpectation__.assertForOverFulfill = YES; \
-    fetcherStoppedExpectation__.expectedFulfillmentCount = (STOP_COUNT); \
-    fetcherStoppedExpectation__.assertForOverFulfill = YES;
+#define CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(START_COUNT, STOP_COUNT)                     \
+  XCTestExpectation *fetcherStartedExpectation__ =                                               \
+      [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification]; \
+  XCTestExpectation *fetcherStoppedExpectation__ =                                               \
+      [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification]; \
+  fetcherStartedExpectation__.expectedFulfillmentCount = (START_COUNT);                          \
+  fetcherStartedExpectation__.assertForOverFulfill = YES;                                        \
+  fetcherStoppedExpectation__.expectedFulfillmentCount = (STOP_COUNT);                           \
+  fetcherStoppedExpectation__.assertForOverFulfill = YES;
 
 // Helper macro to wait on the notification expectations created by the CREATE_START_STOP macro.
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
-#define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS() \
-    [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                      timeout:5.0];
+#define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
+  [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
+                    timeout:5.0];
 
 @interface GTMSessionFetcher (ExposedForTesting)
 + (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
@@ -113,34 +113,36 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Swift Pacage Manager does not support resources distribution currently,
   // therefore the "gettysburgaddress.txt" file must be copied manually to the test bundle.
   static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-      NSString *gettysburg = @""\
-      "Four score and seven years ago our fathers brought forth on this continent, a"\
-      "new nation, conceived in liberty, and dedicated to the proposition that all men"\
-      "are created equal.";
+  dispatch_once(&onceToken, ^{
+    NSString *gettysburg =
+        @""
+         "Four score and seven years ago our fathers brought forth on this continent, a"
+         "new nation, conceived in liberty, and dedicated to the proposition that all men"
+         "are created equal.";
 
-      NSString * resourcePath = [testBundle resourcePath];
-      XCTAssertNotNil(resourcePath);
+    NSString *resourcePath = [testBundle resourcePath];
+    XCTAssertNotNil(resourcePath);
 
-      if (![[NSFileManager defaultManager] fileExistsAtPath:resourcePath]) {
-          NSError *createDirectoryError = nil;
-          if (![[NSFileManager defaultManager] createDirectoryAtPath:resourcePath
-                                         withIntermediateDirectories:true
-                                                          attributes:nil
-                                                               error:&createDirectoryError]) {
-            XCTFail("Failed to create the Resources directory, error: %@", createDirectoryError);
-          }
+    if (![[NSFileManager defaultManager] fileExistsAtPath:resourcePath]) {
+      NSError *createDirectoryError = nil;
+      if (![[NSFileManager defaultManager] createDirectoryAtPath:resourcePath
+                                     withIntermediateDirectories:true
+                                                      attributes:nil
+                                                           error:&createDirectoryError]) {
+        XCTFail("Failed to create the Resources directory, error: %@", createDirectoryError);
       }
+    }
 
-      NSString *gettysburgPath = [resourcePath stringByAppendingPathComponent:@"gettysburgaddress.txt"];
-      NSError *writeError = nil;
-      if (![gettysburg writeToFile:gettysburgPath
-                        atomically:true
-                          encoding:NSUTF8StringEncoding
-                             error:&writeError]) {
-        XCTFail("Failed to write `gettysburgaddress.txt` bundle Resource, error: %@", writeError);
-      }
-    });
+    NSString *gettysburgPath =
+        [resourcePath stringByAppendingPathComponent:@"gettysburgaddress.txt"];
+    NSError *writeError = nil;
+    if (![gettysburg writeToFile:gettysburgPath
+                      atomically:true
+                        encoding:NSUTF8StringEncoding
+                           error:&writeError]) {
+      XCTFail("Failed to write `gettysburgaddress.txt` bundle Resource, error: %@", writeError);
+    }
+  });
 #endif
 
   NSString *docFolder = [testBundle resourcePath];
@@ -156,8 +158,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 - (NSURL *)temporaryFileURLWithBaseName:(NSString *)baseName {
   static int counter = 0;
-  NSString *fileName = [NSString stringWithFormat:@"GTMFetcherTest_%@_%@_%d",
-                        baseName, [NSDate date], ++counter];
+  NSString *fileName =
+      [NSString stringWithFormat:@"GTMFetcherTest_%@_%@_%d", baseName, [NSDate date], ++counter];
   NSURL *tempURL = [NSURL fileURLWithPath:NSTemporaryDirectory()];
   NSURL *fileURL = [tempURL URLByAppendingPathComponent:fileName];
   return fileURL;
@@ -189,16 +191,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   return localURLString;
 }
 
-- (NSString *)localURLStringToTestFileName:(NSString *)name
-                                parameters:(NSDictionary *)params {
+- (NSString *)localURLStringToTestFileName:(NSString *)name parameters:(NSDictionary *)params {
   NSString *localURLString = [self localURLStringToTestFileName:name];
 
   // Add any parameters from the dictionary.
   if (params.count) {
     NSMutableArray *array = [NSMutableArray array];
     for (NSString *key in params) {
-      [array addObject:[NSString stringWithFormat:@"%@=%@",
-                        key, [[params objectForKey:key] description]]];
+      [array addObject:[NSString stringWithFormat:@"%@=%@", key,
+                                                  [[params objectForKey:key] description]]];
     }
     NSString *paramsStr = [array componentsJoinedByString:@"&"];
     localURLString = [localURLString stringByAppendingFormat:@"?%@", paramsStr];
@@ -277,8 +278,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(data, gettysburgAddress,
                         @"Failed to retrieve Gettysburg Address."
                         @"  %d bytes, status:%d request:%@ error:%@",
-                        (int)data.length, (int)fetcher.statusCode,
-                        fetcher.request, error);
+                        (int)data.length, (int)fetcher.statusCode, fetcher.request, error);
   XCTAssertNotNil(fetcher.response);
   XCTAssertNotNil(fetcher.request, @"Missing request");
   XCTAssertEqual(fetcher.statusCode, (NSInteger)200, @"%@", fetcher.request);
@@ -304,70 +304,68 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   __block NSCachedURLResponse *proposedResponseToCache;
   fetcher.willCacheURLResponseBlock = ^(NSCachedURLResponse *responseProposed,
                                         GTMSessionFetcherWillCacheURLResponseResponse response) {
-      proposedResponseToCache = responseProposed;
-      response(responseProposed);
+    proposedResponseToCache = responseProposed;
+    response(responseProposed);
   };
 
   __block NSURLResponse *initialResponse;
-  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
-                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
-      XCTAssertNil(initialResponse);
-      initialResponse = response;
-      dispositionBlock(NSURLSessionResponseAllow);
-  };
+  fetcher.didReceiveResponseBlock =
+      ^(NSURLResponse *response,
+        GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+        XCTAssertNil(initialResponse);
+        initialResponse = response;
+        dispositionBlock(NSURLSessionResponseAllow);
+      };
 
-  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
-                                NSURLRequest *redirectRequest,
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse, NSURLRequest *redirectRequest,
                                 GTMSessionFetcherWillRedirectResponse response) {
-      XCTFail(@"redirect not expected");
+    XCTFail(@"redirect not expected");
   };
 
   __block BOOL wasConfigBlockCalled = NO;
-  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
-                                 NSURLSessionConfiguration *config) {
-    wasConfigBlockCalled = YES;
+  fetcher.configurationBlock =
+      ^(GTMSessionFetcher *configFetcher, NSURLSessionConfiguration *config) {
+        wasConfigBlockCalled = YES;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-retain-cycles"
-    XCTAssertEqual(configFetcher, fetcher);
+        XCTAssertEqual(configFetcher, fetcher);
 #pragma clang diagnostic pop
-  };
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
 
-      // No cookies should be sent with our first request.  Check what cookies the server found.
-      NSDictionary *responseHeaders = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
-      NSString *cookiesSent = [responseHeaders objectForKey:@"FoundCookies"];
-      XCTAssertNil(cookiesSent, @"Cookies sent unexpectedly: %@", cookiesSent);
+    // No cookies should be sent with our first request.  Check what cookies the server found.
+    NSDictionary *responseHeaders = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
+    NSString *cookiesSent = [responseHeaders objectForKey:@"FoundCookies"];
+    XCTAssertNil(cookiesSent, @"Cookies sent unexpectedly: %@", cookiesSent);
 
-      // Cookies should have been set by the response; specifically, TestCookie
-      // should be set to the name of the file requested.
-      NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
-      XCTAssertEqualObjects(cookiesSetString, cookieExpected);
+    // Cookies should have been set by the response; specifically, TestCookie
+    // should be set to the name of the file requested.
+    NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
+    XCTAssertEqualObjects(cookiesSetString, cookieExpected);
 
-      // A cookie should've been set.
-      cookieStorage = fetcher.configuration.HTTPCookieStorage;
-      NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
-      NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
-      XCTAssertEqual(cookies.count, (NSUInteger)1);
-      NSHTTPCookie *firstCookie = cookies.firstObject;
-      XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+    // A cookie should've been set.
+    cookieStorage = fetcher.configuration.HTTPCookieStorage;
+    NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
+    NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
+    XCTAssertEqual(cookies.count, (NSUInteger)1);
+    NSHTTPCookie *firstCookie = cookies.firstObject;
+    XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
 
-      // The initial response should be the final response;
-      XCTAssertEqualObjects(initialResponse, fetcher.response);
+    // The initial response should be the final response;
+    XCTAssertEqualObjects(initialResponse, fetcher.response);
 
-      // The response should've been cached.  See the comment above at the declaration of
-      // proposedResponseToCache
-      if (proposedResponseToCache) {
-        XCTAssertEqualObjects(proposedResponseToCache.response.URL, fetcher.response.URL);
-        XCTAssertEqualObjects([(NSHTTPURLResponse *)proposedResponseToCache.response allHeaderFields],
-                              [(NSHTTPURLResponse *)fetcher.response allHeaderFields]);
-      }
-      [expectation fulfill];
+    // The response should've been cached.  See the comment above at the declaration of
+    // proposedResponseToCache
+    if (proposedResponseToCache) {
+      XCTAssertEqualObjects(proposedResponseToCache.response.URL, fetcher.response.URL);
+      XCTAssertEqualObjects([(NSHTTPURLResponse *)proposedResponseToCache.response allHeaderFields],
+                            [(NSHTTPURLResponse *)fetcher.response allHeaderFields]);
+    }
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -385,26 +383,26 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // TODO(seh): Shouldn't be needed; without it the cookie isn't being received by the test server.
   // b/17646646
   [fetcher setRequestValue:cookieExpected forHTTPHeaderField:@"Cookie"];
-  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
-                                 NSURLSessionConfiguration *config) {
-      wasConfigBlockCalled = YES;
+  fetcher.configurationBlock =
+      ^(GTMSessionFetcher *configFetcher, NSURLSessionConfiguration *config) {
+        wasConfigBlockCalled = YES;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Warc-retain-cycles"
-      XCTAssertEqual(configFetcher, fetcher);
+        XCTAssertEqual(configFetcher, fetcher);
 #pragma clang diagnostic pop
-      XCTAssertEqualObjects(config.HTTPCookieStorage, cookieStorage);
-  };
+        XCTAssertEqualObjects(config.HTTPCookieStorage, cookieStorage);
+      };
 
   expectation = [self expectationWithDescription:@"Cookies found"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertEqualObjects(data, [self gettysburgAddress], @"Unexpected data.");
+    XCTAssertEqualObjects(data, [self gettysburgAddress], @"Unexpected data.");
 
-      // The cookie set previously should be sent with this request.  See what cookies the
-      // http server found.
-      NSDictionary *allHeaderFields = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
-      NSString *cookiesSent = [allHeaderFields objectForKey:@"FoundCookies"];
-      XCTAssertEqualObjects(cookiesSent, cookieExpected);
-      [expectation fulfill];
+    // The cookie set previously should be sent with this request.  See what cookies the
+    // http server found.
+    NSDictionary *allHeaderFields = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
+    NSString *cookiesSent = [allHeaderFields objectForKey:@"FoundCookies"];
+    XCTAssertEqualObjects(cookiesSent, cookieExpected);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
@@ -456,27 +454,27 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTestExpectation *expirationExp = [self expectationWithDescription:@"expired"];
 
   NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-  id notification = [nc addObserverForName:kSubUIAppBackgroundTaskBegan
-                                    object:nil
-                                     queue:nil
-                                usingBlock:^(NSNotification *note) {
-    SubstituteUIApplication *app = [GTMSessionFetcher substituteUIApplication];
-    dispatch_async(dispatch_get_main_queue(), ^{
-      [app expireAllBackgroundTasksWithCallback:^(
-            NSUInteger numberOfBackgroundTasksToExpire,
-            NSArray<SubstituteUIApplicationTaskInfo *> *tasksFailingToExpire) {
-        XCTAssertEqual(numberOfBackgroundTasksToExpire, (NSUInteger)1);
-        XCTAssertEqual(tasksFailingToExpire.count, (NSUInteger)0, @"%@", tasksFailingToExpire);
-        [expirationExp fulfill];
-      }];
-    });
-  }];
+  id notification =
+      [nc addObserverForName:kSubUIAppBackgroundTaskBegan
+                      object:nil
+                       queue:nil
+                  usingBlock:^(NSNotification *note) {
+                    SubstituteUIApplication *app = [GTMSessionFetcher substituteUIApplication];
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                      [app expireAllBackgroundTasksWithCallback:^(
+                               NSUInteger numberOfBackgroundTasksToExpire,
+                               NSArray<SubstituteUIApplicationTaskInfo *> *tasksFailingToExpire) {
+                        XCTAssertEqual(numberOfBackgroundTasksToExpire, (NSUInteger)1);
+                        XCTAssertEqual(tasksFailingToExpire.count, (NSUInteger)0, @"%@",
+                                       tasksFailingToExpire);
+                        [expirationExp fulfill];
+                      }];
+                    });
+                  }];
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                data:data
-                                               error:error];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -529,11 +527,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:accumulatedData
-                                                 error:error];
-      [expectation fulfill];
+    XCTAssertNil(data);
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:accumulatedData error:error];
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -573,19 +569,18 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:badURLString];
   XCTestExpectation *expectation = [self expectationWithDescription:badURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      if (data) {
-        NSString *str = [[NSString alloc] initWithData:data
-                                              encoding:NSUTF8StringEncoding];
-        XCTAssertNil(data, @"Unexpected data: %@", str);
-      }
-      XCTAssertNotNil(error);
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)0);
+    if (data) {
+      NSString *str = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+      XCTAssertNil(data, @"Unexpected data: %@", str);
+    }
+    XCTAssertNotNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)0);
 
-      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
-      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
-      XCTAssertNil(retriesDone);
-      XCTAssertNil(elapsedInterval);
-      [expectation fulfill];
+    NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+    NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+    XCTAssertNil(retriesDone);
+    XCTAssertNil(elapsedInterval);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -594,31 +589,30 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch requesting a specific status code from our http server.
   //
   NSString *statusURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                      parameters:@{ @"status": @"400" }];
+                                                      parameters:@{@"status" : @"400"}];
 
   fetcher = [self fetcherWithURLString:statusURLString];
   expectation = [self expectationWithDescription:statusURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *statusStr = [[self->_testServer class] JSONBodyStringForStatus:400];
-      NSData *errorBodyData = [statusStr dataUsingEncoding:NSUTF8StringEncoding];
-      XCTAssertEqualObjects(data, errorBodyData);
+    NSString *statusStr = [[self->_testServer class] JSONBodyStringForStatus:400];
+    NSData *errorBodyData = [statusStr dataUsingEncoding:NSUTF8StringEncoding];
+    XCTAssertEqualObjects(data, errorBodyData);
 
-      XCTAssertNotNil(error);
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)400, @"%@", error);
+    XCTAssertNotNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)400, @"%@", error);
 
-      NSString *statusDataContentType =
-          [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
-      XCTAssertEqualObjects(statusDataContentType, @"application/json");
+    NSString *statusDataContentType =
+        [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+    XCTAssertEqualObjects(statusDataContentType, @"application/json");
 
-      NSData *statusData = [error.userInfo objectForKey:kGTMSessionFetcherStatusDataKey];
-      XCTAssertNotNil(statusData, @"Missing data in error");
-      if (statusData) {
-        NSString *dataStr = [[NSString alloc] initWithData:statusData
-                                                  encoding:NSUTF8StringEncoding];
-        NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:400];
-        XCTAssertEqualObjects(dataStr, expectedStr, @"Expected JSON status data");
-      }
-      [expectation fulfill];
+    NSData *statusData = [error.userInfo objectForKey:kGTMSessionFetcherStatusDataKey];
+    XCTAssertNotNil(statusData, @"Missing data in error");
+    if (statusData) {
+      NSString *dataStr = [[NSString alloc] initWithData:statusData encoding:NSUTF8StringEncoding];
+      NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:400];
+      XCTAssertEqualObjects(dataStr, expectedStr, @"Expected JSON status data");
+    }
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -688,18 +682,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   const int kBodyLength = 133;
   NSString *localURLString =
       [self localURLStringToTestFileName:kGTMGettysburgFileName
-                              parameters:@{ @"requestBodyLength": [@(kBodyLength) stringValue] }];
+                              parameters:@{@"requestBodyLength" : [@(kBodyLength) stringValue]}];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
 
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      // We'll verify we fetched from the server the actual data on disk.
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      [expectation fulfill];
+    // We'll verify we fetched from the server the actual data on disk.
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -743,9 +735,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTestExpectation *finishExpectation =
       [self expectationWithDescription:@"testCallbackQueue main"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                data:data
-                                               error:error];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
     XCTAssertTrue([NSThread isMainThread], @"Unexpected queue %s",
                   dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL));
     [finishExpectation fulfill];
@@ -762,18 +752,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   dispatch_queue_t bgQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
   fetcher.callbackQueue = bgQueue;
 
-  finishExpectation =
-      [self expectationWithDescription:@"testCallbackQueue specific"];
+  finishExpectation = [self expectationWithDescription:@"testCallbackQueue specific"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                data:data
-                                               error:error];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
     BOOL areSame = (strcmp(dispatch_queue_get_label(bgQueue),
                            dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)) == 0);
     XCTAssert(areSame, @"Unexpected queue: %s ≠ %s",
               dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL),
-              dispatch_queue_get_label(bgQueue)
-              );
+              dispatch_queue_get_label(bgQueue));
     [finishExpectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -800,23 +786,21 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   const int kBodyLength = 1024 * 1024;
   NSString *localURLString =
       [self localURLStringToTestFileName:kGTMGettysburgFileName
-                              parameters:@{ @"requestBodyLength" : @(kBodyLength) }];
+                              parameters:@{@"requestBodyLength" : @(kBodyLength)}];
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
 
   fetcher.bodyStreamProvider = ^(GTMSessionFetcherBodyStreamProviderResponse response) {
-      NSData *bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
-      NSInputStream *stream = [NSInputStream inputStreamWithData:bodyData];
-      response(stream);
+    NSData *bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
+    NSInputStream *stream = [NSInputStream inputStreamWithData:bodyData];
+    response(stream);
   };
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      // We'll verify we fetched from the server the actual data on disk.
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      [expectation fulfill];
+    // We'll verify we fetched from the server the actual data on disk.
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -857,7 +841,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   const int kBodyLength = 1024 * 1024;
   NSString *localURLString =
       [self localURLStringToTestFileName:kGTMGettysburgFileName
-                              parameters:@{ @"requestBodyLength" : @(kBodyLength) }];
+                              parameters:@{@"requestBodyLength" : @(kBodyLength)}];
 
   NSMutableURLRequest *request = [self requestWithURLString:localURLString];
   NSData *bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
@@ -869,11 +853,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   XCTestExpectation *expectation = [self expectationWithDescription:localURLString];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      // We'll verify we fetched from the server the actual data on disk.
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      [expectation fulfill];
+    // We'll verify we fetched from the server the actual data on disk.
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -902,9 +884,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   if (!_isServerRunning) return;
 
 #if TARGET_OS_TV || TARGET_OS_IPHONE
-  #define EXPECTED_COUNT 2
+#define EXPECTED_COUNT 2
 #else
-  #define EXPECTED_COUNT 3
+#define EXPECTED_COUNT 3
 #endif
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(EXPECTED_COUNT, EXPECTED_COUNT);
@@ -927,12 +909,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                 password:@"password"];
   XCTestExpectation *expectation = [self expectationWithDescription:@"basic authentication"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      // We'll verify we fetched from the server the actual data on disk.
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
-      [expectation fulfill];
+    // We'll verify we fetched from the server the actual data on disk.
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -951,12 +931,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                 password:@"password"];
   expectation = [self expectationWithDescription:@"digest authentication"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      // We'll verify we fetched from the server the actual data on disk.
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
-      [expectation fulfill];
+    // We'll verify we fetched from the server the actual data on disk.
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeDigest);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -978,10 +956,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                 password:@"password"];
   expectation = [self expectationWithDescription:@"bad credential"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
-      XCTAssertEqual(error.code, (NSInteger)NSURLErrorCancelled, @"%@", error);
-      XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
-      [expectation fulfill];
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, (NSInteger)NSURLErrorCancelled, @"%@", error);
+    XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeInvalid);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1015,9 +993,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   // Basic Authentication.
   NSURLCredential *goodCredential =
-    [NSURLCredential credentialWithUser:@"frogman"
-                               password:@"padhopper"
-                            persistence:NSURLCredentialPersistenceNone];
+      [NSURLCredential credentialWithUser:@"frogman"
+                                 password:@"padhopper"
+                              persistence:NSURLCredentialPersistenceNone];
 
   [_testServer setHTTPAuthenticationType:kGTMHTTPAuthenticationTypeBasic
                                 username:goodCredential.user
@@ -1033,19 +1011,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   // All we're testing is that the code path for use of the challenge block is exercised;
   // actual behavior of the disposition is up to NSURLSession and the test server.
-  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
-                             NSURLAuthenticationChallenge *challenge,
-                             GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
-    dispositionBlock(NSURLSessionAuthChallengeUseCredential, goodCredential);
+  fetcher.challengeBlock =
+      ^(GTMSessionFetcher *blockFetcher, NSURLAuthenticationChallenge *challenge,
+        GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
+        dispositionBlock(NSURLSessionAuthChallengeUseCredential, goodCredential);
 
-    [calledChallengeDisposition fulfill];
-  };
+        [calledChallengeDisposition fulfill];
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                data:data
-                                               error:error];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
     XCTAssertEqual(self->_testServer.lastHTTPAuthenticationType, kGTMHTTPAuthenticationTypeBasic);
     [expectation fulfill];
   }];
@@ -1083,18 +1059,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch a live, authorized URL.
   //
   NSString *authedURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                      parameters:@{ @"oauth2": @"good" }];
+                                                      parameters:@{@"oauth2" : @"good"}];
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer syncAuthorizer];
   XCTestExpectation *expectation = [self expectationWithDescription:@"synchronous authorizer"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr =
-          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
-      XCTAssertEqualObjects(data, [self gettysburgAddress]);
-      XCTAssertNil(error, @"unexpected error");
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error, @"unexpected error");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1106,12 +1081,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
   expectation = [self expectationWithDescription:@"asynchronous authorizer"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr =
-          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
-      XCTAssertEqualObjects(data, [self gettysburgAddress]);
-      XCTAssertNil(error, @"unexpected error");
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error, @"unexpected error");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1124,8 +1098,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   ((TestAuthorizer *)fetcher.authorizer).willFailWithError = YES;
   expectation = [self expectationWithDescription:@"asynchronous authorizer error"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    NSString *authHdr =
-      [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
     XCTAssertNil(authHdr);
     XCTAssertNil(data);
     XCTAssertNotNil(error);
@@ -1138,22 +1111,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch with an expired sync authorizer, no retry allowed.
   //
   authedURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                            parameters:@{ @"oauth2": @"good" }];
+                                            parameters:@{@"oauth2" : @"good"}];
 
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer expiredSyncAuthorizer];
-  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                         GTMSessionFetcherRetryResponse response) {
-      XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-      response(NO);
-  };
+  fetcher.retryBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+        response(NO);
+      };
 
   expectation = [self expectationWithDescription:@"expired synchronous authorizer no retry"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertNil(authHdr);
-      XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertNil(authHdr);
+    XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1162,23 +1135,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch with an expired async authorizer, no retry allowed.
   //
   authedURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                            parameters:@{ @"oauth2": @"good" }];
+                                            parameters:@{@"oauth2" : @"good"}];
 
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer expiredAsyncAuthorizer];
-  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                         GTMSessionFetcherRetryResponse response) {
-      XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-      response(NO);
-  };
+  fetcher.retryBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+        response(NO);
+      };
 
   expectation = [self expectationWithDescription:@"expired asynchronous authorizer no retry"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr =
-          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertNil(authHdr);
-      XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertNil(authHdr);
+    XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1188,19 +1160,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer expiredSyncAuthorizer];
-  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                         GTMSessionFetcherRetryResponse response) {
-      XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-      response(YES);
-  };
+  fetcher.retryBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+        response(YES);
+      };
 
   expectation = [self expectationWithDescription:@"expired synchronous authorizer auto refresh"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
-      XCTAssertEqualObjects(data, [self gettysburgAddress]);
-      XCTAssertNil(error);
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1210,20 +1182,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   fetcher = [self fetcherWithURLString:authedURLString];
   fetcher.authorizer = [TestAuthorizer expiredAsyncAuthorizer];
-  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                         GTMSessionFetcherRetryResponse response) {
-    XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
-    response(YES);
-  };
+  fetcher.retryBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        XCTAssertEqual(error.code, (NSInteger)401, @"%@", error);
+        response(YES);
+      };
 
   expectation = [self expectationWithDescription:@"expired asynchronous authorizer auto refresh"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      NSString *authHdr =
-          [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
-      XCTAssertEqualObjects(authHdr, kGoodBearerValue);
-      XCTAssertEqualObjects(data, [self gettysburgAddress]);
-      XCTAssertNil(error);
-      [expectation fulfill];
+    NSString *authHdr = [fetcher.request.allHTTPHeaderFields objectForKey:@"Authorization"];
+    XCTAssertEqualObjects(authHdr, kGoodBearerValue);
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1265,7 +1236,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch our test file.  Ensure the body survives the redirection.
   //
   const int kBodyLength = 137;
-  NSDictionary *params = @{ @"requestBodyLength" : [@(kBodyLength) stringValue] };
+  NSDictionary *params = @{@"requestBodyLength" : [@(kBodyLength) stringValue]};
   NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                      parameters:params];
 
@@ -1273,41 +1244,39 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
   XCTestExpectation *redirectExpectation = [self expectationWithDescription:@"redirect called"];
-  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
-                                NSURLRequest *redirectRequest,
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse, NSURLRequest *redirectRequest,
                                 GTMSessionFetcherWillRedirectResponse response) {
-      XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
-                ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
-      response(redirectRequest);
-      [redirectExpectation fulfill];
+    XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
+              ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
+    response(redirectRequest);
+    [redirectExpectation fulfill];
   };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      // Check that a redirect was performed
-      NSURL *requestURL = [NSURL URLWithString:localURLString];
-      NSURL *responseURL = fetcher.response.URL;
-      XCTAssertTrue(![requestURL.host isEqual:responseURL.host] ||
-                    ![requestURL.port isEqual:responseURL.port], @"failed to redirect");
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    // Check that a redirect was performed
+    NSURL *requestURL = [NSURL URLWithString:localURLString];
+    NSURL *responseURL = fetcher.response.URL;
+    XCTAssertTrue(
+        ![requestURL.host isEqual:responseURL.host] || ![requestURL.port isEqual:responseURL.port],
+        @"failed to redirect");
 
-      // Cookies should have been set by the response; specifically, TestCookie
-      // should be set to the name of the file requested.
-      NSDictionary *responseHeaders = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
-      NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
-      NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
-      XCTAssertEqualObjects(cookiesSetString, cookieExpected);
+    // Cookies should have been set by the response; specifically, TestCookie
+    // should be set to the name of the file requested.
+    NSDictionary *responseHeaders = [(NSHTTPURLResponse *)fetcher.response allHeaderFields];
+    NSString *cookiesSetString = [responseHeaders objectForKey:@"Set-Cookie"];
+    NSString *cookieExpected = [NSString stringWithFormat:@"TestCookie=%@", kGTMGettysburgFileName];
+    XCTAssertEqualObjects(cookiesSetString, cookieExpected);
 
-      // A cookie should've been set.
-      NSHTTPCookieStorage *cookieStorage = fetcher.configuration.HTTPCookieStorage;
-      NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
-      NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
-      XCTAssertEqual(cookies.count, (NSUInteger)1);
-      NSHTTPCookie *firstCookie = cookies.firstObject;
-      XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
-      [expectation fulfill];
+    // A cookie should've been set.
+    NSHTTPCookieStorage *cookieStorage = fetcher.configuration.HTTPCookieStorage;
+    NSURL *localhostURL = [NSURL URLWithString:@"http://localhost/"];
+    NSArray *cookies = [cookieStorage cookiesForURL:localhostURL];
+    XCTAssertEqual(cookies.count, (NSUInteger)1);
+    NSHTTPCookie *firstCookie = cookies.firstObject;
+    XCTAssertEqualObjects([firstCookie value], @"gettysburgaddress.txt");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1349,7 +1318,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Fetch our test file.  Ensure the body survives the redirection.
   //
   const int kBodyLength = 137;
-  NSDictionary *params = @{ @"requestBodyLength" : [@(kBodyLength) stringValue] };
+  NSDictionary *params = @{@"requestBodyLength" : [@(kBodyLength) stringValue]};
   NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                      parameters:params];
 
@@ -1357,8 +1326,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   fetcher.bodyData = [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBodyLength];
 
   XCTestExpectation *redirectExpectation = [self expectationWithDescription:@"redirect block"];
-  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse,
-                                NSURLRequest *redirectRequest,
+  fetcher.willRedirectBlock = ^(NSHTTPURLResponse *redirectResponse, NSURLRequest *redirectRequest,
                                 GTMSessionFetcherWillRedirectResponse response) {
     XCTAssert(![redirectResponse.URL.host isEqual:redirectRequest.URL.host] ||
               ![redirectResponse.URL.port isEqual:redirectRequest.URL.port]);
@@ -1371,8 +1339,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     // Check that a redirect was performed
     NSURL *requestURL = [NSURL URLWithString:localURLString];
     NSURL *responseURL = fetcher.response.URL;
-    XCTAssertFalse(![requestURL.host isEqual:responseURL.host] ||
-                   ![requestURL.port isEqual:responseURL.port], @"did not receive redirect");
+    XCTAssertFalse(
+        ![requestURL.host isEqual:responseURL.host] || ![requestURL.port isEqual:responseURL.port],
+        @"did not receive redirect");
 
     XCTAssertEqualObjects(error.domain, kGTMBridgeFetcherStatusDomain);
     XCTAssertEqual(error.code, 302, @"expect HTTP 302 status code error when cancelling redirect.");
@@ -1424,7 +1393,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   NSString *invalidFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                           parameters:@{ @"status": @"503" }];
+                                                           parameters:@{@"status" : @"503"}];
 
   __block GTMSessionFetcher *fetcher;
 
@@ -1441,12 +1410,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                pow(2.0, fetcher.retryCount), fetcher.nextRetryInterval);
 
     NSData *statusData = [error.userInfo objectForKey:kGTMSessionFetcherStatusDataKey];
-    NSString *dataStr = [[NSString alloc] initWithData:statusData
-                                              encoding:NSUTF8StringEncoding];
+    NSString *dataStr = [[NSString alloc] initWithData:statusData encoding:NSUTF8StringEncoding];
     NSInteger code = error.code;
     if (code == 503) {
       NSString *statusDataContentType =
-        [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
+          [error.userInfo objectForKey:kGTMSessionFetcherStatusDataContentTypeKey];
       XCTAssertEqualObjects(statusDataContentType, @"application/json");
       NSString *expectedStr = [[self->_testServer class] JSONBodyStringForStatus:503];
       XCTAssertEqualObjects(dataStr, expectedStr);
@@ -1455,39 +1423,39 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   };
 
   // Block for retrying and changing the request to one that will succeed.
-  GTMSessionFetcherRetryBlock fixRequestBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                                                  GTMSessionFetcherRetryResponse response) {
-      XCTAssertEqualWithAccuracy(fetcher.nextRetryInterval, pow(2.0, fetcher.retryCount), 0.001,
-                                 @"Unexpected next retry interval (expected %f, was %f)",
-                                 pow(2.0, fetcher.retryCount), fetcher.nextRetryInterval);
+  GTMSessionFetcherRetryBlock fixRequestBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        XCTAssertEqualWithAccuracy(fetcher.nextRetryInterval, pow(2.0, fetcher.retryCount), 0.001,
+                                   @"Unexpected next retry interval (expected %f, was %f)",
+                                   pow(2.0, fetcher.retryCount), fetcher.nextRetryInterval);
 
-      // Fix it - change the request to a URL which does not have a status value
-      NSString *urlString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-      NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
-      mutableRequest.URL = [NSURL URLWithString:urlString];
+        // Fix it - change the request to a URL which does not have a status value
+        NSString *urlString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+        NSMutableURLRequest *mutableRequest = [fetcher mutableRequestForTesting];
+        mutableRequest.URL = [NSURL URLWithString:urlString];
 
-      response(YES);  // Do the retry fetch; it should succeed now.
-  };
+        response(YES);  // Do the retry fetch; it should succeed now.
+      };
 
   //
   // Test: retry until timeout, then expect failure with status code.
   //
   fetcher = [self fetcherForRetryWithURLString:invalidFileURLString
                                     retryBlock:countRetriesBlock
-                              maxRetryInterval:5.0 // retry intervals of 1, 2, 4
+                              maxRetryInterval:5.0  // retry intervals of 1, 2, 4
                                       userData:@1000];
   XCTestExpectation *expectation = [self expectationWithDescription:@"retry timeout completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNotNil(data, @"error data is expected");
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)503);
-      XCTAssertEqual(fetcher.retryCount, (NSUInteger)3);
+    XCTAssertNotNil(data, @"error data is expected");
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)503);
+    XCTAssertEqual(fetcher.retryCount, (NSUInteger)3);
 
-      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
-      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
-      XCTAssertEqual(retriesDone.integerValue, 3);
-      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
-      [expectation fulfill];
-   }];
+    NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+    NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+    XCTAssertEqual(retriesDone.integerValue, 3);
+    XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+    [expectation fulfill];
+  }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
@@ -1496,22 +1464,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // after first retry
   //
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                           parameters:@{ @"sleep": @"10" }];
+                                                           parameters:@{@"sleep" : @"10"}];
   fetcher = [self fetcherForRetryWithURLString:timeoutFileURLString
                                     retryBlock:countRetriesBlock
-                              maxRetryInterval:5.0 // retry interval of 1, then exceed 3*max timout
+                              maxRetryInterval:5.0  // retry interval of 1, then exceed 3*max timout
                                       userData:@1000];
   expectation = [self expectationWithDescription:@"retry server sleep completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data, @"error data unexpected");
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)408, @"%@", error);
-      XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
+    XCTAssertNil(data, @"error data unexpected");
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)408, @"%@", error);
+    XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
 
-      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
-      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
-      XCTAssertEqual(retriesDone.integerValue, 1);
-      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
-      [expectation fulfill];
+    NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+    NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+    XCTAssertEqual(retriesDone.integerValue, 1);
+    XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1521,19 +1489,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   fetcher = [self fetcherForRetryWithURLString:invalidFileURLString
                                     retryBlock:countRetriesBlock
-                              maxRetryInterval:10.0 // retry intervals of 1, 2, 4, 8
+                              maxRetryInterval:10.0  // retry intervals of 1, 2, 4, 8
                                       userData:@2];
   expectation = [self expectationWithDescription:@"retry twice completion"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNotNil(data);
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)503, @"%@", error);
-      XCTAssertEqual(fetcher.retryCount, (NSUInteger)2);
+    XCTAssertNotNil(data);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)503, @"%@", error);
+    XCTAssertEqual(fetcher.retryCount, (NSUInteger)2);
 
-      NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
-      NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
-      XCTAssertEqual(retriesDone.integerValue, 2);
-      XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
-      [expectation fulfill];
+    NSNumber *retriesDone = error.userInfo[kGTMSessionFetcherNumberOfRetriesDoneKey];
+    NSNumber *elapsedInterval = error.userInfo[kGTMSessionFetcherElapsedIntervalWithRetriesKey];
+    XCTAssertEqual(retriesDone.integerValue, 2);
+    XCTAssertGreaterThan(elapsedInterval.doubleValue, 0);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1548,10 +1516,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                       userData:@1000];
   expectation = [self expectationWithDescription:@"retry fix URL"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNotNil(data);
-      XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
-      XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
-      [expectation fulfill];
+    XCTAssertNotNil(data);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    XCTAssertEqual(fetcher.retryCount, (NSUInteger)1);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1600,32 +1568,31 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validURLString];
   fetcher.destinationFileURL = destFileURL;
-  fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
-                                    int64_t totalBytesWritten,
-                                    int64_t totalBytesExpectedToWrite) {
-    // Verify the parameters are reasonable.
-    XCTAssertTrue(bytesWritten > 0 && bytesWritten <= origLength, @"%lld", bytesWritten);
-    XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= origLength,
-                  @"%lld", totalBytesWritten);
-    XCTAssertEqual(totalBytesExpectedToWrite, origLength);
+  fetcher.downloadProgressBlock =
+      ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
+        // Verify the parameters are reasonable.
+        XCTAssertTrue(bytesWritten > 0 && bytesWritten <= origLength, @"%lld", bytesWritten);
+        XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= origLength, @"%lld",
+                      totalBytesWritten);
+        XCTAssertEqual(totalBytesExpectedToWrite, origLength);
 
-    // Total bytes written should increase monotonically.
-    XCTAssertTrue(totalBytesWritten > totalWritten,
-                  @"%lld !> %lld", totalBytesWritten, totalWritten);
-    totalWritten = totalBytesWritten;
-  };
+        // Total bytes written should increase monotonically.
+        XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
+                      totalWritten);
+        totalWritten = totalBytesWritten;
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
-      XCTAssertNil(error);
+    XCTAssertNil(data);
+    XCTAssertNil(error);
 
-      NSString *fetchedContents = [NSString stringWithContentsOfURL:destFileURL
-                                                           encoding:NSUTF8StringEncoding
-                                                              error:NULL];
-      XCTAssertEqualObjects(fetchedContents, origContents);
-      XCTAssertEqual(totalWritten, origLength, @"downloadProgressBlock not called");
-      [expectation fulfill];
+    NSString *fetchedContents = [NSString stringWithContentsOfURL:destFileURL
+                                                         encoding:NSUTF8StringEncoding
+                                                            error:NULL];
+    XCTAssertEqualObjects(fetchedContents, origContents);
+    XCTAssertEqual(totalWritten, origLength, @"downloadProgressBlock not called");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1665,22 +1632,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Get the original file's contents.
   NSString *origContents = [[NSString alloc] initWithData:[self gettysburgAddress]
                                                  encoding:NSUTF8StringEncoding];
-  NSString *escapedContents =
-      [origContents stringByAddingPercentEncodingWithAllowedCharacters:
-       [NSCharacterSet URLQueryAllowedCharacterSet]];
+  NSString *escapedContents = [origContents
+      stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet
+                                                             URLQueryAllowedCharacterSet]];
   NSString *validDataURLString = [NSString stringWithFormat:@"data:,%@", escapedContents];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validDataURLString];
   fetcher.destinationFileURL = destFileURL;
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
-      XCTAssertNil(error);
+    XCTAssertNil(data);
+    XCTAssertNil(error);
 
-      NSString *fetchedContents = [NSString stringWithContentsOfURL:destFileURL
-                                                           encoding:NSUTF8StringEncoding
-                                                              error:NULL];
-      XCTAssertEqualObjects(fetchedContents, origContents);
-      [expectation fulfill];
+    NSString *fetchedContents = [NSString stringWithContentsOfURL:destFileURL
+                                                         encoding:NSUTF8StringEncoding
+                                                            error:NULL];
+    XCTAssertEqualObjects(fetchedContents, origContents);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -1716,59 +1683,57 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   __block int64_t totalWritten = 0;
   NSString *invalidURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                       parameters:@{ @"status": @"400" }];
+                                                       parameters:@{@"status" : @"400"}];
   NSString *statusStr = [[_testServer class] JSONBodyStringForStatus:400];
   NSURL *destFileURL = [self temporaryFileURLWithBaseName:NSStringFromSelector(_cmd)];
 
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:invalidURLString];
   fetcher.destinationFileURL = destFileURL;
-  fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
-                                    int64_t totalBytesWritten,
-                                    int64_t totalBytesExpectedToWrite) {
-      // Verify the parameters are reasonable.
-      XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= (int64_t)statusStr.length,
-                    @"%lld", totalBytesWritten);
+  fetcher.downloadProgressBlock =
+      ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
+        // Verify the parameters are reasonable.
+        XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= (int64_t)statusStr.length,
+                      @"%lld", totalBytesWritten);
 
-      // Total bytes written should increase monotonically.
-      XCTAssertTrue(totalBytesWritten > totalWritten,
-                    @"%lld !> %lld", totalBytesWritten, totalWritten);
-      totalWritten = totalBytesWritten;
-  };
+        // Total bytes written should increase monotonically.
+        XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
+                      totalWritten);
+        totalWritten = totalBytesWritten;
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(data);
+    XCTAssertNil(data);
 
-      // errorData gets set with http status error only when the client error is nil.
-      // on iOS 8, client error gets returned with URLSession:task:didCompleteWithError:
-      // on iOS 9 and up, client error is nil and the http status error with errorData
-      // gets set in finishWithError:shouldRetry:
-      if (error.domain == kGTMSessionFetcherStatusDomain) {
-        NSData *errorData = error.userInfo[kGTMSessionFetcherStatusDataKey];
-        XCTAssertNotNil(errorData);
-        XCTAssertEqual(errorData.length, (NSUInteger)totalWritten,
-                       @"The length of error data should match the size of totalBytesWritten.");
-        XCTAssertNotNil(error.userInfo[kGTMSessionFetcherStatusDataContentTypeKey]);
-      }
+    // errorData gets set with http status error only when the client error is nil.
+    // on iOS 8, client error gets returned with URLSession:task:didCompleteWithError:
+    // on iOS 9 and up, client error is nil and the http status error with errorData
+    // gets set in finishWithError:shouldRetry:
+    if (error.domain == kGTMSessionFetcherStatusDomain) {
+      NSData *errorData = error.userInfo[kGTMSessionFetcherStatusDataKey];
+      XCTAssertNotNil(errorData);
+      XCTAssertEqual(errorData.length, (NSUInteger)totalWritten,
+                     @"The length of error data should match the size of totalBytesWritten.");
+      XCTAssertNotNil(error.userInfo[kGTMSessionFetcherStatusDataContentTypeKey]);
+    }
 
-      // Check for two error codes because of the discrepancy between iOS 8 and iOS 9 plus
-      // described above
-      BOOL isExpectedCode = (error.code == NSURLErrorFileDoesNotExist || error.code == 400);
-      XCTAssertTrue(isExpectedCode, @"%@", error);
+    // Check for two error codes because of the discrepancy between iOS 8 and iOS 9 plus
+    // described above
+    BOOL isExpectedCode = (error.code == NSURLErrorFileDoesNotExist || error.code == 400);
+    XCTAssertTrue(isExpectedCode, @"%@", error);
 
-      // The file should not be copied to the destination URL on status 400 and higher.
-      BOOL fileExists = [destFileURL checkResourceIsReachableAndReturnError:NULL];
-      XCTAssertFalse(fileExists, @"%@ -- %@", error, destFileURL.path);
+    // The file should not be copied to the destination URL on status 400 and higher.
+    BOOL fileExists = [destFileURL checkResourceIsReachableAndReturnError:NULL];
+    XCTAssertFalse(fileExists, @"%@ -- %@", error, destFileURL.path);
 
-      if (error.code == 400) {
-        // Check the body JSON of the status code response.
-        XCTAssertEqual(totalWritten, (int64_t)statusStr.length,
-                       @"downloadProgressBlock not called");
-      } else {
-        // If the error was NSURLErrorFileDoesNotExist sometimes downloadProgressBlock was
-        // called so totalWritten > 0, sometimes not.
-      }
-      [expectation fulfill];
+    if (error.code == 400) {
+      // Check the body JSON of the status code response.
+      XCTAssertEqual(totalWritten, (int64_t)statusStr.length, @"downloadProgressBlock not called");
+    } else {
+      // If the error was NSURLErrorFileDoesNotExist sometimes downloadProgressBlock was
+      // called so totalWritten > 0, sometimes not.
+    }
+    [expectation fulfill];
   }];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -1817,8 +1782,10 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@", fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@",
+                 fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@",
+                 fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
 #if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
@@ -1841,7 +1808,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   NSURL *destFileURL = [self temporaryFileURLWithBaseName:NSStringFromSelector(_cmd)];
 
-  const int64_t kExpectedResponseLen = 5 * 1024*1024;
+  const int64_t kExpectedResponseLen = 5 * 1024 * 1024;
   NSData *expectedResponseData =
       [GTMSessionFetcherTestServer generatedBodyDataWithLength:kExpectedResponseLen];
 
@@ -1852,25 +1819,27 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   NSString *validURLString =
       [self localURLStringToTestFileName:kGTMGettysburgFileName
-                              parameters:@{ @"responseBodyLength" : [@(kExpectedResponseLen) stringValue] }];
+                              parameters:@{
+                                @"responseBodyLength" : [@(kExpectedResponseLen) stringValue]
+                              }];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validURLString];
   fetcher.destinationFileURL = destFileURL;
-  GTMSessionFetcher* __weak weakFetcher = fetcher;
+  GTMSessionFetcher *__weak weakFetcher = fetcher;
   XCTestExpectation *stopExpectation = [self expectationWithDescription:@"stop fetching"];
-  fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
-                                  int64_t totalBytesWritten,
-                                  int64_t totalBytesExpectedToWrite) {
+  fetcher.downloadProgressBlock = ^(int64_t bytesWritten, int64_t totalBytesWritten,
+                                    int64_t totalBytesExpectedToWrite) {
     // Verify the parameters are reasonable.
     XCTAssertTrue(bytesWritten > 0 && bytesWritten <= kExpectedResponseLen, @"%lld", bytesWritten);
-    XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= kExpectedResponseLen,
-                  @"%lld", totalBytesWritten);
+    XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= kExpectedResponseLen, @"%lld",
+                  totalBytesWritten);
     XCTAssertEqual(totalBytesExpectedToWrite, kExpectedResponseLen);
 
     // Total bytes written should increase monotonically.
-    XCTAssertTrue(totalBytesWritten > totalWritten,
-                  @"%lld !> %lld", totalBytesWritten, totalWritten);
-    
-    if (totalWritten == 0) { // Ensure stopFetching and fulfilling the expectation happens only once
+    XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
+                  totalWritten);
+
+    if (totalWritten ==
+        0) {  // Ensure stopFetching and fulfilling the expectation happens only once
       dispatch_async(dispatch_get_main_queue(), ^{
         [weakFetcher stopFetching];
         [stopExpectation fulfill];
@@ -1884,7 +1853,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   __block NSData *resumeData = nil;
   XCTestExpectation *resumeDataExpectation =
       [[XCTestExpectation alloc] initWithDescription:@"resume data"];
-  fetcher.resumeDataBlock = ^(NSData *data){
+  fetcher.resumeDataBlock = ^(NSData *data) {
     resumeData = data;
     [resumeDataExpectation fulfill];
   };
@@ -1919,18 +1888,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   fetcher = [GTMSessionFetcher fetcherWithDownloadResumeData:resumeData];
   fetcher.destinationFileURL = destFileURL;
-  fetcher.downloadProgressBlock = ^(int64_t bytesWritten,
-                                  int64_t totalBytesWritten,
-                                  int64_t totalBytesExpectedToWrite) {
+  fetcher.downloadProgressBlock = ^(int64_t bytesWritten, int64_t totalBytesWritten,
+                                    int64_t totalBytesExpectedToWrite) {
     // Verify the parameters are reasonable.
     XCTAssertTrue(bytesWritten > 0 && bytesWritten <= kExpectedResponseLen, @"%lld", bytesWritten);
-    XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= kExpectedResponseLen,
-                  @"%lld", totalBytesWritten);
+    XCTAssertTrue(totalBytesWritten > 0 && totalBytesWritten <= kExpectedResponseLen, @"%lld",
+                  totalBytesWritten);
     XCTAssertEqual(totalBytesExpectedToWrite, kExpectedResponseLen);
 
     // Total bytes written should increase monotonically.
-    XCTAssertTrue(totalBytesWritten > totalWritten,
-                  @"%lld !> %lld", totalBytesWritten, totalWritten);
+    XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
+                  totalWritten);
     totalWritten = totalBytesWritten;
   };
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
@@ -1974,12 +1942,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   if (![GTMSessionFetcher appAllowsInsecureRequests]) return;
 
   // file:///Users/.../Resources/gettysburgaddress.txt
-  NSString *fileURLString =
-      [[NSURL fileURLWithPath:[_testServer localPathForFile:kGTMGettysburgFileName]] absoluteString];
+  NSString *fileURLString = [[NSURL
+      fileURLWithPath:[_testServer localPathForFile:kGTMGettysburgFileName]] absoluteString];
 
   // http://localhost:59757/gettysburgaddress.txt
   NSString *localhostURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-
 
   struct TestRecord {
     __unsafe_unretained NSString *urlString;
@@ -1993,17 +1960,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   const NSUInteger kAllowFileSchemeFlag = 1UL << 2;
 
   struct TestRecord records[] = {
-    { @"http://example.com/",  0,                    kInsecureError },
-    { @"https://example.com/", 0,                    0 },
-    { @"http://example.com/",  kAllowHTTPSchemeFlag, 0 },
-    { @"https://example.com/", kAllowHTTPSchemeFlag, 0 },
-    { localhostURLString,      0,                    kInsecureError },
-    { localhostURLString,      kAllowLocalhostFlag,  0 },
-    { fileURLString,           0,                    kInsecureError },
-    { fileURLString,           kAllowHTTPSchemeFlag, kInsecureError },
-    { fileURLString,           kAllowFileSchemeFlag, 0 },  // file URL allowed by scheme
-    { fileURLString,           kAllowLocalhostFlag,  0 },  // file URL allowed as localhost
-    { NULL, 0, 0 },
+      {@"http://example.com/", 0, kInsecureError},
+      {@"https://example.com/", 0, 0},
+      {@"http://example.com/", kAllowHTTPSchemeFlag, 0},
+      {@"https://example.com/", kAllowHTTPSchemeFlag, 0},
+      {localhostURLString, 0, kInsecureError},
+      {localhostURLString, kAllowLocalhostFlag, 0},
+      {fileURLString, 0, kInsecureError},
+      {fileURLString, kAllowHTTPSchemeFlag, kInsecureError},
+      {fileURLString, kAllowFileSchemeFlag, 0},  // file URL allowed by scheme
+      {fileURLString, kAllowLocalhostFlag, 0},   // file URL allowed as localhost
+      {NULL, 0, 0},
   };
 
   GTMSessionFetcherTestBlock testBlock =
@@ -2027,8 +1994,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       fetcher.allowLocalhostRequest = YES;
     }
     NSInteger expectedErrorCode = records[i].errorCode;
-    XCTestExpectation *expectation =
-        [self expectationWithDescription:[NSString stringWithFormat:@"completion handler: index %d", i]];
+    XCTestExpectation *expectation = [self
+        expectationWithDescription:[NSString stringWithFormat:@"completion handler: index %d", i]];
     [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       if (expectedErrorCode == 0) {
         XCTAssertNotNil(data, @"index %i -- %@", i, urlString);
@@ -2092,7 +2059,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                                           tvos(10.0),
                                                                           watchos(3.0)) {
   if (!_isServerRunning) return;
-  
+
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
   // Fetch a live, invalid URL
@@ -2112,7 +2079,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
-  
+
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   XCTAssertNotNil(collectedMetrics);
@@ -2204,22 +2171,22 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
-                                headerFields:@{ @"Bichon" : @"Frise" }];
+                                headerFields:@{@"Bichon" : @"Frise"}];
   NSError *fakedResultError = nil;
 
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
-      testResponse(fakedResultResponse, fakedResultData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
+        testResponse(fakedResultResponse, fakedResultData, fakedResultError);
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(fakedResultError);
-      XCTAssertEqualObjects(data, fakedResultData);
-      XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
-      XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
-      [expectation fulfill];
+    XCTAssertNil(fakedResultError);
+    XCTAssertEqualObjects(data, fakedResultData);
+    XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -2266,37 +2233,37 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:504  // 504 is a retryable error.
                                  HTTPVersion:@"HTTP/1.1"
-                                headerFields:@{ @"Alaskan" : @"Malamute" }];
+                                headerFields:@{@"Alaskan" : @"Malamute"}];
   NSError *fakedResultError =
       [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                           code:504
-                      userInfo:@{ kGTMSessionFetcherStatusDataKey : @"Oops." }];
+                      userInfo:@{kGTMSessionFetcherStatusDataKey : @"Oops."}];
 
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
-      testResponse(fakedResultResponse, fakedResultData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
+        testResponse(fakedResultResponse, fakedResultData, fakedResultError);
+      };
 
   XCTestExpectation *retryExpectation = [self expectationWithDescription:@"retry block"];
   retryExpectation.expectedFulfillmentCount = 3;
-  fetcher.retryBlock = ^(BOOL suggestedWillRetry, NSError *error,
-                         GTMSessionFetcherRetryResponse response) {
-      // Should retry after 1, 2, 4 seconds.
-      response(YES);
-      [retryExpectation fulfill];
-  };
+  fetcher.retryBlock =
+      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+        // Should retry after 1, 2, 4 seconds.
+        response(YES);
+        [retryExpectation fulfill];
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertEqualObjects(error.domain, fakedResultError.domain);
-      XCTAssertEqual(error.code, fakedResultError.code, @"%@", error);
-      XCTAssertEqualObjects(error.userInfo[kGTMSessionFetcherStatusDataKey],
-                            fakedResultError.userInfo[kGTMSessionFetcherStatusDataKey]);
-      XCTAssertNil(data);
-      XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
-      XCTAssertEqualObjects(fetcher.responseHeaders[@"Alaskan"], @"Malamute");
-      [expectation fulfill];
+    XCTAssertEqualObjects(error.domain, fakedResultError.domain);
+    XCTAssertEqual(error.code, fakedResultError.code, @"%@", error);
+    XCTAssertEqualObjects(error.userInfo[kGTMSessionFetcherStatusDataKey],
+                          fakedResultError.userInfo[kGTMSessionFetcherStatusDataKey]);
+    XCTAssertNil(data);
+    XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"Alaskan"], @"Malamute");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -2342,76 +2309,75 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
-                                headerFields:@{ @"Aussie" : @"Shepherd" }];
+                                headerFields:@{@"Aussie" : @"Shepherd"}];
   NSError *fakedResultError = nil;
 
   __block NSURLAuthenticationChallenge *challengePresented;
-  fetcher.challengeBlock = ^(GTMSessionFetcher *blockFetcher,
-                             NSURLAuthenticationChallenge *challenge,
-                             GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
-    challengePresented = challenge;
+  fetcher.challengeBlock =
+      ^(GTMSessionFetcher *blockFetcher, NSURLAuthenticationChallenge *challenge,
+        GTMSessionFetcherChallengeDispositionBlock dispositionBlock) {
+        challengePresented = challenge;
 
-    dispositionBlock(NSURLSessionAuthChallengePerformDefaultHandling, nil);
-  };
+        dispositionBlock(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+      };
 
   __block NSURLResponse *initialResponse;
-  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
-                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
-      XCTAssertNil(initialResponse);
-      initialResponse = response;
-      dispositionBlock(NSURLSessionResponseAllow);
-  };
+  fetcher.didReceiveResponseBlock =
+      ^(NSURLResponse *response,
+        GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+        XCTAssertNil(initialResponse);
+        initialResponse = response;
+        dispositionBlock(NSURLSessionResponseAllow);
+      };
 
   __block int64_t bytesSentSum = 0;
   __block int64_t lastTotalBytesSent = 0;
   int64_t expectedTotalBytesWritten = (int64_t)uploadData.length;
 
-  fetcher.sendProgressBlock = ^(int64_t bytesSent,
-                                int64_t totalBytesSent,
-                                int64_t totalBytesExpectedToSend) {
-      bytesSentSum += bytesSent;
-      lastTotalBytesSent = totalBytesSent;
-      XCTAssertEqual(totalBytesExpectedToSend, expectedTotalBytesWritten);
-  };
+  fetcher.sendProgressBlock =
+      ^(int64_t bytesSent, int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
+        bytesSentSum += bytesSent;
+        lastTotalBytesSent = totalBytesSent;
+        XCTAssertEqual(totalBytesExpectedToSend, expectedTotalBytesWritten);
+      };
 
   __block int64_t bytesReceivedSum = 0;
   __block int64_t lastTotalBytesReceived = 0;
   int64_t expectedTotalBytesReceived = (int64_t)downloadData.length;
 
-  fetcher.receivedProgressBlock = ^(int64_t bytesReceived,
-                                    int64_t totalBytesReceived) {
-      bytesReceivedSum += bytesReceived;
-      lastTotalBytesReceived = totalBytesReceived;
+  fetcher.receivedProgressBlock = ^(int64_t bytesReceived, int64_t totalBytesReceived) {
+    bytesReceivedSum += bytesReceived;
+    lastTotalBytesReceived = totalBytesReceived;
   };
 
   __block NSCachedURLResponse *proposedResponseToCache;
   fetcher.willCacheURLResponseBlock = ^(NSCachedURLResponse *responseProposed,
                                         GTMSessionFetcherWillCacheURLResponseResponse response) {
-      proposedResponseToCache = responseProposed;
-      response(responseProposed);
+    proposedResponseToCache = responseProposed;
+    response(responseProposed);
   };
 
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      testResponse(fakedResultResponse, downloadData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testResponse(fakedResultResponse, downloadData, fakedResultError);
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"data completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(error);
-      XCTAssertEqualObjects(data, downloadData);
+    XCTAssertNil(error);
+    XCTAssertEqualObjects(data, downloadData);
 
-      XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
-      XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
+    XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
+    XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
 
-      XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
-      XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+    XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
+    XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
 
-      XCTAssertEqualObjects(challengePresented.protectionSpace.host, testURL.host);
-      XCTAssertEqualObjects(initialResponse, fetcher.response);
+    XCTAssertEqualObjects(challengePresented.protectionSpace.host, testURL.host);
+    XCTAssertEqualObjects(initialResponse, fetcher.response);
 
-      XCTAssertEqualObjects(proposedResponseToCache.response, fetcher.response);
-      [expectation fulfill];
+    XCTAssertEqualObjects(proposedResponseToCache.response, fetcher.response);
+    [expectation fulfill];
   }];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -2434,20 +2400,18 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   lastTotalBytesSent = 0;
   expectedTotalBytesWritten = (int64_t)uploadData.length;
 
-  fetcher.sendProgressBlock = ^(int64_t bytesWritten,
-                                int64_t totalBytesWritten,
-                                int64_t totalBytesExpectedToWrite) {
-    bytesSentSum += bytesWritten;
-    lastTotalBytesSent = totalBytesWritten;
-    XCTAssertEqual(totalBytesExpectedToWrite, expectedTotalBytesWritten);
-  };
+  fetcher.sendProgressBlock =
+      ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
+        bytesSentSum += bytesWritten;
+        lastTotalBytesSent = totalBytesWritten;
+        XCTAssertEqual(totalBytesExpectedToWrite, expectedTotalBytesWritten);
+      };
 
   bytesReceivedSum = 0;
   lastTotalBytesReceived = 0;
   expectedTotalBytesReceived = (int64_t)downloadData.length;
 
-  fetcher.downloadProgressBlock = ^(int64_t bytesDownloaded,
-                                    int64_t totalBytesDownloaded,
+  fetcher.downloadProgressBlock = ^(int64_t bytesDownloaded, int64_t totalBytesDownloaded,
                                     int64_t totalBytesExpectedToDownload) {
     bytesReceivedSum += bytesDownloaded;
     lastTotalBytesReceived = totalBytesDownloaded;
@@ -2455,25 +2419,25 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   };
 
   fakedResultError = nil;
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      testResponse(fakedResultResponse, downloadData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testResponse(fakedResultResponse, downloadData, fakedResultError);
+      };
 
   expectation = [self expectationWithDescription:@"file completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(error);
-      XCTAssertNil(data);
+    XCTAssertNil(error);
+    XCTAssertNil(data);
 
-      NSData *dataFromFile = [NSData dataWithContentsOfURL:downloadFileURL];
-      XCTAssertEqualObjects(dataFromFile, downloadData);
+    NSData *dataFromFile = [NSData dataWithContentsOfURL:downloadFileURL];
+    XCTAssertEqualObjects(dataFromFile, downloadData);
 
-      XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
-      XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
+    XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
+    XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
 
-      XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
-      XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
-      [expectation fulfill];
+    XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
+    XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+    [expectation fulfill];
   }];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -2505,32 +2469,31 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   lastTotalBytesSent = 0;
   expectedTotalBytesWritten = (int64_t)uploadData.length;
 
-  fetcher.sendProgressBlock = ^(int64_t bytesWritten,
-                                int64_t totalBytesWritten,
-                                int64_t totalBytesExpectedToWrite) {
-    bytesSentSum += bytesWritten;
-    lastTotalBytesSent = totalBytesWritten;
-    XCTAssertEqual(totalBytesExpectedToWrite, expectedTotalBytesWritten);
-  };
+  fetcher.sendProgressBlock =
+      ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
+        bytesSentSum += bytesWritten;
+        lastTotalBytesSent = totalBytesWritten;
+        XCTAssertEqual(totalBytesExpectedToWrite, expectedTotalBytesWritten);
+      };
 
   fakedResultError = nil;
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      testResponse(fakedResultResponse, downloadData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testResponse(fakedResultResponse, downloadData, fakedResultError);
+      };
 
   expectation = [self expectationWithDescription:@"stream completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(error);
-      XCTAssertNil(data);
-      XCTAssertEqualObjects(accumulatedData, downloadData);
+    XCTAssertNil(error);
+    XCTAssertNil(data);
+    XCTAssertEqualObjects(accumulatedData, downloadData);
 
-      XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
-      XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
+    XCTAssertEqual(bytesSentSum, expectedTotalBytesWritten);
+    XCTAssertEqual(lastTotalBytesSent, expectedTotalBytesWritten);
 
-      XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
-      XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
-      [expectation fulfill];
+    XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
+    XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+    [expectation fulfill];
   }];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -2599,7 +2562,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                          url:(NSURL *)testURL
                          generatedDataLength:(NSUInteger)generatedDataLength
                            expectedCallCount:(NSUInteger)expectedCallCount {
-
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
   NSData *downloadData =
@@ -2609,8 +2571,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   __block int64_t lastTotalBytesReceived = 0;
   __block int64_t expectedTotalBytesReceived = (int64_t)downloadData.length;
 
-  fetcher.receivedProgressBlock = ^(int64_t bytesReceived,
-                                    int64_t totalBytesReceived) {
+  fetcher.receivedProgressBlock = ^(int64_t bytesReceived, int64_t totalBytesReceived) {
     bytesReceivedSum += bytesReceived;
     lastTotalBytesReceived = totalBytesReceived;
   };
@@ -2626,12 +2587,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
-                                headerFields:@{ @"Aussie" : @"Shepherd" }];
+                                headerFields:@{@"Aussie" : @"Shepherd"}];
   NSError *fakedResultError = nil;
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-    testResponse(fakedResultResponse, downloadData, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testResponse(fakedResultResponse, downloadData, fakedResultError);
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"stream download fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
@@ -2673,25 +2634,26 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSError *fakedResultError =
       [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                           code:504
-                      userInfo:@{ kGTMSessionFetcherStatusDataKey : @"Oops." }];
+                      userInfo:@{kGTMSessionFetcherStatusDataKey : @"Oops."}];
 
-  fetcher.didReceiveResponseBlock = ^(NSURLResponse *response,
-                                      GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
-      XCTFail(@"didReceiveResponseBlock should not be called.");
-  };
+  fetcher.didReceiveResponseBlock =
+      ^(NSURLResponse *response,
+        GTMSessionFetcherDidReceiveResponseDispositionBlock dispositionBlock) {
+        XCTFail(@"didReceiveResponseBlock should not be called.");
+      };
 
-  fetcher.testBlock = ^(GTMSessionFetcher *fetcherToTest,
-                        GTMSessionFetcherTestResponse testResponse) {
-      XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
-      testResponse(nil, nil, fakedResultError);
-  };
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        XCTAssertEqualObjects(fetcherToTest.request.URL, testURL);
+        testResponse(nil, nil, fakedResultError);
+      };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNotNil(error);
-      XCTAssertNil(data);
-      XCTAssertEqual(fetcher.statusCode, 0);
-      [expectation fulfill];
+    XCTAssertNotNil(error);
+    XCTAssertNil(data);
+    XCTAssertEqual(fetcher.statusCode, 0);
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -2729,17 +2691,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [[NSHTTPURLResponse alloc] initWithURL:testURL
                                   statusCode:200
                                  HTTPVersion:@"HTTP/1.1"
-                                headerFields:@{ @"Bichon" : @"Frise" }];
+                                headerFields:@{@"Bichon" : @"Frise"}];
   NSError *fakedResultError = nil;
 
   [GTMSessionFetcher setGlobalTestBlock:^(GTMSessionFetcher *fetcherToTest,
                                           GTMSessionFetcherTestResponse testResponse) {
-      if ([fetcherToTest.request.URL.host isEqual:@"test.example.com"]) {
-        testResponse(fakedResultResponse, fakedResultData, fakedResultError);
-      } else {
-        // Actually do the fetch against the test server.
-        testResponse(nil, nil, nil);
-      }
+    if ([fetcherToTest.request.URL.host isEqual:@"test.example.com"]) {
+      testResponse(fakedResultResponse, fakedResultData, fakedResultError);
+    } else {
+      // Actually do the fetch against the test server.
+      testResponse(nil, nil, nil);
+    }
   }];
 
   //
@@ -2747,11 +2709,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   //
   XCTestExpectation *expectation = [self expectationWithDescription:@"test block fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertNil(fakedResultError);
-      XCTAssertEqualObjects(data, fakedResultData);
-      XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
-      XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
-      [expectation fulfill];
+    XCTAssertNil(fakedResultError);
+    XCTAssertEqualObjects(data, fakedResultData);
+    XCTAssertEqual(fetcher.statusCode, fakedResultResponse.statusCode);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"Bichon"], @"Frise");
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -2766,10 +2728,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   expectation = [self expectationWithDescription:@"http server fetch"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      [self assertSuccessfulGettysburgFetchWithFetcher:fetcher
-                                                  data:data
-                                                 error:error];
-      [expectation fulfill];
+    [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
+    [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
@@ -2892,9 +2852,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @end
 
 @implementation TestAuthorizer
-@synthesize async = _async,
-            expired = _expired,
-            willFailWithError = _willFailWithError;
+@synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
@@ -2968,7 +2926,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (NSString *)userEmail {
- return @"";
+  return @"";
 }
 
 - (BOOL)primeForRefresh {
@@ -2990,7 +2948,7 @@ NSString *const kSubUIAppBackgroundTaskEnded = @"kSubUIAppBackgroundTaskEnded";
 
 @implementation SubstituteUIApplication {
   UIBackgroundTaskIdentifier _identifier;
-  NSMutableDictionary <NSNumber *, SubstituteUIApplicationTaskInfo *>*_identifierToTaskInfoMap;
+  NSMutableDictionary<NSNumber *, SubstituteUIApplicationTaskInfo *> *_identifierToTaskInfoMap;
 }
 
 UIBackgroundTaskIdentifier gTaskID = 1000;
@@ -3064,16 +3022,15 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
   // We expect that all background tasks ended themselves soon after their handlers were called.
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
-    NSArray <SubstituteUIApplicationTaskInfo *>* failedToExpire;
-    @synchronized(self) {
-      failedToExpire = self->_identifierToTaskInfoMap.allValues;
-    }
-    handler(count, failedToExpire);
-  });
+                   NSArray<SubstituteUIApplicationTaskInfo *> *failedToExpire;
+                   @synchronized(self) {
+                     failedToExpire = self->_identifierToTaskInfoMap.allValues;
+                   }
+                   handler(count, failedToExpire);
+                 });
 }
 
 @end
-
 
 @implementation SubstituteUIApplicationTaskInfo
 @synthesize taskIdentifier = _taskIdentifier;
@@ -3081,14 +3038,13 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 @synthesize expirationHandler = _expirationHandler;
 
 - (NSString *)description {
-  return [NSString stringWithFormat:@"<task %lu \"%@\">",
-          (unsigned long)_taskIdentifier, _taskName];
+  return
+      [NSString stringWithFormat:@"<task %lu \"%@\">", (unsigned long)_taskIdentifier, _taskName];
 }
 
 @end
 
 #endif  // GTM_BACKGROUND_TASK_FETCHING
-
 
 @implementation FetcherNotificationsCounter {
   NSDate *_counterCreationDate;
@@ -3097,17 +3053,14 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 #endif
 }
 
-@synthesize fetchStarted = _fetchStarted,
-            fetchStopped = _fetchStopped,
+@synthesize fetchStarted = _fetchStarted, fetchStopped = _fetchStopped,
             fetchCompletionInvoked = _fetchCompletionInvoked,
             uploadChunkFetchStarted = _uploadChunkFetchStarted,
             uploadChunkFetchStopped = _uploadChunkFetchStopped,
-            retryDelayStarted = _retryDelayStarted,
-            retryDelayStopped = _retryDelayStopped,
+            retryDelayStarted = _retryDelayStarted, retryDelayStopped = _retryDelayStopped,
             uploadLocationObtained = _uploadLocationObtained,
             uploadChunkRequestPaths = _uploadChunkRequestPaths,
-            uploadChunkCommands = _uploadChunkCommands,
-            uploadChunkOffsets = _uploadChunkOffsets,
+            uploadChunkCommands = _uploadChunkCommands, uploadChunkOffsets = _uploadChunkOffsets,
             uploadChunkLengths = _uploadChunkLengths,
             fetchersStartedDescriptions = _fetchersStartedDescriptions,
             fetchersStoppedDescriptions = _fetchersStoppedDescriptions,
@@ -3177,19 +3130,18 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 - (BOOL)shouldIgnoreNotification:(NSNotification *)note {
   GTMSessionFetcher *fetcher = note.object;
   NSDate *fetcherBeginDate = fetcher.initialBeginFetchDate;
-  BOOL isTooOld = (fetcherBeginDate
-                   && [fetcherBeginDate compare:_counterCreationDate] == NSOrderedAscending);
+  BOOL isTooOld =
+      (fetcherBeginDate && [fetcherBeginDate compare:_counterCreationDate] == NSOrderedAscending);
   return isTooOld;
 }
 
 - (NSString *)descriptionForFetcher:(GTMSessionFetcher *)fetcher {
-  NSString *description = [NSString stringWithFormat:@"fetcher %p %@ %@",
-                           fetcher,
-                           fetcher.comment ?: @"<no comment>",
-                           fetcher.request.URL.absoluteString];
+  NSString *description =
+      [NSString stringWithFormat:@"fetcher %p %@ %@", fetcher, fetcher.comment ?: @"<no comment>",
+                                 fetcher.request.URL.absoluteString];
   if (fetcher.retryCount > 0) {
-    description = [description stringByAppendingFormat:@" retry %lu",
-                   (unsigned long)fetcher.retryCount];
+    description =
+        [description stringByAppendingFormat:@" retry %lu", (unsigned long)fetcher.retryCount];
   }
   return description;
 }
@@ -3249,15 +3201,15 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
     ++_retryDelayStopped;
   }
   NSAssert(_retryDelayStopped <= _retryDelayStarted,
-           @"retry delay notification imbalance: starts=%d stops=%d",
-           (int)_retryDelayStarted, (int)_retryDelayStopped);
+           @"retry delay notification imbalance: starts=%d stops=%d", (int)_retryDelayStarted,
+           (int)_retryDelayStopped);
 }
 
 - (void)uploadLocationObtained:(NSNotification *)note {
   if ([self shouldIgnoreNotification:note]) return;
 
   GTMSessionUploadFetcher *fetcher = note.object;
-#pragma unused (fetcher)  // Unused when NS_BLOCK_ASSERTIONS
+#pragma unused(fetcher)  // Unused when NS_BLOCK_ASSERTIONS
 
   NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);
 

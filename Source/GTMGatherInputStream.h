@@ -25,15 +25,15 @@
 #import <Foundation/Foundation.h>
 
 #ifndef GTM_NONNULL
-  #if defined(__has_attribute)
-    #if __has_attribute(nonnull)
-      #define GTM_NONNULL(x) __attribute__((nonnull x))
-    #else
-      #define GTM_NONNULL(x)
-    #endif
-  #else
-    #define GTM_NONNULL(x)
-  #endif
+#if defined(__has_attribute)
+#if __has_attribute(nonnull)
+#define GTM_NONNULL(x) __attribute__((nonnull x))
+#else
+#define GTM_NONNULL(x)
+#endif
+#else
+#define GTM_NONNULL(x)
+#endif
 #endif
 
 // Avoid multiple declaration of this class.
