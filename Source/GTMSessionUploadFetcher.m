@@ -1785,11 +1785,16 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 // Public properties.
-@synthesize currentOffset = _currentOffset, allowsCellularAccess = _allowsCellularAccess,
-            delegateCompletionHandler = _delegateCompletionHandler, chunkFetcher = _chunkFetcher,
-            lastChunkRequest = _lastChunkRequest, subdataGenerating = _subdataGenerating,
+// clang-format off
+@synthesize currentOffset = _currentOffset,
+            allowsCellularAccess = _allowsCellularAccess,
+            delegateCompletionHandler = _delegateCompletionHandler,
+            chunkFetcher = _chunkFetcher,
+            lastChunkRequest = _lastChunkRequest,
+            subdataGenerating = _subdataGenerating,
             shouldInitiateOffsetQuery = _shouldInitiateOffsetQuery,
             uploadGranularity = _uploadGranularity;
+// clang-format on
 
 // Internal properties.
 @dynamic fetcherInFlight;

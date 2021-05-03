@@ -102,16 +102,28 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   NSDate *_stoppedAllFetchersDate;
 }
 
-@synthesize maxRunningFetchersPerHost = _maxRunningFetchersPerHost, configuration = _configuration,
-            configurationBlock = _configurationBlock, cookieStorage = _cookieStorage,
-            userAgent = _userAgent, challengeBlock = _challengeBlock, credential = _credential,
-            proxyCredential = _proxyCredential, allowedInsecureSchemes = _allowedInsecureSchemes,
+// Clang-format likes to cram all @synthesize items onto the fewest lines, rather than one-per.
+// clang-format off
+@synthesize maxRunningFetchersPerHost = _maxRunningFetchersPerHost,
+            configuration = _configuration,
+            configurationBlock = _configurationBlock,
+            cookieStorage = _cookieStorage,
+            userAgent = _userAgent,
+            challengeBlock = _challengeBlock,
+            credential = _credential,
+            proxyCredential = _proxyCredential,
+            allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
-            retryEnabled = _retryEnabled, retryBlock = _retryBlock,
-            maxRetryInterval = _maxRetryInterval, minRetryInterval = _minRetryInterval,
-            metricsCollectionBlock = _metricsCollectionBlock, properties = _properties,
-            unusedSessionTimeout = _unusedSessionTimeout, testBlock = _testBlock;
+            retryEnabled = _retryEnabled,
+            retryBlock = _retryBlock,
+            maxRetryInterval = _maxRetryInterval,
+            minRetryInterval = _minRetryInterval,
+            metricsCollectionBlock = _metricsCollectionBlock,
+            properties = _properties,
+            unusedSessionTimeout = _unusedSessionTimeout,
+            testBlock = _testBlock;
+// clang-format on
 
 #if GTM_BACKGROUND_TASK_FETCHING
 @synthesize skipBackgroundTask = _skipBackgroundTask;

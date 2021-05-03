@@ -1108,16 +1108,14 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
     // Simulate receipt of redirection.
     if (willRedirectBlock) {
-      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
-                                                          block:^{
-                                                            willRedirectBlock(
-                                                                (NSHTTPURLResponse *)response,
-                                                                self->_request,
-                                                                ^(NSURLRequest *redirectRequest){
-                                                                    // For simulation, we'll assume
-                                                                    // the app will just continue.
-                                                                });
-                                                          }];
+      __auto_type block = ^{
+        willRedirectBlock((NSHTTPURLResponse *)response, self->_request,
+                          ^(NSURLRequest *redirectRequest){
+                              // For simulation, we'll assume
+                              // the app will just continue.
+                          });
+      };
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
     }
 
     // If the fetcher has a challenge block, simulate a challenge.
@@ -1126,91 +1124,74 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // fetches get challenged rather than always executing the supplied
     // challenge block.
     if (challengeBlock) {
-      [self
-          invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
-                                                        block:^{
-                                                          NSURL *requestURL = self->_request.URL;
-                                                          NSString *host = requestURL.host;
-                                                          NSURLProtectionSpace *pspace = [[NSURLProtectionSpace
-                                                              alloc] initWithHost:host
-                                                                              port:requestURL.port
-                                                                                       .integerValue
-                                                                          protocol:requestURL.scheme
-                                                                             realm:nil
-                                                              authenticationMethod:
-                                                                  NSURLAuthenticationMethodHTTPBasic];
-                                                          id<NSURLAuthenticationChallengeSender>
-                                                              unusedSender =
-                                                                  (id<NSURLAuthenticationChallengeSender>)
-                                                                      [NSNull null];
-                                                          NSURLAuthenticationChallenge *challenge =
-                                                              [[NSURLAuthenticationChallenge alloc]
-                                                                  initWithProtectionSpace:pspace
-                                                                       proposedCredential:nil
-                                                                     previousFailureCount:0
-                                                                          failureResponse:nil
-                                                                                    error:nil
-                                                                                   sender:
-                                                                                       unusedSender];
-                                                          challengeBlock(
-                                                              self, challenge,
-                                                              ^(NSURLSessionAuthChallengeDisposition
-                                                                    disposition,
-                                                                NSURLCredential
-                                                                    *_Nullable credential){
-                                                                  // We could change the
-                                                                  // responseData and responseError
-                                                                  // based on the disposition,
-                                                                  // but it's easier for apps to
-                                                                  // just supply the expected data
-                                                                  // and error
-                                                                  // directly to the test block. So
-                                                                  // this simulation ignores the
-                                                                  // disposition.
-                                                              });
-                                                        }];
+      __auto_type block = ^{
+        NSURL *requestURL = self->_request.URL;
+        NSString *host = requestURL.host;
+        NSURLProtectionSpace *pspace =
+            [[NSURLProtectionSpace alloc] initWithHost:host
+                                                  port:requestURL.port.integerValue
+                                              protocol:requestURL.scheme
+                                                 realm:nil
+                                  authenticationMethod:NSURLAuthenticationMethodHTTPBasic];
+        id<NSURLAuthenticationChallengeSender> unusedSender =
+            (id<NSURLAuthenticationChallengeSender>)[NSNull null];
+        NSURLAuthenticationChallenge *challenge =
+            [[NSURLAuthenticationChallenge alloc] initWithProtectionSpace:pspace
+                                                       proposedCredential:nil
+                                                     previousFailureCount:0
+                                                          failureResponse:nil
+                                                                    error:nil
+                                                                   sender:unusedSender];
+        challengeBlock(self, challenge,
+                       ^(NSURLSessionAuthChallengeDisposition disposition,
+                         NSURLCredential *_Nullable credential){
+                           // We could change the
+                           // responseData and responseError
+                           // based on the disposition,
+                           // but it's easier for apps to
+                           // just supply the expected data
+                           // and error
+                           // directly to the test block. So
+                           // this simulation ignores the
+                           // disposition.
+                       });
+      };
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
     }
 
     // Simulate receipt of an initial response.
     if (response && didReceiveResponseBlock) {
-      [self
-          invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
-                                                        block:^{
-                                                          didReceiveResponseBlock(
-                                                              response,
-                                                              ^(NSURLSessionResponseDisposition
-                                                                    desiredDisposition){
-                                                                  // For simulation, we'll assume
-                                                                  // the disposition is to continue.
-                                                              });
-                                                        }];
+      __auto_type block = ^{
+        didReceiveResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition){
+                                    // For simulation, we'll assume
+                                    // the disposition is to continue.
+                                });
+      };
+      [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
     }
 
     // Simulate reporting send progress.
     if (sendProgressBlock) {
-      [self simulateByteTransferReportWithDataLength:(int64_t)bodyData.length
-                                               block:^(int64_t bytesSent, int64_t totalBytesSent,
-                                                       int64_t totalBytesExpectedToSend) {
-                                                 // This is invoked on the callback queue unless
-                                                 // stopped.
-                                                 sendProgressBlock(bytesSent, totalBytesSent,
-                                                                   totalBytesExpectedToSend);
-                                               }];
+      __auto_type block =
+          ^(int64_t bytesSent, int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
+            // This is invoked on the callback queue unless
+            // stopped.
+            sendProgressBlock(bytesSent, totalBytesSent, totalBytesExpectedToSend);
+          };
+      [self simulateByteTransferReportWithDataLength:(int64_t)bodyData.length block:block];
     }
 
     if (destinationFileURL) {
       // Simulate download to file progress.
       if (downloadProgressBlock) {
-        [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length
-                                                 block:^(int64_t bytesDownloaded,
-                                                         int64_t totalBytesDownloaded,
-                                                         int64_t totalBytesExpectedToDownload) {
-                                                   // This is invoked on the callback queue unless
-                                                   // stopped.
-                                                   downloadProgressBlock(
-                                                       bytesDownloaded, totalBytesDownloaded,
-                                                       totalBytesExpectedToDownload);
-                                                 }];
+        __auto_type block = ^(int64_t bytesDownloaded, int64_t totalBytesDownloaded,
+                              int64_t totalBytesExpectedToDownload) {
+          // This is invoked on the callback queue unless
+          // stopped.
+          downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
+                                totalBytesExpectedToDownload);
+        };
+        [self simulateByteTransferReportWithDataLength:(int64_t)responseData.length block:block];
       }
 
       NSError *writeError;
@@ -1222,19 +1203,18 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     } else {
       // Simulate download to NSData progress.
       if ((accumulateDataBlock || receivedProgressBlock) && responseData) {
-        [self simulateByteTransferWithData:responseData
-                                     block:^(NSData *data, int64_t bytesReceived,
-                                             int64_t totalBytesReceived,
-                                             int64_t totalBytesExpectedToReceive) {
-                                       // This is invoked on the callback queue unless stopped.
-                                       if (accumulateDataBlock) {
-                                         accumulateDataBlock(data);
-                                       }
+        __auto_type block = ^(NSData *data, int64_t bytesReceived, int64_t totalBytesReceived,
+                              int64_t totalBytesExpectedToReceive) {
+          // This is invoked on the callback queue unless stopped.
+          if (accumulateDataBlock) {
+            accumulateDataBlock(data);
+          }
 
-                                       if (receivedProgressBlock) {
-                                         receivedProgressBlock(bytesReceived, totalBytesReceived);
-                                       }
-                                     }];
+          if (receivedProgressBlock) {
+            receivedProgressBlock(bytesReceived, totalBytesReceived);
+          }
+        };
+        [self simulateByteTransferWithData:responseData block:block];
       }
 
       if (!accumulateDataBlock) {
@@ -1246,17 +1226,14 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         NSData *cachedData = responseData ?: [[NSData alloc] init];  // Always have non-nil data.
         NSCachedURLResponse *cachedResponse =
             [[NSCachedURLResponse alloc] initWithResponse:response data:cachedData];
-        [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES
-                                                            block:^{
-                                                              willCacheURLResponseBlock(
-                                                                  cachedResponse,
-                                                                  ^(NSCachedURLResponse
-                                                                        *responseToCache){
-                                                                      // The app may provide an
-                                                                      // alternative response, or
-                                                                      // nil to defeat caching.
-                                                                  });
-                                                            }];
+        __auto_type block = ^{
+          willCacheURLResponseBlock(cachedResponse, ^(NSCachedURLResponse *responseToCache){
+                                        // The app may provide an
+                                        // alternative response, or
+                                        // nil to defeat caching.
+                                    });
+        };
+        [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
       }
     }
     _response = response;
@@ -2166,18 +2143,15 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     if (willRedirectBlock) {
       @synchronized(self) {
         GTMSessionMonitorSynchronized(self);
-        [self invokeOnCallbackQueueAfterUserStopped:YES
-                                              block:^{
-                                                willRedirectBlock(
-                                                    redirectResponse, redirectRequest,
-                                                    ^(NSURLRequest *clientRequest) {
-                                                      // Update the request for future logging.
-                                                      [self updateMutableRequest:[clientRequest
-                                                                                     mutableCopy]];
+        __auto_type block = ^{
+          willRedirectBlock(redirectResponse, redirectRequest, ^(NSURLRequest *clientRequest) {
+            // Update the request for future logging.
+            [self updateMutableRequest:[clientRequest mutableCopy]];
 
-                                                      handler(clientRequest);
-                                                    });
-                                              }];
+            handler(clientRequest);
+          });
+        };
+        [self invokeOnCallbackQueueAfterUserStopped:YES block:block];
       }  // @synchronized(self)
       return;
     }
@@ -2196,32 +2170,31 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   [self setSessionTask:dataTask];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveResponse:%@", [self class],
                            self, session, dataTask, response);
-  void (^accumulateAndFinish)(NSURLSessionResponseDisposition) =
-      ^(NSURLSessionResponseDisposition dispositionValue) {
-        // This method is called when the server has determined that it
-        // has enough information to create the NSURLResponse
-        // it can be called multiple times, for example in the case of a
-        // redirect, so each time we reset the data.
-        @synchronized(self) {
-          GTMSessionMonitorSynchronized(self);
+  __auto_type accumulateAndFinish = ^(NSURLSessionResponseDisposition dispositionValue) {
+    // This method is called when the server has determined that it
+    // has enough information to create the NSURLResponse
+    // it can be called multiple times, for example in the case of a
+    // redirect, so each time we reset the data.
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
 
-          BOOL hadPreviousData = self->_downloadedLength > 0;
+      BOOL hadPreviousData = self->_downloadedLength > 0;
 
-          [self->_downloadedData setLength:0];
-          self->_downloadedLength = 0;
+      [self->_downloadedData setLength:0];
+      self->_downloadedLength = 0;
 
-          if (hadPreviousData && (dispositionValue != NSURLSessionResponseCancel)) {
-            // Tell the accumulate block to discard prior data.
-            GTMSessionFetcherAccumulateDataBlock accumulateBlock = self->_accumulateDataBlock;
-            if (accumulateBlock) {
-              [self invokeOnCallbackQueueUnlessStopped:^{
-                accumulateBlock(nil);
-              }];
-            }
-          }
-        }  // @synchronized(self)
-        handler(dispositionValue);
-      };
+      if (hadPreviousData && (dispositionValue != NSURLSessionResponseCancel)) {
+        // Tell the accumulate block to discard prior data.
+        GTMSessionFetcherAccumulateDataBlock accumulateBlock = self->_accumulateDataBlock;
+        if (accumulateBlock) {
+          [self invokeOnCallbackQueueUnlessStopped:^{
+            accumulateBlock(nil);
+          }];
+        }
+      }
+    }  // @synchronized(self)
+    handler(dispositionValue);
+  };
 
   GTMSessionFetcherDidReceiveResponseBlock receivedResponseBlock;
   @synchronized(self) {
@@ -2231,14 +2204,12 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     if (receivedResponseBlock) {
       // We will ultimately need to call back to NSURLSession's handler with the disposition value
       // for this delegate method even if the user has stopped the fetcher.
-      [self invokeOnCallbackQueueAfterUserStopped:YES
-                                            block:^{
-                                              receivedResponseBlock(
-                                                  response, ^(NSURLSessionResponseDisposition
-                                                                  desiredDisposition) {
-                                                    accumulateAndFinish(desiredDisposition);
-                                                  });
-                                            }];
+      __auto_type block = ^{
+        receivedResponseBlock(response, ^(NSURLSessionResponseDisposition desiredDisposition) {
+          accumulateAndFinish(desiredDisposition);
+        });
+      };
+      [self invokeOnCallbackQueueAfterUserStopped:YES block:block];
     }
   }  // @synchronized(self)
 
@@ -2305,7 +2276,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
           handler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
         } else {
           // Server trust information is available.
-          void (^callback)(SecTrustRef, BOOL) = ^(SecTrustRef trustRef, BOOL allow) {
+          __auto_type callback = ^(SecTrustRef trustRef, BOOL allow) {
             if (allow) {
               NSURLCredential *trustCredential = [NSURLCredential credentialForTrust:trustRef];
               handler(NSURLSessionAuthChallengeUseCredential, trustCredential);
@@ -3482,39 +3453,61 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 #pragma mark Getters and Setters
 
-@synthesize downloadResumeData = _downloadResumeData, configuration = _configuration,
-            configurationBlock = _configurationBlock, sessionTask = _sessionTask,
+// clang-format off
+// Don't re-format the @synthesize blocks:
+@synthesize downloadResumeData = _downloadResumeData,
+            configuration = _configuration,
+            configurationBlock = _configurationBlock,
+            sessionTask = _sessionTask,
             wasCreatedFromBackgroundSession = _wasCreatedFromBackgroundSession,
             clientWillReconnectBackgroundSession = _clientWillReconnectBackgroundSession,
-            sessionUserInfo = _sessionUserInfo, taskDescription = _taskDescription,
-            taskPriority = _taskPriority, usingBackgroundSession = _usingBackgroundSession,
-            canShareSession = _canShareSession, completionHandler = _completionHandler,
-            credential = _credential, proxyCredential = _proxyCredential, bodyData = _bodyData,
-            bodyLength = _bodyLength, service = _service, serviceHost = _serviceHost,
+            sessionUserInfo = _sessionUserInfo,
+            taskDescription = _taskDescription,
+            taskPriority = _taskPriority,
+            usingBackgroundSession = _usingBackgroundSession,
+            canShareSession = _canShareSession,
+            completionHandler = _completionHandler,
+            credential = _credential,
+            proxyCredential = _proxyCredential,
+            bodyData = _bodyData,
+            bodyLength = _bodyLength,
+            service = _service,
+            serviceHost = _serviceHost,
             accumulateDataBlock = _accumulateDataBlock,
             receivedProgressBlock = _receivedProgressBlock,
-            downloadProgressBlock = _downloadProgressBlock, resumeDataBlock = _resumeDataBlock,
-            didReceiveResponseBlock = _didReceiveResponseBlock, challengeBlock = _challengeBlock,
-            willRedirectBlock = _willRedirectBlock, sendProgressBlock = _sendProgressBlock,
-            willCacheURLResponseBlock = _willCacheURLResponseBlock, retryBlock = _retryBlock,
-            metricsCollectionBlock = _metricsCollectionBlock, retryFactor = _retryFactor,
+            downloadProgressBlock = _downloadProgressBlock,
+            resumeDataBlock = _resumeDataBlock,
+            didReceiveResponseBlock = _didReceiveResponseBlock,
+            challengeBlock = _challengeBlock,
+            willRedirectBlock = _willRedirectBlock,
+            sendProgressBlock = _sendProgressBlock,
+            willCacheURLResponseBlock = _willCacheURLResponseBlock,
+            retryBlock = _retryBlock,
+            metricsCollectionBlock = _metricsCollectionBlock,
+            retryFactor = _retryFactor,
             allowedInsecureSchemes = _allowedInsecureSchemes,
             allowLocalhostRequest = _allowLocalhostRequest,
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
-            cookieStorage = _cookieStorage, callbackQueue = _callbackQueue,
-            initialBeginFetchDate = _initialBeginFetchDate, testBlock = _testBlock,
+            cookieStorage = _cookieStorage,
+            callbackQueue = _callbackQueue,
+            initialBeginFetchDate = _initialBeginFetchDate,
+            testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
-            comment = _comment, log = _log;
+            comment = _comment,
+            log = _log;
 
 #if !STRIP_GTM_FETCH_LOGGING
-@synthesize redirectedFromURL = _redirectedFromURL, logRequestBody = _logRequestBody,
-            logResponseBody = _logResponseBody, hasLoggedError = _hasLoggedError;
+@synthesize redirectedFromURL = _redirectedFromURL,
+            logRequestBody = _logRequestBody,
+            logResponseBody = _logResponseBody,
+            hasLoggedError = _hasLoggedError;
 #endif
 
 #if GTM_BACKGROUND_TASK_FETCHING
 @synthesize backgroundTaskIdentifier = _backgroundTaskIdentifier,
             skipBackgroundTask = _skipBackgroundTask;
 #endif
+// clang-format on
 
 - (nullable NSURLRequest *)request {
   @synchronized(self) {
