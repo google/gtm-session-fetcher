@@ -102,8 +102,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @property(atomic, readwrite, assign) int64_t currentOffset;
 
 // Internal properties.
-@property(strong, atomic, GTM_NULLABLE)
-    GTMSessionFetcher *fetcherInFlight;  // Synchronized on self.
+@property(strong, atomic, nullable) GTMSessionFetcher *fetcherInFlight;  // Synchronized on self.
 
 @property(assign, atomic, getter=isSubdataGenerating) BOOL subdataGenerating;
 @property(assign, atomic) BOOL shouldInitiateOffsetQuery;
@@ -198,11 +197,10 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return fetcher;
 }
 
-+ (instancetype)uploadFetcherWithLocation:(NSURL *GTM_NULLABLE_TYPE)uploadLocationURL
++ (instancetype)uploadFetcherWithLocation:(nullable NSURL *)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
-                           fetcherService:
-                               (GTM_NULLABLE GTMSessionFetcherService *)fetcherServiceOrNil {
+                           fetcherService:(nullable GTMSessionFetcherService *)fetcherServiceOrNil {
   return [self uploadFetcherWithLocation:uploadLocationURL
                           uploadMIMEType:uploadMIMEType
                                chunkSize:chunkSize
@@ -210,7 +208,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                           fetcherService:fetcherServiceOrNil];
 }
 
-+ (instancetype)uploadFetcherWithLocation:(NSURL *GTM_NULLABLE_TYPE)uploadLocationURL
++ (instancetype)uploadFetcherWithLocation:(nullable NSURL *)uploadLocationURL
                            uploadMIMEType:(NSString *)uploadMIMEType
                                 chunkSize:(int64_t)chunkSize
                      allowsCellularAccess:(BOOL)allowsCellularAccess
@@ -558,7 +556,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [self setRequest:mutableRequest];
 }
 
-- (void)setLocationURL:(NSURL *GTM_NULLABLE_TYPE)location
+- (void)setLocationURL:(nullable NSURL *)location
           uploadMIMEType:(NSString *)uploadMIMEType
                chunkSize:(int64_t)chunkSize
     allowsCellularAccess:(BOOL)allowsCellularAccess {
@@ -822,7 +820,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)setDelegateCallbackQueue:(dispatch_queue_t GTM_NULLABLE_TYPE)queue {
+- (void)setDelegateCallbackQueue:(nullable dispatch_queue_t)queue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -830,7 +828,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (dispatch_queue_t GTM_NULLABLE_TYPE)delegateCallbackQueue {
+- (nullable dispatch_queue_t)delegateCallbackQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -846,7 +844,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (GTMSessionFetcher *GTM_NULLABLE_TYPE)chunkFetcher {
+- (nullable GTMSessionFetcher *)chunkFetcher {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -854,7 +852,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)setChunkFetcher:(GTMSessionFetcher *GTM_NULLABLE_TYPE)fetcher {
+- (void)setChunkFetcher:(nullable GTMSessionFetcher *)fetcher {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -862,7 +860,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)setFetcherInFlight:(GTMSessionFetcher *GTM_NULLABLE_TYPE)fetcher {
+- (void)setFetcherInFlight:(nullable GTMSessionFetcher *)fetcher {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -870,7 +868,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (GTMSessionFetcher *GTM_NULLABLE_TYPE)fetcherInFlight {
+- (nullable GTMSessionFetcher *)fetcherInFlight {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -879,7 +877,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 - (void)setCancellationHandler:
-    (GTMSessionUploadFetcherCancellationHandler GTM_NULLABLE_TYPE)cancellationHandler {
+    (nullable GTMSessionUploadFetcherCancellationHandler)cancellationHandler {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -887,7 +885,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (GTMSessionUploadFetcherCancellationHandler GTM_NULLABLE_TYPE)cancellationHandler {
+- (nullable GTMSessionUploadFetcherCancellationHandler)cancellationHandler {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 

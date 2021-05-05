@@ -24,18 +24,6 @@
 
 #import <Foundation/Foundation.h>
 
-#ifndef GTM_NONNULL
-#if defined(__has_attribute)
-#if __has_attribute(nonnull)
-#define GTM_NONNULL(x) __attribute__((nonnull x))
-#else
-#define GTM_NONNULL(x)
-#endif
-#else
-#define GTM_NONNULL(x)
-#endif
-#endif
-
 // Avoid multiple declaration of this class.
 //
 // Note: This should match the declaration of GTMGatherInputStream in GTMMIMEDocument.m
@@ -45,7 +33,7 @@
 
 @interface GTMGatherInputStream : NSInputStream <NSStreamDelegate>
 
-+ (NSInputStream *)streamWithArray:(NSArray *)dataArray GTM_NONNULL((1));
++ (nonnull instancetype)streamWithArray:(nonnull NSArray *)dataArray;
 
 @end
 

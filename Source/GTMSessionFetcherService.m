@@ -25,7 +25,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
-- (BOOL)beginFetchMayDelay:(BOOL)mayDelay mayAuthorize:(BOOL)mayAuthorize;
+- (BOOL)beginFetchMayDelay:(BOOL)mayDelay
+              mayAuthorize:(BOOL)mayAuthorize;
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
@@ -803,7 +804,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
 }
 
-- (dispatch_queue_t GTM_NONNULL_TYPE)callbackQueue {
+- (nonnull dispatch_queue_t)callbackQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -811,7 +812,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }  // @synchronized(self)
 }
 
-- (void)setCallbackQueue:(dispatch_queue_t GTM_NULLABLE_TYPE)queue {
+- (void)setCallbackQueue:(dispatch_queue_t)queue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -819,7 +820,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }  // @synchronized(self)
 }
 
-- (NSOperationQueue *GTM_NONNULL_TYPE)sessionDelegateQueue {
+- (NSOperationQueue *)sessionDelegateQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -827,7 +828,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }  // @synchronized(self)
 }
 
-- (void)setSessionDelegateQueue:(NSOperationQueue *GTM_NULLABLE_TYPE)queue {
+- (void)setSessionDelegateQueue:(NSOperationQueue *)queue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
