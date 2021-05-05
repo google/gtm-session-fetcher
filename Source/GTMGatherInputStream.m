@@ -27,11 +27,11 @@
   id<NSStreamDelegate> __weak _delegate;  // Stream delegate, defaults to self.
 }
 
-+ (NSInputStream *)streamWithArray:(NSArray *)dataArray {
-  return [(GTMGatherInputStream *)[self alloc] initWithArray:dataArray];
++ (instancetype)streamWithArray:(NSArray *)dataArray {
+  return [[self alloc] initWithDataArray:dataArray];
 }
 
-- (instancetype)initWithArray:(NSArray *)dataArray {
+- (instancetype)initWithDataArray:(NSArray *)dataArray {
   self = [super init];
   if (self) {
     _dataArray = dataArray;

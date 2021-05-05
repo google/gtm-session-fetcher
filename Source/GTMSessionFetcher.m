@@ -30,7 +30,7 @@
 #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.
 #endif
 
-GTM_ASSUME_NONNULL_BEGIN
+NS_ASSUME_NONNULL_BEGIN
 
 NSString *const kGTMSessionFetcherStartedNotification = @"kGTMSessionFetcherStartedNotification";
 NSString *const kGTMSessionFetcherStoppedNotification = @"kGTMSessionFetcherStoppedNotification";
@@ -78,7 +78,7 @@ static NSString *const kGTMSessionFetcherPersistedDestinationKey =
     @"com.google.GTMSessionFetcher.downloads";
 #endif
 
-GTM_ASSUME_NONNULL_END
+NS_ASSUME_NONNULL_END
 
 //
 // GTMSessionFetcher
@@ -136,8 +136,8 @@ GTM_ASSUME_NONNULL_END
 
 @interface GTMSessionFetcher ()
 
-@property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadedData;
-@property(atomic, strong, readwrite, GTM_NULLABLE) NSData *downloadResumeData;
+@property(atomic, strong, readwrite, nullable) NSData *downloadedData;
+@property(atomic, strong, readwrite, nullable) NSData *downloadResumeData;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // Should always be accessed within an @synchronized(self).
@@ -151,28 +151,28 @@ GTM_ASSUME_NONNULL_END
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (GTMSessionFetcherLoggingInternal)
 - (void)logFetchWithError:(NSError *)error;
-- (void)logNowWithError:(GTM_NULLABLE NSError *)error;
+- (void)logNowWithError:(nullable NSError *)error;
 - (NSInputStream *)loggedInputStreamForInputStream:(NSInputStream *)inputStream;
 - (GTMSessionFetcherBodyStreamProvider)loggedStreamProviderForStreamProvider:
     (GTMSessionFetcherBodyStreamProvider)streamProvider;
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
-GTM_ASSUME_NONNULL_BEGIN
+NS_ASSUME_NONNULL_BEGIN
 
 static NSTimeInterval InitialMinRetryInterval(void) {
   return 1.0 + ((double)(arc4random_uniform(0x0FFFF)) / (double)0x0FFFF);
 }
 
-static BOOL IsLocalhost(NSString *GTM_NULLABLE_TYPE host) {
+static BOOL IsLocalhost(NSString *_Nullable host) {
   // We check if there's host, and then make the comparisons.
   if (host == nil) return NO;
   return ([host caseInsensitiveCompare:@"localhost"] == NSOrderedSame || [host isEqual:@"::1"] ||
           [host isEqual:@"127.0.0.1"]);
 }
 
-static NSDictionary *GTM_NULLABLE_TYPE GTMErrorUserInfoForData(
-    NSData *GTM_NULLABLE_TYPE data, NSDictionary *GTM_NULLABLE_TYPE responseHeaders) {
+static NSDictionary *_Nullable GTMErrorUserInfoForData(NSData *_Nullable data,
+                                                       NSDictionary *_Nullable responseHeaders) {
   NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
 
   if (data.length > 0) {
@@ -187,7 +187,7 @@ static NSDictionary *GTM_NULLABLE_TYPE GTMErrorUserInfoForData(
   return userInfo.count > 0 ? userInfo : nil;
 }
 
-static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
+static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
 @implementation GTMSessionFetcher {
   NSMutableURLRequest *_request;  // after beginFetch, changed only in delegate callbacks
@@ -209,10 +209,10 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   NSString *_sessionIdentifierUUID;
   BOOL _userRequestedBackgroundSession;
   BOOL _usingBackgroundSession;
-  NSMutableData *GTM_NULLABLE_TYPE _downloadedData;
+  NSMutableData *_Nullable _downloadedData;
   NSError *_downloadFinishedError;
-  NSData *_downloadResumeData;                       // immutable after construction
-  NSData *GTM_NULLABLE_TYPE _downloadTaskErrorData;  // Data for when download task fails
+  NSData *_downloadResumeData;               // immutable after construction
+  NSData *_Nullable _downloadTaskErrorData;  // Data for when download task fails
   NSURL *_destinationFileURL;
   int64_t _downloadedLength;
   NSURLCredential *_credential;       // username & password
@@ -289,7 +289,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 }
 #endif  // !GTMSESSION_UNIT_TESTING
 
-+ (instancetype)fetcherWithRequest:(GTM_NULLABLE NSURLRequest *)request {
++ (instancetype)fetcherWithRequest:(nullable NSURLRequest *)request {
   return [[self alloc] initWithRequest:request configuration:nil];
 }
 
@@ -308,7 +308,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   return fetcher;
 }
 
-+ (GTM_NULLABLE instancetype)fetcherWithSessionIdentifier:(NSString *)sessionIdentifier {
++ (nullable instancetype)fetcherWithSessionIdentifier:(NSString *)sessionIdentifier {
   GTMSESSION_ASSERT_DEBUG(sessionIdentifier != nil, @"Invalid session identifier");
   NSMapTable *sessionIdentifierToFetcherMap = [self sessionIdentifierToFetcherMap];
   GTMSessionFetcher *fetcher = [sessionIdentifierToFetcherMap objectForKey:sessionIdentifier];
@@ -371,8 +371,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   return [self initWithRequest:request configuration:nil];
 }
 
-- (instancetype)initWithRequest:(GTM_NULLABLE NSURLRequest *)request
-                  configuration:(GTM_NULLABLE NSURLSessionConfiguration *)configuration {
+- (instancetype)initWithRequest:(nullable NSURLRequest *)request
+                  configuration:(nullable NSURLSessionConfiguration *)configuration {
   self = [super init];
   if (self) {
 #if GTM_BACKGROUND_TASK_FETCHING
@@ -443,7 +443,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
 // Begin fetching the URL (or begin a retry fetch).  The delegate is retained
 // for the duration of the fetch connection.
 
-- (void)beginFetchWithCompletionHandler:(GTM_NULLABLE GTMSessionFetcherCompletionHandler)handler {
+- (void)beginFetchWithCompletionHandler:(nullable GTMSessionFetcherCompletionHandler)handler {
   GTMSessionCheckNotSynchronized(self);
 
   _completionHandler = [handler copy];
@@ -462,9 +462,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   [self beginFetchMayDelay:YES mayAuthorize:YES];
 }
 
-- (GTMSessionFetcherCompletionHandler)completionHandlerWithTarget:(GTM_NULLABLE_TYPE id)target
-                                                didFinishSelector:
-                                                    (GTM_NULLABLE_TYPE SEL)finishedSelector {
+- (GTMSessionFetcherCompletionHandler)completionHandlerWithTarget:(nullable id)target
+                                                didFinishSelector:(nullable SEL)finishedSelector {
   GTMSessionFetcherAssertValidSelector(target, finishedSelector, @encode(GTMSessionFetcher *),
                                        @encode(NSData *), @encode(NSError *), 0);
   GTMSessionFetcherCompletionHandler completionHandler = ^(NSData *data, NSError *error) {
@@ -483,8 +482,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   return completionHandler;
 }
 
-- (void)beginFetchWithDelegate:(GTM_NULLABLE_TYPE id)target
-             didFinishSelector:(GTM_NULLABLE_TYPE SEL)finishedSelector {
+- (void)beginFetchWithDelegate:(nullable id)target
+             didFinishSelector:(nullable SEL)finishedSelector {
   GTMSessionCheckNotSynchronized(self);
 
   GTMSessionFetcherCompletionHandler handler = [self completionHandlerWithTarget:target
@@ -492,7 +491,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   [self beginFetchWithCompletionHandler:handler];
 }
 
-- (void)beginFetchMayDelay:(BOOL)mayDelay mayAuthorize:(BOOL)mayAuthorize {
+- (void)beginFetchMayDelay:(BOOL)mayDelay
+              mayAuthorize:(BOOL)mayAuthorize {
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
@@ -847,7 +847,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
       GTMSESSION_ASSERT_DEBUG_OR_LOG(_bodyData != nil, @"Upload task needs body data, %@",
                                      fetchRequest);
       newSessionTask = [_session uploadTaskWithRequest:fetchRequest
-                                              fromData:(NSData * GTM_NONNULL_TYPE) _bodyData];
+                                              fromData:(NSData *_Nonnull)_bodyData];
       GTMSESSION_ASSERT_DEBUG_OR_LOG(
           newSessionTask, @"Failed uploadTaskWithRequest for %@, %@, body data %lu bytes", _session,
           fetchRequest, (unsigned long)_bodyData.length);
@@ -970,7 +970,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
   }
 }
 
-NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
+NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **outError) {
   NSMutableData *data = [NSMutableData data];
 
   [inputStream open];
@@ -1081,7 +1081,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }
 }
 
-- (void)simulateDataCallbacksForTestBlockWithBodyData:(NSData *GTM_NULLABLE_TYPE)bodyData
+- (void)simulateDataCallbacksForTestBlockWithBodyData:(nullable NSData *)bodyData
                                              response:(NSURLResponse *)response
                                          responseData:(NSData *)suppliedData
                                                 error:(NSError *)suppliedError {
@@ -1156,8 +1156,8 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
                                                               self, challenge,
                                                               ^(NSURLSessionAuthChallengeDisposition
                                                                     disposition,
-                                                                NSURLCredential *GTM_NULLABLE_TYPE
-                                                                    credential){
+                                                                NSURLCredential
+                                                                    *_Nullable credential){
                                                                   // We could change the
                                                                   // responseData and responseError
                                                                   // based on the disposition,
@@ -1319,7 +1319,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (NSURLSessionTask *GTM_NULLABLE_TYPE)sessionTask {
+- (nullable NSURLSessionTask *)sessionTask {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1385,7 +1385,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   [userDefaults synchronize];
 }
 
-+ (GTM_NULLABLE NSArray *)activePersistedBackgroundSessions {
++ (nullable NSArray *)activePersistedBackgroundSessions {
   NSUserDefaults *userDefaults = [[self class] fetcherUserDefaults];
   NSArray *oldBackgroundSessions =
       [userDefaults arrayForKey:kGTMSessionFetcherPersistedDestinationKey];
@@ -1446,7 +1446,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
 }
 #endif
 
-- (NSString *GTM_NULLABLE_TYPE)sessionIdentifier {
+- (nullable NSString *)sessionIdentifier {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1467,7 +1467,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (void)setSessionIdentifierInternal:(GTM_NULLABLE NSString *)sessionIdentifier {
+- (void)setSessionIdentifierInternal:(nullable NSString *)sessionIdentifier {
   // This internal method only does a synchronized set of the session identifier.
   // It does not have side effects on the background session, shared session, or
   // session identifier metadata.
@@ -1478,7 +1478,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (NSDictionary *GTM_NULLABLE_TYPE)sessionUserInfo {
+- (nullable NSDictionary *)sessionUserInfo {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1498,7 +1498,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (void)setSessionUserInfo:(NSDictionary *GTM_NULLABLE_TYPE)dictionary {
+- (void)setSessionUserInfo:(nullable NSDictionary *)dictionary {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1507,7 +1507,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSDictionary *)sessionIdentifierDefaultMetadata {
+- (nullable NSDictionary *)sessionIdentifierDefaultMetadata {
   GTMSessionCheckSynchronized(self);
 
   NSMutableDictionary *defaultUserInfo = [[NSMutableDictionary alloc] init];
@@ -1546,7 +1546,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }
 }
 
-- (NSDictionary *GTM_NULLABLE_TYPE)sessionIdentifierMetadata {
+- (nullable NSDictionary *)sessionIdentifierMetadata {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1554,7 +1554,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }
 }
 
-- (NSDictionary *GTM_NULLABLE_TYPE)sessionIdentifierMetadataUnsynchronized {
+- (nullable NSDictionary *)sessionIdentifierMetadataUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
   // Session Identifier format: "com.google.<ClassName>_<UUID>_<Metadata in JSON format>
@@ -1583,8 +1583,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   return nil;
 }
 
-- (NSString *)createSessionIdentifierWithMetadata:
-    (NSDictionary *GTM_NULLABLE_TYPE)metadataToInclude {
+- (NSString *)createSessionIdentifierWithMetadata:(nullable NSDictionary *)metadataToInclude {
   NSString *result;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -1595,8 +1594,8 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
     _sessionIdentifier =
         [NSString stringWithFormat:@"%@_%@", kGTMSessionIdentifierPrefix, _sessionIdentifierUUID];
     // Start with user-supplied keys so they cannot accidentally override the fetcher's keys.
-    NSMutableDictionary *metadataDict = [NSMutableDictionary
-        dictionaryWithDictionary:(NSDictionary * GTM_NONNULL_TYPE) _sessionUserInfo];
+    NSMutableDictionary *metadataDict =
+        [NSMutableDictionary dictionaryWithDictionary:(NSDictionary *_Nonnull)_sessionUserInfo];
 
     if (metadataToInclude) {
       [metadataDict addEntriesFromDictionary:(NSDictionary *)metadataToInclude];
@@ -1733,7 +1732,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   return hasBegun && !_hasStoppedFetching;
 }
 
-- (NSURLResponse *GTM_NULLABLE_TYPE)response {
+- (nullable NSURLResponse *)response {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1742,7 +1741,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   }  // @synchronized(self)
 }
 
-- (NSURLResponse *GTM_NULLABLE_TYPE)responseUnsynchronized {
+- (nullable NSURLResponse *)responseUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
   NSURLResponse *response = _sessionTask.response;
@@ -1775,7 +1774,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   return statusCode;
 }
 
-- (NSDictionary *GTM_NULLABLE_TYPE)responseHeaders {
+- (nullable NSDictionary *)responseHeaders {
   GTMSessionCheckNotSynchronized(self);
 
   NSURLResponse *response = self.response;
@@ -1786,7 +1785,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   return nil;
 }
 
-- (NSDictionary *GTM_NULLABLE_TYPE)responseHeadersUnsynchronized {
+- (nullable NSDictionary *)responseHeadersUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
   NSURLResponse *response = [self responseUnsynchronized];
@@ -2075,7 +2074,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   return !expired;
 }
 
-+ (void)setGlobalTestBlock:(GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE)block {
++ (void)setGlobalTestBlock:(nullable GTMSessionFetcherTestBlock)block {
 #if GTM_DISABLE_FETCHER_TEST_BLOCK
   GTMSESSION_ASSERT_DEBUG(block == nil, @"test blocks disabled");
 #endif
@@ -2084,7 +2083,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
 
 #if GTM_BACKGROUND_TASK_FETCHING
 
-static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
+static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 + (void)setSubstituteUIApplication:(nullable id<GTMUIApplicationProtocol>)app {
   gSubstituteUIApp = app;
@@ -2131,7 +2130,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
                           task:(NSURLSessionTask *)task
     willPerformHTTPRedirection:(NSHTTPURLResponse *)redirectResponse
                     newRequest:(NSURLRequest *)redirectRequest
-             completionHandler:(void (^)(NSURLRequest *GTM_NULLABLE_TYPE))handler {
+             completionHandler:(void (^)(NSURLRequest *_Nullable))handler {
   [self setSessionTask:task];
   GTM_LOG_SESSION_DELEGATE(
       @"%@ %p URLSession:%@ task:%@ willPerformHTTPRedirection:%@ newRequest:%@", [self class],
@@ -2260,7 +2259,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
                    task:(NSURLSessionTask *)task
     didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
       completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
-                                  NSURLCredential *GTM_NULLABLE_TYPE credential))handler {
+                                  NSURLCredential *_Nullable credential))handler {
   [self setSessionTask:task];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didReceiveChallenge:%@", [self class],
                            self, session, task, challenge);
@@ -2287,7 +2286,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 - (void)respondToChallenge:(NSURLAuthenticationChallenge *)challenge
          completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
-                                     NSURLCredential *GTM_NULLABLE_TYPE credential))handler {
+                                     NSURLCredential *_Nullable credential))handler {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2360,8 +2359,8 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 // Method disallows any scheme changes between the original request URL and redirect request URL
 // aside from "http" to "https". If a change in scheme is detected the redirect URL inherits the
 // scheme from the original request URL.
-+ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
-                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL {
++ (nullable NSURL *)redirectURLWithOriginalRequestURL:(nullable NSURL *)originalRequestURL
+                                   redirectRequestURL:(nullable NSURL *)redirectRequestURL {
   // In the case of an NSURLSession redirect, neither URL should ever be nil; as a sanity check
   // if either is nil return the other URL.
   if (!redirectRequestURL) return originalRequestURL;
@@ -2520,8 +2519,8 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }
 }
 
-- (void)invokeFetchCallbacksOnCallbackQueueWithData:(GTM_NULLABLE NSData *)data
-                                              error:(GTM_NULLABLE NSError *)error {
+- (void)invokeFetchCallbacksOnCallbackQueueWithData:(nullable NSData *)data
+                                              error:(nullable NSError *)error {
   // Callbacks will be released in the method stopFetchReleasingCallbacks:
   GTMSessionFetcherCompletionHandler handler;
   @synchronized(self) {
@@ -2554,7 +2553,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 }
 
 - (void)postNotificationOnMainThreadWithName:(NSString *)noteName
-                                    userInfo:(GTM_NULLABLE NSDictionary *)userInfo
+                                    userInfo:(nullable NSDictionary *)userInfo
                                 requireAsync:(BOOL)requireAsync {
   dispatch_block_t postBlock = ^{
     [[NSNotificationCenter defaultCenter] postNotificationName:noteName
@@ -2577,7 +2576,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 - (void)URLSession:(NSURLSession *)session
                  task:(NSURLSessionTask *)uploadTask
-    needNewBodyStream:(void (^)(NSInputStream *GTM_NULLABLE_TYPE bodyStream))completionHandler {
+    needNewBodyStream:(void (^)(NSInputStream *_Nullable bodyStream))completionHandler {
   [self setSessionTask:uploadTask];
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ needNewBodyStream:", [self class], self,
                            session, uploadTask);
@@ -2938,7 +2937,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 }
 #endif
 
-- (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(GTM_NULLABLE NSError *)error {
+- (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(nullable NSError *)error {
   // This may happen repeatedly for retries.  On authentication callbacks, the retry
   // may begin before the prior session sends the didBecomeInvalid delegate message.
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@", [self class], self,
@@ -2949,7 +2948,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }
 }
 
-- (void)finishWithError:(GTM_NULLABLE NSError *)error shouldRetry:(BOOL)shouldRetry {
+- (void)finishWithError:(nullable NSError *)error shouldRetry:(BOOL)shouldRetry {
   [self removePersistedBackgroundSessionFromDefaults];
 
   BOOL shouldStopFetching = YES;
@@ -3088,7 +3087,7 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
   return YES;
 }
 
-- (void)logNowWithError:(GTM_NULLABLE NSError *)error {
+- (void)logNowWithError:(nullable NSError *)error {
   GTMSessionCheckNotSynchronized(self);
 
   // If the logging category is available, then log the current request,
@@ -3443,18 +3442,18 @@ static GTM_NULLABLE_TYPE id<GTMUIApplicationProtocol> gSubstituteUIApp;
 #if TARGET_OS_IPHONE
 static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
-- (GTM_NULLABLE GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler {
+- (nullable GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler {
   return [[self class] systemCompletionHandlerForSessionIdentifier:_sessionIdentifier];
 }
 
 - (void)setSystemCompletionHandler:
-    (GTM_NULLABLE GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler {
+    (nullable GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler {
   [[self class] setSystemCompletionHandler:systemCompletionHandler
                       forSessionIdentifier:_sessionIdentifier];
 }
 
 + (void)setSystemCompletionHandler:
-            (GTM_NULLABLE GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler
+            (nullable GTMSessionFetcherSystemCompletionHandler)systemCompletionHandler
               forSessionIdentifier:(NSString *)sessionIdentifier {
   if (!sessionIdentifier) {
     NSLog(@"%s with nil identifier", __PRETTY_FUNCTION__);
@@ -3470,8 +3469,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }
 }
 
-+ (GTM_NULLABLE GTMSessionFetcherSystemCompletionHandler)
-    systemCompletionHandlerForSessionIdentifier:(NSString *)sessionIdentifier {
++ (nullable GTMSessionFetcherSystemCompletionHandler)systemCompletionHandlerForSessionIdentifier:
+    (NSString *)sessionIdentifier {
   if (!sessionIdentifier) {
     return nil;
   }
@@ -3517,7 +3516,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             skipBackgroundTask = _skipBackgroundTask;
 #endif
 
-- (GTM_NULLABLE NSURLRequest *)request {
+- (nullable NSURLRequest *)request {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3525,7 +3524,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setRequest:(GTM_NULLABLE NSURLRequest *)request {
+- (void)setRequest:(nullable NSURLRequest *)request {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3537,13 +3536,13 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSMutableURLRequest *)mutableRequestForTesting {
+- (nullable NSMutableURLRequest *)mutableRequestForTesting {
   // Allow tests only to modify the request, useful during retries.
   return _request;
 }
 
 // Internal method for updating the request property such as on redirects.
-- (void)updateMutableRequest:(GTM_NULLABLE NSMutableURLRequest *)request {
+- (void)updateMutableRequest:(nullable NSMutableURLRequest *)request {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3553,7 +3552,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 // Set a header field value on the request. Header field value changes will not
 // affect a fetch after the fetch has begun.
-- (void)setRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field {
+- (void)setRequestValue:(nullable NSString *)value forHTTPHeaderField:(NSString *)field {
   if (![self isFetching]) {
     [self updateRequestValue:value forHTTPHeaderField:field];
   } else {
@@ -3562,7 +3561,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 // Internal method for updating request headers.
-- (void)updateRequestValue:(GTM_NULLABLE NSString *)value forHTTPHeaderField:(NSString *)field {
+- (void)updateRequestValue:(nullable NSString *)value forHTTPHeaderField:(NSString *)field {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3570,7 +3569,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setResponse:(GTM_NULLABLE NSURLResponse *)response {
+- (void)setResponse:(nullable NSURLResponse *)response {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3619,7 +3618,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSURL *)bodyFileURL {
+- (nullable NSURL *)bodyFileURL {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3627,7 +3626,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setBodyFileURL:(GTM_NULLABLE NSURL *)fileURL {
+- (void)setBodyFileURL:(nullable NSURL *)fileURL {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3642,7 +3641,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE GTMSessionFetcherBodyStreamProvider)bodyStreamProvider {
+- (nullable GTMSessionFetcherBodyStreamProvider)bodyStreamProvider {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3650,7 +3649,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setBodyStreamProvider:(GTM_NULLABLE GTMSessionFetcherBodyStreamProvider)block {
+- (void)setBodyStreamProvider:(nullable GTMSessionFetcherBodyStreamProvider)block {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3661,7 +3660,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE id<GTMFetcherAuthorizationProtocol>)authorizer {
+- (nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3669,7 +3668,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setAuthorizer:(GTM_NULLABLE id<GTMFetcherAuthorizationProtocol>)authorizer {
+- (void)setAuthorizer:(nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3684,7 +3683,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSData *)downloadedData {
+- (nullable NSData *)downloadedData {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3692,7 +3691,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setDownloadedData:(GTM_NULLABLE NSData *)data {
+- (void)setDownloadedData:(nullable NSData *)data {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3716,7 +3715,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (dispatch_queue_t GTM_NONNULL_TYPE)callbackQueue {
+- (nonnull dispatch_queue_t)callbackQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3724,7 +3723,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setCallbackQueue:(dispatch_queue_t GTM_NULLABLE_TYPE)queue {
+- (void)setCallbackQueue:(nullable dispatch_queue_t)queue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3732,7 +3731,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSURLSession *)session {
+- (nullable NSURLSession *)session {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3762,7 +3761,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setSession:(GTM_NULLABLE NSURLSession *)session {
+- (void)setSession:(nullable NSURLSession *)session {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3826,7 +3825,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSURLSession *)sessionNeedingInvalidation {
+- (nullable NSURLSession *)sessionNeedingInvalidation {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3834,7 +3833,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setSessionNeedingInvalidation:(GTM_NULLABLE NSURLSession *)session {
+- (void)setSessionNeedingInvalidation:(nullable NSURLSession *)session {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3842,7 +3841,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (NSOperationQueue *GTM_NONNULL_TYPE)sessionDelegateQueue {
+- (nonnull NSOperationQueue *)sessionDelegateQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3850,7 +3849,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setSessionDelegateQueue:(NSOperationQueue *GTM_NULLABLE_TYPE)queue {
+- (void)setSessionDelegateQueue:(nullable NSOperationQueue *)queue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3872,7 +3871,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE id)userData {
+- (nullable id)userData {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3880,7 +3879,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setUserData:(GTM_NULLABLE id)theObj {
+- (void)setUserData:(nullable id)theObj {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3888,7 +3887,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSURL *)destinationFileURL {
+- (nullable NSURL *)destinationFileURL {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3896,7 +3895,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setDestinationFileURL:(GTM_NULLABLE NSURL *)destinationFileURL {
+- (void)setDestinationFileURL:(nullable NSURL *)destinationFileURL {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3927,7 +3926,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setProperties:(GTM_NULLABLE NSDictionary *)dict {
+- (void)setProperties:(nullable NSDictionary *)dict {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3935,7 +3934,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE NSDictionary *)properties {
+- (nullable NSDictionary *)properties {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3943,7 +3942,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (void)setProperty:(GTM_NULLABLE id)obj forKey:(NSString *)key {
+- (void)setProperty:(nullable id)obj forKey:(NSString *)key {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -3954,7 +3953,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
-- (GTM_NULLABLE id)propertyForKey:(NSString *)key {
+- (nullable id)propertyForKey:(NSString *)key {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -4081,7 +4080,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   return self;
 }
 
-- (GTM_NULLABLE NSArray *)cookies {
+- (nullable NSArray *)cookies {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -4127,7 +4126,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 // replacing stored cookies as appropriate.
 //
 // Side effect: removes expired cookies from the storage array.
-- (void)setCookies:(GTM_NULLABLE NSArray *)newCookies {
+- (void)setCookies:(nullable NSArray *)newCookies {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -4140,8 +4139,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (void)setCookies:(NSArray *)cookies
-             forURL:(GTM_NULLABLE NSURL *)URL
-    mainDocumentURL:(GTM_NULLABLE NSURL *)mainDocumentURL {
+             forURL:(nullable NSURL *)URL
+    mainDocumentURL:(nullable NSURL *)mainDocumentURL {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -4176,7 +4175,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 // Retrieve all cookies appropriate for the given URL, considering
 // domain, path, cookie name, expiration, security setting.
 // Side effect: removed expired cookies from the storage array.
-- (GTM_NULLABLE NSArray *)cookiesForURL:(NSURL *)theURL {
+- (nullable NSArray *)cookiesForURL:(NSURL *)theURL {
   NSMutableArray *foundCookies = nil;
 
   @synchronized(self) {
@@ -4261,7 +4260,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 // be valid (non-nil name, domains, paths).
 //
 // Note: this should only be called from inside a @synchronized(self) block
-- (GTM_NULLABLE NSHTTPCookie *)cookieMatchingCookie:(NSHTTPCookie *)cookie {
+- (nullable NSHTTPCookie *)cookieMatchingCookie:(NSHTTPCookie *)cookie {
   GTMSessionCheckSynchronized(self);
 
   NSString *name = cookie.name;
@@ -4335,8 +4334,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 @end
 
-void GTMSessionFetcherAssertValidSelector(id GTM_NULLABLE_TYPE obj, SEL GTM_NULLABLE_TYPE sel,
-                                          ...) {
+void GTMSessionFetcherAssertValidSelector(id _Nullable obj, SEL _Nullable sel, ...) {
   // Verify that the object's selector is implemented with the proper
   // number and type of arguments
 #if DEBUG
@@ -4545,13 +4543,13 @@ NSString *GTMFetcherSystemVersionString(void) {
   return sSavedSystemString;
 }
 
-NSString *GTMFetcherStandardUserAgentString(NSBundle *GTM_NULLABLE_TYPE bundle) {
+NSString *GTMFetcherStandardUserAgentString(NSBundle *_Nullable bundle) {
   NSString *result = [NSString stringWithFormat:@"%@ %@", GTMFetcherApplicationIdentifier(bundle),
                                                 GTMFetcherSystemVersionString()];
   return result;
 }
 
-NSString *GTMFetcherApplicationIdentifier(NSBundle *GTM_NULLABLE_TYPE bundle) {
+NSString *GTMFetcherApplicationIdentifier(NSBundle *_Nullable bundle) {
   @synchronized([GTMSessionFetcher class]) {
     static NSMutableDictionary *sAppIDMap = nil;
 
@@ -4669,7 +4667,7 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *GTM_NULLABLE_TYPE bundle) {
   }
 }
 
-+ (NSArray *GTM_NULLABLE_TYPE)functionsHoldingSynchronizationOnObject:(id)object {
++ (nullable NSArray *)functionsHoldingSynchronizationOnObject:(id)object {
   Class threadKey = [GTMSessionSyncMonitorInternal class];
   NSValue *localObjectKey = [NSValue valueWithNonretainedObject:object];
 
@@ -4680,4 +4678,4 @@ NSString *GTMFetcherApplicationIdentifier(NSBundle *GTM_NULLABLE_TYPE bundle) {
 }
 @end
 #endif  // DEBUG && (!defined(NS_BLOCK_ASSERTIONS) || GTMSESSION_ASSERT_AS_LOG)
-GTM_ASSUME_NONNULL_END
+NS_ASSUME_NONNULL_END

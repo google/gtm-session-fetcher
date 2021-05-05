@@ -15,23 +15,13 @@
 
 #import <Foundation/Foundation.h>
 
-#ifndef GTM_NONNULL
-#if defined(__has_attribute)
-#if __has_attribute(nonnull)
-#define GTM_NONNULL(x) __attribute__((nonnull x))
-#else
-#define GTM_NONNULL(x)
-#endif
-#else
-#define GTM_NONNULL(x)
-#endif
-#endif
+NS_ASSUME_NONNULL_BEGIN
 
 @interface GTMReadMonitorInputStream : NSInputStream <NSStreamDelegate>
 
-+ (instancetype)inputStreamWithStream:(NSInputStream *)input GTM_NONNULL((1));
++ (nonnull instancetype)inputStreamWithStream:(nonnull NSInputStream *)input;
 
-- (instancetype)initWithStream:(NSInputStream *)input GTM_NONNULL((1));
+- (nonnull instancetype)initWithStream:(nonnull NSInputStream *)input;
 
 // The read monitor selector is called when bytes have been read. It should have this signature:
 //
@@ -40,9 +30,11 @@
 //              length:(int64_t)length;
 
 @property(atomic, weak) id readDelegate;
-@property(atomic, assign) SEL readSelector;
+@property(atomic) SEL readSelector;
 
 // Modes for invoking callbacks, when necessary.
-@property(atomic, strong) NSArray *runLoopModes;
+@property(atomic, copy, nullable) NSArray *runLoopModes;
 
 @end
+
+NS_ASSUME_NONNULL_END

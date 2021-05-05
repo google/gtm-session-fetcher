@@ -25,7 +25,7 @@
 
 @interface GTMGatherInputStream : NSInputStream <NSStreamDelegate>
 
-+ (NSInputStream *)streamWithArray:(NSArray *)dataArray GTM_NONNULL((1));
++ (nonnull instancetype)streamWithArray:(nonnull NSArray *)dataArray;
 
 @end
 #endif  // GTM_GATHERINPUTSTREAM_DECLARED

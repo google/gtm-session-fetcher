@@ -27,7 +27,7 @@
 #import "GTMSessionUploadFetcher.h"
 #endif
 
-GTM_ASSUME_NONNULL_BEGIN
+NS_ASSUME_NONNULL_BEGIN
 
 extern NSString *const kGTMGettysburgFileName;
 
@@ -69,7 +69,7 @@ extern NSString *const kGTMGettysburgFileName;
 @interface GTMSessionFetcher (FetchingTest)
 // During testing only, we may want to modify the request being fetched
 // after beginFetch has been called.
-- (GTM_NULLABLE NSMutableURLRequest *)mutableRequestForTesting;
+- (nullable NSMutableURLRequest *)mutableRequestForTesting;
 @end
 
 // Authorization testing.
@@ -134,4 +134,4 @@ extern NSString *const kSubUIAppBackgroundTaskEnded;
 
 @end
 
-GTM_ASSUME_NONNULL_END
+NS_ASSUME_NONNULL_END

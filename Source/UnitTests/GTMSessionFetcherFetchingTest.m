@@ -46,8 +46,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                     timeout:5.0];
 
 @interface GTMSessionFetcher (ExposedForTesting)
-+ (GTM_NULLABLE NSURL *)redirectURLWithOriginalRequestURL:(GTM_NULLABLE NSURL *)originalRequestURL
-                                       redirectRequestURL:(GTM_NULLABLE NSURL *)redirectRequestURL;
++ (nullable NSURL *)redirectURLWithOriginalRequestURL:(nullable NSURL *)originalRequestURL
+                                   redirectRequestURL:(nullable NSURL *)redirectRequestURL;
 @end
 
 // Base class for fetcher and chunked upload tests.
