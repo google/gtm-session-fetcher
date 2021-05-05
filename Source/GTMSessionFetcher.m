@@ -105,7 +105,7 @@ GTM_ASSUME_NONNULL_END
      (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                  \
       __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0) ||                                       \
      (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                                \
-      __WATCHOS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
+      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
      (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MIN_REQUIRED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
 #define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
@@ -113,7 +113,7 @@ GTM_ASSUME_NONNULL_END
        (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                 \
         __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0) ||                                       \
        (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                               \
-        __WATCHOS_VERSION_MAX_ALLOWED >= __WATCHOS_6_0) ||                                         \
+        __WATCH_OS_VERSION_MAX_ALLOWED >= __WATCHOS_6_0) ||                                         \
        (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MAX_ALLOWED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
 #define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
@@ -127,7 +127,7 @@ GTM_ASSUME_NONNULL_END
      (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                  \
       __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0) ||                                       \
      (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                                \
-      __WATCHOS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
+      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
      (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MIN_REQUIRED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
 #else
@@ -660,19 +660,8 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
         NSMapTable *sessionIdentifierToFetcherMap = [[self class] sessionIdentifierToFetcherMap];
         [sessionIdentifierToFetcherMap setObject:self forKey:self.sessionIdentifier];
 
-        if (@available(iOS 8.0, tvOS 9.0, watchOS 2.0, macOS 10.10, *)) {
-          _configuration = [NSURLSessionConfiguration
-              backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
-        } else {
-#if ((!TARGET_OS_IPHONE && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10) || \
-     (TARGET_OS_IPHONE && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0))
-          // If building with support for iOS 7 or < macOS 10.10, allow using the older
-          // -backgroundSessionConfiguration: method, otherwise leave it out to avoid deprecated
-          // API warnings/errors.
-          _configuration =
-              [NSURLSessionConfiguration backgroundSessionConfiguration:sessionIdentifier];
-#endif
-        }
+        _configuration = [NSURLSessionConfiguration
+            backgroundSessionConfigurationWithIdentifier:sessionIdentifier];
         self.usingBackgroundSession = YES;
         self.canShareSession = NO;
       } else {
@@ -886,9 +875,7 @@ static GTMSessionFetcherTestBlock GTM_NULLABLE_TYPE gGlobalTestBlock;
     newSessionTask.taskDescription = _taskDescription;
   }
   if (_taskPriority >= 0) {
-    if (@available(iOS 8.0, macOS 10.10, *)) {
-      newSessionTask.priority = _taskPriority;
-    }
+    newSessionTask.priority = _taskPriority;
   }
 
 #if GTM_DISABLE_FETCHER_TEST_BLOCK
@@ -1843,7 +1830,7 @@ NSData *GTM_NULLABLE_TYPE GTMDataFromInputStream(NSInputStream *inputStream, NSE
   self.retryBlock = nil;
   self.testBlock = nil;
   self.resumeDataBlock = nil;
-  if (@available(iOS 10.0, macOS 10.12, tvOS 10.0, watchOS 3.0, *)) {
+  if (@available(iOS 10.0, *)) {
     self.metricsCollectionBlock = nil;
   }
 }
