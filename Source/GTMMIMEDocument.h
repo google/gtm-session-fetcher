@@ -22,30 +22,12 @@
 
 #import <Foundation/Foundation.h>
 
-#ifndef GTM_DECLARE_GENERICS
-#if __has_feature(objc_generics)
-#define GTM_DECLARE_GENERICS 1
-#else
-#define GTM_DECLARE_GENERICS 0
-#endif
-#endif
-
-#ifndef GTM_NSArrayOf
-#if GTM_DECLARE_GENERICS
-#define GTM_NSArrayOf(value) NSArray<value>
-#define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
-#else
-#define GTM_NSArrayOf(value) NSArray
-#define GTM_NSDictionaryOf(key, value) NSDictionary
-#endif  // GTM_DECLARE_GENERICS
-#endif  // GTM_NSArrayOf
-
 // GTMMIMEDocumentPart represents a part of a MIME document.
 //
 // +[GTMMIMEDocument MIMEPartsWithBoundary:data:] returns an array of these.
 @interface GTMMIMEDocumentPart : NSObject
 
-@property(nonatomic, readonly, nullable) GTM_NSDictionaryOf(NSString *, NSString *) *headers;
+@property(nonatomic, readonly, nullable) NSDictionary<NSString *, NSString *> *headers;
 @property(nonatomic, readonly, nonnull) NSData *headerData;
 @property(nonatomic, readonly, nonnull) NSData *body;
 @property(nonatomic, readonly) NSUInteger length;
@@ -70,7 +52,7 @@
 // Adds a new part to this mime document with the given headers and body.
 // The headers keys and values should be NSStrings.
 // Adding a part may cause the boundary string to change.
-- (void)addPartWithHeaders:(nonnull GTM_NSDictionaryOf(NSString *, NSString *) *)headers
+- (void)addPartWithHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
                       body:(nonnull NSData *)body;
 
 // An inputstream that can be used to efficiently read the contents of the MIME document.
@@ -91,7 +73,7 @@
                     boundary:(NSString *_Nullable *_Nullable)outBoundary;
 
 // Utility method for making a header section, including trailing newlines.
-+ (nonnull NSData *)dataWithHeaders:(nullable GTM_NSDictionaryOf(NSString *, NSString *) *)headers;
++ (nonnull NSData *)dataWithHeaders:(nullable NSDictionary<NSString *, NSString *> *)headers;
 
 #pragma mark - Methods for Parsing a MIME Document
 
@@ -99,9 +81,9 @@
 //
 // Returns an array of GTMMIMEDocumentParts.  Returns nil if no part can
 // be found.
-+ (nullable GTM_NSArrayOf(GTMMIMEDocumentPart *) *)
-    MIMEPartsWithBoundary:(nonnull NSString *)boundary
-                     data:(nonnull NSData *)fullDocumentData;
++ (nullable NSArray<GTMMIMEDocumentPart *> *)MIMEPartsWithBoundary:(nonnull NSString *)boundary
+                                                              data:(nonnull NSData *)
+                                                                       fullDocumentData;
 
 // Utility method for efficiently searching possibly discontiguous NSData
 // for occurrences of target byte. This method does not "flatten" an NSData
@@ -112,10 +94,10 @@
 + (void)searchData:(nonnull NSData *)data
        targetBytes:(const void *_Nonnull)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(GTM_NSArrayOf(NSNumber *) *_Nullable *_Nonnull)outFoundOffsets;
+      foundOffsets:(NSArray<NSNumber *> *_Nullable *_Nonnull)outFoundOffsets;
 
 // Utility method to parse header bytes into an NSDictionary.
-+ (nullable GTM_NSDictionaryOf(NSString *, NSString *) *)headersWithData:(nonnull NSData *)data;
++ (nullable NSDictionary<NSString *, NSString *> *)headersWithData:(nonnull NSData *)data;
 
 // ------ UNIT TESTING ONLY BELOW ------
 
@@ -131,7 +113,7 @@
 + (void)searchData:(nonnull NSData *)data
           targetBytes:(const void *_Nonnull)targetBytes
          targetLength:(NSUInteger)targetLength
-         foundOffsets:(GTM_NSArrayOf(NSNumber *) *_Nullable *_Nonnull)outFoundOffsets
-    foundBlockNumbers:(GTM_NSArrayOf(NSNumber *) *_Nullable *_Nonnull)outFoundBlockNumbers;
+         foundOffsets:(NSArray<NSNumber *> *_Nullable *_Nonnull)outFoundOffsets
+    foundBlockNumbers:(NSArray<NSNumber *> *_Nullable *_Nonnull)outFoundBlockNumbers;
 
 @end

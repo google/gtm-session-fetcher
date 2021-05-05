@@ -4244,7 +4244,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (void)getCookiesForTask:(NSURLSessionTask *)task
-        completionHandler:(void (^)(GTM_NSArrayOf(NSHTTPCookie *) *))completionHandler {
+        completionHandler:(void (^)(NSArray<NSHTTPCookie *> *))completionHandler {
   if (completionHandler) {
     NSURLRequest *currentRequest = task.currentRequest;
     NSURL *currentRequestURL = currentRequest.URL;

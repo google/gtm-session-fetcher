@@ -330,24 +330,6 @@
 #define GTM_LOG_SESSION_DELEGATE(...)
 #endif
 
-#ifndef GTM_DECLARE_GENERICS
-#if __has_feature(objc_generics)
-#define GTM_DECLARE_GENERICS 1
-#else
-#define GTM_DECLARE_GENERICS 0
-#endif
-#endif
-
-#ifndef GTM_NSArrayOf
-#if GTM_DECLARE_GENERICS
-#define GTM_NSArrayOf(value) NSArray<value>
-#define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
-#else
-#define GTM_NSArrayOf(value) NSArray
-#define GTM_NSDictionaryOf(key, value) NSDictionary
-#endif  // __has_feature(objc_generics)
-#endif  // GTM_NSArrayOf
-
 // For iOS, the fetcher can declare itself a background task to allow fetches
 // to finish when the app leaves the foreground.
 //
@@ -726,7 +708,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 // Returns an array of currently active fetchers for background sessions,
 // both restarted and newly created ones.
-+ (GTM_NSArrayOf(GTMSessionFetcher *) *)fetchersForBackgroundSessions;
++ (NSArray<GTMSessionFetcher *> *)fetchersForBackgroundSessions;
 
 // Designated initializer.
 //
@@ -792,7 +774,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // Additional user-supplied data to encode into the session identifier. Since session identifier
 // length limits are unspecified, this should be kept small. Key names beginning with an underscore
 // are reserved for use by the fetcher.
-@property(atomic, strong, nullable) GTM_NSDictionaryOf(NSString *, NSString *) *sessionUserInfo;
+@property(atomic, strong, nullable) NSDictionary<NSString *, NSString *> *sessionUserInfo;
 
 // The human-readable description to be assigned to the task.
 @property(atomic, copy, nullable) NSString *taskDescription;
@@ -804,7 +786,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // The fetcher encodes information used to resume a session in the session identifier.
 // This method, intended for internal use returns the encoded information.  The sessionUserInfo
 // dictionary is stored as identifier metadata.
-- (nullable GTM_NSDictionaryOf(NSString *, NSString *) *)sessionIdentifierMetadata;
+- (nullable NSDictionary<NSString *, NSString *> *)sessionIdentifierMetadata;
 
 #if TARGET_OS_IPHONE && !TARGET_OS_WATCH
 // The app should pass to this method the completion handler passed in the app delegate method
@@ -862,7 +844,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 //
 // For builds with the iOS 9/OS X 10.11 and later SDKs, this property is required only when
 // the app specifies NSAppTransportSecurity/NSAllowsArbitraryLoads in the main bundle's Info.plist.
-@property(atomic, copy, nullable) GTM_NSArrayOf(NSString *) *allowedInsecureSchemes;
+@property(atomic, copy, nullable) NSArray<NSString *> *allowedInsecureSchemes;
 
 // By default, the fetcher prohibits localhost requests unless this property is set,
 // or the GTM_ALLOW_INSECURE_REQUESTS build flag is set.
@@ -1075,8 +1057,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @property(atomic, readonly) NSInteger statusCode;
 
 // Return the http headers from the response.
-@property(atomic, strong, readonly, nullable) GTM_NSDictionaryOf(NSString *, NSString *) *
-    responseHeaders;
+@property(atomic, strong, readonly, nullable) NSDictionary<NSString *, NSString *> *responseHeaders;
 
 // The response, once it's been received.
 @property(atomic, strong, readonly, nullable) NSURLResponse *response;
@@ -1101,13 +1082,13 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @property(atomic, strong, nullable) id userData;
 
 // Stored property values are retained solely for the convenience of the client.
-@property(atomic, copy, nullable) GTM_NSDictionaryOf(NSString *, id) *properties;
+@property(atomic, copy, nullable) NSDictionary<NSString *, id> *properties;
 
 - (void)setProperty:(nullable id)obj
              forKey:(NSString *)key;  // Pass nil for obj to remove the property.
 - (nullable id)propertyForKey:(NSString *)key;
 
-- (void)addPropertiesFromDictionary:(GTM_NSDictionaryOf(NSString *, id) *)dict;
+- (void)addPropertiesFromDictionary:(NSDictionary<NSString *, id> *)dict;
 
 // Comments are useful for logging, so are strongly recommended for each fetcher.
 @property(atomic, copy, nullable) NSString *comment;
@@ -1232,7 +1213,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 // Add the array off cookies to the storage, replacing duplicates.
 // Also removes expired cookies from the storage.
-- (void)setCookies:(nullable GTM_NSArrayOf(NSHTTPCookie *) *)cookies;
+- (void)setCookies:(nullable NSArray<NSHTTPCookie *> *)cookies;
 
 - (void)removeAllCookies;
 
