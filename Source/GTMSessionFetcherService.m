@@ -173,7 +173,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   fetcher.retryBlock = self.retryBlock;
   fetcher.maxRetryInterval = self.maxRetryInterval;
   fetcher.minRetryInterval = self.minRetryInterval;
-  if (@available(iOS 10.0, macOS 10.12, tvOS 10.0, watchOS 3.0, *)) {
+  if (@available(iOS 10.0, *)) {
     fetcher.metricsCollectionBlock = self.metricsCollectionBlock;
   }
   fetcher.properties = self.properties;

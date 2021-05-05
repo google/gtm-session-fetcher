@@ -247,7 +247,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(fetcher.downloadProgressBlock);
   XCTAssertNil(fetcher.willCacheURLResponseBlock);
   XCTAssertNil(fetcher.retryBlock);
-  if (@available(iOS 10.0, macOS 10.12, tvOS 10.0, watchOS 3.0, *)) {
+  if (@available(iOS 10.0, *)) {
     XCTAssertNil(fetcher.metricsCollectionBlock);
   }
   XCTAssertNil(fetcher.testBlock);
