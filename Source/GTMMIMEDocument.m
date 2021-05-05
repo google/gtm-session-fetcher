@@ -470,7 +470,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 + (void)searchData:(NSData *)data
        targetBytes:(const void *)targetBytes
       targetLength:(NSUInteger)targetLength
-      foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets {
+      foundOffsets:(NSArray<NSNumber *> **)outFoundOffsets {
   NSMutableArray *foundOffsets = [NSMutableArray array];
   SearchDataForBytes(data, targetBytes, targetLength, foundOffsets, NULL);
   *outFoundOffsets = foundOffsets;
@@ -482,8 +482,8 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 + (void)searchData:(NSData *)data
           targetBytes:(const void *)targetBytes
          targetLength:(NSUInteger)targetLength
-         foundOffsets:(GTM_NSArrayOf(NSNumber *) **)outFoundOffsets
-    foundBlockNumbers:(GTM_NSArrayOf(NSNumber *) **)outFoundBlockNumbers {
+         foundOffsets:(NSArray<NSNumber *> **)outFoundOffsets
+    foundBlockNumbers:(NSArray<NSNumber *> **)outFoundBlockNumbers {
   NSMutableArray *foundOffsets = [NSMutableArray array];
   NSMutableArray *foundBlockNumbers = [NSMutableArray array];
 
