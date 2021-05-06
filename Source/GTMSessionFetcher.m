@@ -4030,36 +4030,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
 @end
 
-@implementation GTMSessionFetcher (BackwardsCompatibilityOnly)
-
-- (void)setCookieStorageMethod:(NSInteger)method {
-  // For backwards compatibility with the old fetcher, we'll support the old constants.
-  //
-  // Clients using the GTMSessionFetcher class should set the cookie storage explicitly
-  // themselves.
-  NSHTTPCookieStorage *storage = nil;
-  switch (method) {
-    case 0:  // kGTMHTTPFetcherCookieStorageMethodStatic
-             // nil storage will use [[self class] staticCookieStorage] when the fetch begins.
-      break;
-    case 1:  // kGTMHTTPFetcherCookieStorageMethodFetchHistory
-             // Do nothing; use whatever was set by the fetcher service.
-      return;
-    case 2:  // kGTMHTTPFetcherCookieStorageMethodSystemDefault
-      storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
-      break;
-    case 3:  // kGTMHTTPFetcherCookieStorageMethodNone
-             // Create temporary storage for this fetcher only.
-      storage = [[GTMSessionCookieStorage alloc] init];
-      break;
-    default:
-      GTMSESSION_ASSERT_DEBUG(0, @"Invalid cookie storage method: %d", (int)method);
-  }
-  self.cookieStorage = storage;
-}
-
-@end
-
 @implementation GTMSessionCookieStorage {
   NSMutableArray *_cookies;
   NSHTTPCookieAcceptPolicy _policy;
