@@ -53,7 +53,7 @@
 @class GTMReadMonitorInputStream;
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
-@interface GTMSessionFetcher (GTMHTTPFetcherLoggingUtilities)
+@interface GTMSessionFetcher (GTMSessionFetcherLoggingUtilities)
 
 + (NSString *)headersStringForDictionary:(NSDictionary *)dict;
 + (NSString *)snipSubstringOfString:(NSString *)originalStr
