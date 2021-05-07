@@ -330,6 +330,43 @@
 #define GTM_LOG_SESSION_DELEGATE(...)
 #endif
 
+// These will be removed in the near future, folks should move off of them.
+#ifndef GTM_NULLABLE
+#if __has_feature(nullability)  // Available starting in Xcode 6.3
+#define GTM_NULLABLE_TYPE __nullable
+#define GTM_NONNULL_TYPE __nonnull
+#define GTM_NULLABLE nullable
+#define GTM_NONNULL_DECL nonnull  // GTM_NONNULL is used by GTMDefines.h
+#define GTM_NULL_RESETTABLE null_resettable
+#define GTM_ASSUME_NONNULL_BEGIN NS_ASSUME_NONNULL_BEGIN
+#define GTM_ASSUME_NONNULL_END NS_ASSUME_NONNULL_END
+#else
+#define GTM_NULLABLE_TYPE
+#define GTM_NONNULL_TYPE
+#define GTM_NULLABLE
+#define GTM_NONNULL_DECL
+#define GTM_NULL_RESETTABLE
+#define GTM_ASSUME_NONNULL_BEGIN
+#define GTM_ASSUME_NONNULL_END
+#endif  // __has_feature(nullability)
+#endif  // GTM_NULLABLE
+#ifndef GTM_DECLARE_GENERICS
+#if __has_feature(objc_generics)
+#define GTM_DECLARE_GENERICS 1
+#else
+#define GTM_DECLARE_GENERICS 0
+#endif
+#endif
+#ifndef GTM_NSArrayOf
+#if GTM_DECLARE_GENERICS
+#define GTM_NSArrayOf(value) NSArray<value>
+#define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
+#else
+#define GTM_NSArrayOf(value) NSArray
+#define GTM_NSDictionaryOf(key, value) NSDictionary
+#endif  // __has_feature(objc_generics)
+#endif  // GTM_NSArrayOf
+
 // For iOS, the fetcher can declare itself a background task to allow fetches
 // to finish when the app leaves the foreground.
 //
