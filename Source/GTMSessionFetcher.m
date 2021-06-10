@@ -134,6 +134,13 @@ NS_ASSUME_NONNULL_END
 #define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 0
 #endif
 
+#if __has_attribute(swift_async)
+// Once Clang 13/Xcode 13 can be assumed, can switch to NS_SWIFT_DISABLE_ASYNC.
+#define GTM_SWIFT_DISABLE_ASYNC __attribute__((swift_async(none)))
+#else
+#define GTM_SWIFT_DISABLE_ASYNC
+#endif
+
 @interface GTMSessionFetcher ()
 
 @property(atomic, strong, readwrite, nullable) NSData *downloadedData;
@@ -1411,8 +1418,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 #if TARGET_OS_IPHONE && !TARGET_OS_WATCH
 + (void)application:(UIApplication *)application
     handleEventsForBackgroundURLSession:(NSString *)identifier
-                      completionHandler:
-                          (GTMSessionFetcherSystemCompletionHandler)completionHandler {
+                      completionHandler:(GTMSessionFetcherSystemCompletionHandler)completionHandler
+    GTM_SWIFT_DISABLE_ASYNC {
   GTMSessionFetcher *fetcher = [self fetcherWithSessionIdentifier:identifier];
   if (fetcher != nil) {
     fetcher.systemCompletionHandler = completionHandler;
@@ -2663,7 +2670,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)URLSession:(NSURLSession *)session
              dataTask:(NSURLSessionDataTask *)dataTask
     willCacheResponse:(NSCachedURLResponse *)proposedResponse
-    completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler {
+    completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
+    GTM_SWIFT_DISABLE_ASYNC {
   GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ willCacheResponse:%@ %@", [self class],
                            self, session, dataTask, proposedResponse, proposedResponse.response);
   GTMSessionFetcherWillCacheURLResponseBlock callback;
