@@ -1343,7 +1343,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         ![requestURL.host isEqual:responseURL.host] || ![requestURL.port isEqual:responseURL.port],
         @"did not receive redirect");
 
-    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherStatusDomain);
+    XCTAssertEqualObjects(error.domain, kGTMBridgeFetcherStatusDomain);
     XCTAssertEqual(error.code, 302, @"expect HTTP 302 status code error when cancelling redirect.");
 
     // Cookies should have been set by the response; specifically, TestCookie
