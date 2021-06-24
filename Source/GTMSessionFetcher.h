@@ -384,8 +384,8 @@ extern "C" {
 #endif
 
 #if !defined(GTMBridgeFetcher)
-// The bridge macros are deprecated, and should be replaced; GTMHTTPFetcher is no longer supperted
-// and all code should switch to use GTMSessionFetcher types directly.
+// The bridge macros are deprecated, and should be replaced; GTMHTTPFetcher is no longer
+// supported and all code should switch to use GTMSessionFetcher types directly.
 #define GTMBridgeFetcher GTMSessionFetcher
 #define GTMBridgeFetcherService GTMSessionFetcherService
 #define GTMBridgeFetcherServiceProtocol GTMSessionFetcherServiceProtocol
