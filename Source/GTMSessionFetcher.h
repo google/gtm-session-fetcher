@@ -1203,7 +1203,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @interface GTMSessionFetcher (BackwardsCompatibilityOnly)
 // Clients using GTMSessionFetcher should set the cookie storage explicitly themselves;
 // this method is deprecated and will be removed soon.
-- (void)setCookieStorageMethod:(NSInteger)method __deprecated_msg("Create an NSHTTPCookieStorage and set .cookieStorage directly.");
+- (void)setCookieStorageMethod:(NSInteger)method
+    __deprecated_msg("Create an NSHTTPCookieStorage and set .cookieStorage directly.");
 @end
 
 // Until we can just instantiate NSHTTPCookieStorage for local use, we'll
