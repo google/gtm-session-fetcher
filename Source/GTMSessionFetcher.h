@@ -179,9 +179,8 @@
 // Note: cookies set while following redirects will be sent to the server, as
 // the redirects are followed by the fetcher.
 //
-// To completely disable cookies, similar to setting cookieStorageMethod to
-// kGTMHTTPFetcherCookieStorageMethodNone, adjust the session configuration
-// appropriately in the fetcher or fetcher service:
+// To completely disable cookies, adjust the session configuration appropriately
+// in the fetcher or fetcher service:
 //  fetcher.configurationBlock = ^(GTMSessionFetcher *configFetcher,
 //                                 NSURLSessionConfiguration *config) {
 //    config.HTTPCookieAcceptPolicy = NSHTTPCookieAcceptPolicyNever;
@@ -384,20 +383,9 @@
 extern "C" {
 #endif
 
-#if (TARGET_OS_TV || TARGET_OS_WATCH ||                          \
-     (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) &&    \
-      MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) || \
-     (TARGET_OS_IPHONE && defined(__IPHONE_9_0) &&               \
-      __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
-#ifndef GTM_USE_SESSION_FETCHER
-#define GTM_USE_SESSION_FETCHER 1
-#endif
-#endif
-
 #if !defined(GTMBridgeFetcher)
-// These bridge macros should be identical in GTMHTTPFetcher.h and GTMSessionFetcher.h
-#if GTM_USE_SESSION_FETCHER
-// Macros to new fetcher class.
+// The bridge macros are deprecated, and should be replaced; GTMHTTPFetcher is no longer
+// supported and all code should switch to use GTMSessionFetcher types directly.
 #define GTMBridgeFetcher GTMSessionFetcher
 #define GTMBridgeFetcherService GTMSessionFetcherService
 #define GTMBridgeFetcherServiceProtocol GTMSessionFetcherServiceProtocol
@@ -408,19 +396,6 @@ extern "C" {
 #define GTMBridgeApplicationIdentifier GTMFetcherApplicationIdentifier
 #define kGTMBridgeFetcherStatusDomain kGTMSessionFetcherStatusDomain
 #define kGTMBridgeFetcherStatusBadRequest GTMSessionFetcherStatusBadRequest
-#else
-// Macros to old fetcher class.
-#define GTMBridgeFetcher GTMHTTPFetcher
-#define GTMBridgeFetcherService GTMHTTPFetcherService
-#define GTMBridgeFetcherServiceProtocol GTMHTTPFetcherServiceProtocol
-#define GTMBridgeAssertValidSelector GTMAssertSelectorNilOrImplementedWithArgs
-#define GTMBridgeCookieStorage GTMCookieStorage
-#define GTMBridgeCleanedUserAgentString GTMCleanedUserAgentString
-#define GTMBridgeSystemVersionString GTMSystemVersionString
-#define GTMBridgeApplicationIdentifier GTMApplicationIdentifier
-#define kGTMBridgeFetcherStatusDomain kGTMHTTPFetcherStatusDomain
-#define kGTMBridgeFetcherStatusBadRequest kGTMHTTPFetcherStatusBadRequest
-#endif  // GTM_USE_SESSION_FETCHER
 #endif
 
 // When creating background sessions to perform out-of-process uploads and
@@ -633,10 +608,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }  // extern "C"
 #endif
 
-#if !GTM_USE_SESSION_FETCHER
-@protocol GTMHTTPFetcherServiceProtocol;
-#endif
-
 // This protocol allows abstract references to the fetcher service, primarily for
 // fetchers (which may be compiled without the fetcher service class present.)
 //
@@ -661,7 +632,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (nullable id<NSURLSessionDelegate>)sessionDelegate;
 - (nullable NSDate *)stoppedAllFetchersDate;
 
-// Methods for compatibility with the old GTMHTTPFetcher.
 @property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
 
 @end  // @protocol GTMSessionFetcherServiceProtocol
@@ -699,11 +669,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (void)authorizeRequest:(nullable NSMutableURLRequest *)request
        completionHandler:(void (^)(NSError *_Nullable error))handler;
 
-#if GTM_USE_SESSION_FETCHER
 @property(atomic, weak, nullable) id<GTMSessionFetcherServiceProtocol> fetcherService;
-#else
-@property(atomic, weak, nullable) id<GTMHTTPFetcherServiceProtocol> fetcherService;
-#endif
 
 - (BOOL)primeForRefresh;
 
@@ -1235,9 +1201,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @end
 
 @interface GTMSessionFetcher (BackwardsCompatibilityOnly)
-// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves.
-// This method is just for compatibility with the old GTMHTTPFetcher class.
-- (void)setCookieStorageMethod:(NSInteger)method;
+// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves;
+// this method is deprecated and will be removed soon.
+- (void)setCookieStorageMethod:(NSInteger)method
+    __deprecated_msg("Create an NSHTTPCookieStorage and set .cookieStorage directly.");
 @end
 
 // Until we can just instantiate NSHTTPCookieStorage for local use, we'll
