@@ -375,7 +375,8 @@
 // To disallow use of background tasks during fetches, the target should define
 // GTM_BACKGROUND_TASK_FETCHING to 0, or alternatively may set the
 // skipBackgroundTask property to YES.
-#if TARGET_OS_IPHONE && !TARGET_OS_WATCH && !defined(GTM_BACKGROUND_TASK_FETCHING)
+#if (TARGET_OS_IOS || TARGET_OS_TV || TARGET_OS_MACCATALYST) && \
+    !defined(GTM_BACKGROUND_TASK_FETCHING)
 #define GTM_BACKGROUND_TASK_FETCHING 1
 #endif
 
