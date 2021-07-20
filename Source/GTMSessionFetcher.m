@@ -3776,11 +3776,14 @@ static dispatch_queue_t CreateSerialCallbackQueueFromCallbackQueue(dispatch_queu
         initWithFormat:@"GTMSessionFetcher serial queue targeting `%s`", callbackQueueLabel];
   }
 
+#if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
   dispatch_queue_t serialCallbackQueue =
       dispatch_queue_create(serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL);
-  // TODO: Use `dispatch_queue_create_with_target` after deployment target has been raised to
-  // iOS 10+.
   dispatch_set_target_queue(serialCallbackQueue, callbackQueue);
+#else
+  dispatch_queue_t serialCallbackQueue = dispatch_queue_create_with_target(
+      serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL, callbackQueue);
+#endif
 
   return serialCallbackQueue;
 }
