@@ -158,7 +158,7 @@ static NSString *const kEtag = @"GoodETag";
   self = [super init];
   if (self) {
     if (docRoot == nil) {
-      NSLog(@"Failed to supply docRoot to GTMHTTPFetcherTestServer");
+      NSLog(@"Failed to supply docRoot to GTMSessionFetcherTestServer");
       return nil;
     }
     _server = [GTMHTTPServer startedServerWithDelegate:self];
@@ -169,7 +169,7 @@ static NSString *const kEtag = @"GoodETag";
     _docRoot = [docRoot copy];
     _uploadBytesExpected = -1;
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Started GTMHTTPFetcherTestServer for docRoot='%@'", _docRoot);
+    NSLog(@"Started GTMSessionFetcherTestServer for docRoot='%@'", _docRoot);
 #endif
   }
   return self;
@@ -661,7 +661,7 @@ static NSString *const kEtag = @"GoodETag";
 - (void)stopServers {
   if (_server) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Stopped GTMHTTPFetcherTestServer on port %d (docRoot='%@')", _server.port, _docRoot);
+    NSLog(@"Stopped GTMSessionFetcherTestServer on port %d (docRoot='%@')", _server.port, _docRoot);
 #endif
     _server = nil;
   }

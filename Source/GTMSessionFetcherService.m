@@ -191,9 +191,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
   fetcher.properties = self.properties;
   fetcher.service = self;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   if (self.cookieStorageMethod >= 0) {
     [fetcher setCookieStorageMethod:self.cookieStorageMethod];
   }
+#pragma clang diagnostic pop
 
 #if GTM_BACKGROUND_TASK_FETCHING
   fetcher.skipBackgroundTask = self.skipBackgroundTask;
@@ -788,11 +791,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   // Use the fetcher service for the authorization fetches if the auth
   // object supports fetcher services
   if ([obj respondsToSelector:@selector(setFetcherService:)]) {
-#if GTM_USE_SESSION_FETCHER
     [obj setFetcherService:self];
-#else
-    [obj setFetcherService:(id)self];
-#endif
   }
 }
 

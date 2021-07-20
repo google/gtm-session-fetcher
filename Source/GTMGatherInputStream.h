@@ -24,6 +24,19 @@
 
 #import <Foundation/Foundation.h>
 
+// These will be removed in the near future, folks should move off of them.
+#ifndef GTM_NONNULL
+#if defined(__has_attribute)
+#if __has_attribute(nonnull)
+#define GTM_NONNULL(x) __attribute__((nonnull x))
+#else
+#define GTM_NONNULL(x)
+#endif
+#else
+#define GTM_NONNULL(x)
+#endif
+#endif
+
 // Avoid multiple declaration of this class.
 //
 // Note: This should match the declaration of GTMGatherInputStream in GTMMIMEDocument.m

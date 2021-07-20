@@ -22,6 +22,36 @@
 
 #import <Foundation/Foundation.h>
 
+// These will be removed in the near future, folks should move off of them.
+#ifndef GTM_NONNULL
+#if defined(__has_attribute)
+#if __has_attribute(nonnull)
+#define GTM_NONNULL(x) __attribute__((nonnull x))
+#else
+#define GTM_NONNULL(x)
+#endif
+#else
+#define GTM_NONNULL(x)
+#endif
+#endif
+#ifndef GTM_DECLARE_GENERICS
+#if __has_feature(objc_generics)
+#define GTM_DECLARE_GENERICS 1
+#else
+#define GTM_DECLARE_GENERICS 0
+#endif
+#endif
+#ifndef GTM_NSArrayOf
+#if GTM_DECLARE_GENERICS
+#define GTM_NSArrayOf(value) NSArray<value>
+#define GTM_NSDictionaryOf(key, value) NSDictionary<key, value>
+#else
+#define GTM_NSArrayOf(value) NSArray
+#define GTM_NSDictionaryOf(key, value) NSDictionary
+#endif  // GTM_DECLARE_GENERICS
+#endif  // GTM_NSArrayOf
+
+
 // GTMMIMEDocumentPart represents a part of a MIME document.
 //
 // +[GTMMIMEDocument MIMEPartsWithBoundary:data:] returns an array of these.

@@ -191,9 +191,10 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 @interface GTMSessionFetcherService (BackwardsCompatibilityOnly)
 
-// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves.
-// This method is just for compatibility with the old fetcher.
-@property(atomic, assign) NSInteger cookieStorageMethod;
+// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves;
+// this property is deprecated and will be removed soon.
+@property(atomic, assign) NSInteger cookieStorageMethod __deprecated_msg(
+    "Create an NSHTTPCookieStorage and set .cookieStorage directly.");
 
 @end
 

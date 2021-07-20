@@ -2,7 +2,7 @@
 # to import GTMSessionFetcher via the CocoaPods dependency Manager.
 Pod::Spec.new do |s|
   s.name        = 'GTMSessionFetcher'
-  s.version     = '1.5.0'
+  s.version     = '1.6.1'
   s.authors     = 'Google Inc.'
   s.license     = { :type => 'Apache', :file => 'LICENSE' }
   s.homepage    = 'https://github.com/google/gtm-session-fetcher'
@@ -18,9 +18,9 @@ Pod::Spec.new do |s|
   DESC
 
   s.ios.deployment_target = '9.0'
-  s.osx.deployment_target = '10.9'
-  s.tvos.deployment_target = '9.0'
-  s.watchos.deployment_target = '2.0'
+  s.osx.deployment_target = '10.12'
+  s.tvos.deployment_target = '10.0'
+  s.watchos.deployment_target = '6.0'
 
   s.default_subspec = 'Full'
 
