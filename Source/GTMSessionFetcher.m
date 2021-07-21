@@ -229,7 +229,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                            // released)
   id _userData;            // retained, if set by caller
   NSMutableDictionary *_properties;  // more data retained for caller
-  dispatch_queue_t _callbackQueue;
+  dispatch_queue_t _callbackQueue;   // the target of _serialCallbackQueue
+  dispatch_queue_t _serialCallbackQueue;
   dispatch_group_t _callbackGroup;   // read-only after creation
   NSOperationQueue *_delegateQueue;  // immutable after beginFetch
 
@@ -1785,20 +1786,24 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   // the blocks being released may call back into the fetcher or fetcher
   // service.
   dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
+  dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdSerialCallbackQueue;
   GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     holdCallbackQueue = _callbackQueue;
+    holdSerialCallbackQueue = _serialCallbackQueue;
     holdCompletionHandler = _completionHandler;
 
     _callbackQueue = nil;
+    _serialCallbackQueue = nil;
     _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   }
 
   // Set local callback pointers to nil here rather than let them release at the end of the scope
   // to make any problems due to the blocks being released be a bit more obvious in a stack trace.
   holdCallbackQueue = nil;
+  holdSerialCallbackQueue = nil;
   holdCompletionHandler = nil;
 
   self.configurationBlock = nil;
@@ -1898,11 +1903,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
           void (^resumeBlock)(NSData *) = _resumeDataBlock;
           _resumeDataBlock = nil;
 
-          // Save callbackQueue since releaseCallbacks clears it.
-          dispatch_queue_t callbackQueue = _callbackQueue;
+          // Save serialCallbackQueue since releaseCallbacks clears it.
+          dispatch_queue_t serialCallbackQueue = [self serialCallbackQueueUnsynchronized];
           dispatch_group_enter(_callbackGroup);
           [(NSURLSessionDownloadTask *)oldTask cancelByProducingResumeData:^(NSData *resumeData) {
-            [self invokeOnCallbackQueue:callbackQueue
+            [self invokeOnCallbackQueue:serialCallbackQueue
                        afterUserStopped:YES
                                   block:^{
                                     resumeBlock(resumeData);
@@ -2461,7 +2466,9 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)invokeOnCallbackUnsynchronizedQueueAfterUserStopped:(BOOL)afterStopped
                                                       block:(void (^)(void))block {
   // testBlock simulation code may not be synchronizing when this is invoked.
-  [self invokeOnCallbackQueue:_callbackQueue afterUserStopped:afterStopped block:block];
+  [self invokeOnCallbackQueue:[self serialCallbackQueueUnsynchronized]
+             afterUserStopped:afterStopped
+                        block:block];
 }
 
 - (void)invokeOnCallbackQueue:(dispatch_queue_t)callbackQueue
@@ -3497,7 +3504,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             allowLocalhostRequest = _allowLocalhostRequest,
             allowInvalidServerCertificates = _allowInvalidServerCertificates,
             cookieStorage = _cookieStorage,
-            callbackQueue = _callbackQueue,
             initialBeginFetchDate = _initialBeginFetchDate,
             testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
@@ -3728,8 +3734,58 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+    GTMSESSION_ASSERT_DEBUG(![self isFetchingUnsynchronized],
+                            @"callbackQueue should not change after beginFetch has been invoked");
+
     _callbackQueue = queue ?: dispatch_get_main_queue();
+    _serialCallbackQueue = nil;
   }  // @synchronized(self)
+}
+
+/**
+ * The serial queue to which callbacks should be dispatched.
+ *
+ * Callbacks need to be dispatched serially. For example, the accumulate data block should never be
+ * run after the completion handler. Serial dispatch is guaranteed by dispatching to an intermediate
+ * serial queue that targets the actual callback queue (which may or may not be serial).
+ */
+- (nonnull dispatch_queue_t)serialCallbackQueue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return [self serialCallbackQueueUnsynchronized];
+  }  // @synchronized(self)
+}
+
+- (nonnull dispatch_queue_t)serialCallbackQueueUnsynchronized {
+  GTMSessionCheckSynchronized(self);
+
+  if (!_serialCallbackQueue) {
+    _serialCallbackQueue = CreateSerialCallbackQueueFromCallbackQueue(_callbackQueue);
+  }
+  return _serialCallbackQueue;
+}
+
+static dispatch_queue_t CreateSerialCallbackQueueFromCallbackQueue(dispatch_queue_t callbackQueue) {
+  const char *callbackQueueLabel = dispatch_queue_get_label(callbackQueue);
+  NSString *serialCallbackQueueLabel;
+  if (callbackQueueLabel[0] == '\0') {
+    serialCallbackQueueLabel = @"GTMSessionFetcher serial queue targeting callback queue";
+  } else {
+    serialCallbackQueueLabel = [[NSString alloc]
+        initWithFormat:@"GTMSessionFetcher serial queue targeting `%s`", callbackQueueLabel];
+  }
+
+#if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
+  dispatch_queue_t serialCallbackQueue =
+      dispatch_queue_create(serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL);
+  dispatch_set_target_queue(serialCallbackQueue, callbackQueue);
+#else
+  dispatch_queue_t serialCallbackQueue = dispatch_queue_create_with_target(
+      serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL, callbackQueue);
+#endif
+
+  return serialCallbackQueue;
 }
 
 - (nullable NSURLSession *)session {

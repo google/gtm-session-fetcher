@@ -1102,6 +1102,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @property(atomic, copy, nullable) NSString *log;
 
 // Callbacks are run on this queue.  If none is supplied, the main queue is used.
+//
+// This may not be changed once beginFetch has been invoked.
 @property(atomic, strong, null_resettable) dispatch_queue_t callbackQueue;
 
 // The queue used internally by the session to invoke its delegate methods in the fetcher.
