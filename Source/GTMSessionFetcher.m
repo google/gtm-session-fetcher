@@ -3761,28 +3761,30 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   GTMSessionCheckSynchronized(self);
 
   if (!_serialCallbackQueue) {
-    _serialCallbackQueue = CreateSerialCallbackQueueFromCallbackQueue(_callbackQueue);
+    _serialCallbackQueue = CreateSerialCallbackQueueWithTargetQueue(_callbackQueue);
   }
   return _serialCallbackQueue;
 }
 
-static dispatch_queue_t CreateSerialCallbackQueueFromCallbackQueue(dispatch_queue_t callbackQueue) {
-  const char *callbackQueueLabel = dispatch_queue_get_label(callbackQueue);
-  NSString *serialCallbackQueueLabel;
-  if (callbackQueueLabel[0] == '\0') {
-    serialCallbackQueueLabel = @"GTMSessionFetcher serial queue targeting callback queue";
-  } else {
-    serialCallbackQueueLabel = [[NSString alloc]
-        initWithFormat:@"GTMSessionFetcher serial queue targeting `%s`", callbackQueueLabel];
+static dispatch_queue_t CreateSerialCallbackQueueWithTargetQueue(
+    dispatch_queue_t _Nonnull targetQueue) {
+  NSString *queueLabel = @"com.google.GTMSessionFetcher.serialCallbackQueue";
+  if (targetQueue != dispatch_get_main_queue()) {
+    // For anything other than the main queue, append the target queue's label (if one exists) to
+    // provide clarity when viewing app behavior in the debugger.
+    const char *targetQueueLabel = dispatch_queue_get_label(targetQueue);
+    if (targetQueueLabel && targetQueueLabel[0] != '\0') {
+      queueLabel = [queueLabel stringByAppendingFormat:@".%s", targetQueueLabel];
+    }
   }
 
 #if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
   dispatch_queue_t serialCallbackQueue =
-      dispatch_queue_create(serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL);
-  dispatch_set_target_queue(serialCallbackQueue, callbackQueue);
+      dispatch_queue_create(queueLabel.UTF8String, DISPATCH_QUEUE_SERIAL);
+  dispatch_set_target_queue(serialCallbackQueue, targetQueue);
 #else
-  dispatch_queue_t serialCallbackQueue = dispatch_queue_create_with_target(
-      serialCallbackQueueLabel.UTF8String, DISPATCH_QUEUE_SERIAL, callbackQueue);
+  dispatch_queue_t serialCallbackQueue =
+      dispatch_queue_create_with_target(queueLabel.UTF8String, DISPATCH_QUEUE_SERIAL, targetQueue);
 #endif
 
   return serialCallbackQueue;
