@@ -3761,21 +3761,25 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   GTMSessionCheckSynchronized(self);
 
   if (!_serialCallbackQueue) {
-    _serialCallbackQueue = CreateSerialCallbackQueueWithTargetQueue(_callbackQueue);
+    _serialCallbackQueue = SerialCallbackQueueForTargetQueue(_callbackQueue);
   }
   return _serialCallbackQueue;
 }
 
-static dispatch_queue_t CreateSerialCallbackQueueWithTargetQueue(
+static dispatch_queue_t SerialCallbackQueueForTargetQueue(
     dispatch_queue_t _Nonnull targetQueue) {
+  // Do not wrap the main queue; it's a known serial queue and the default, so avoiding creating
+  // too many queues.
+  if (targetQueue == dispatch_get_main_queue()) {
+    return targetQueue;
+  }
+
   NSString *queueLabel = @"com.google.GTMSessionFetcher.serialCallbackQueue";
-  if (targetQueue != dispatch_get_main_queue()) {
-    // For anything other than the main queue, append the target queue's label (if one exists) to
-    // provide clarity when viewing app behavior in the debugger.
-    const char *targetQueueLabel = dispatch_queue_get_label(targetQueue);
-    if (targetQueueLabel && targetQueueLabel[0] != '\0') {
-      queueLabel = [queueLabel stringByAppendingFormat:@".%s", targetQueueLabel];
-    }
+  // For anything other than the main queue, append the target queue's label (if one exists) to
+  // provide clarity when viewing app behavior in the debugger.
+  const char *targetQueueLabel = dispatch_queue_get_label(targetQueue);
+  if (targetQueueLabel && targetQueueLabel[0] != '\0') {
+    queueLabel = [queueLabel stringByAppendingFormat:@".%s", targetQueueLabel];
   }
 
 #if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
