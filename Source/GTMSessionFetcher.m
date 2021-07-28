@@ -3765,18 +3765,28 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   GTMSessionCheckSynchronized(self);
 
   if (!_internalCallbackQueue) {
-    // If the fetcher was provided blocks for passive sequential callbacks (not ones where the
-    // system waits for a response, such as the response callback), create a serial queue wrapper
-    // targeting the client-provided callback queue.
-    bool hasSerialCallbacks = self.accumulateDataBlock || self.sendProgressBlock ||
-                              self.receivedProgressBlock || self.downloadProgressBlock;
-    if (hasSerialCallbacks) {
+    if (ShouldWrapCallbackQueueForFetcher(_callbackQueue, self)) {
       _internalCallbackQueue = SerialCallbackQueueForTargetQueue(_callbackQueue);
     } else {
       _internalCallbackQueue = _callbackQueue;
     }
   }
   return _internalCallbackQueue;
+}
+
+static BOOL ShouldWrapCallbackQueueForFetcher(dispatch_queue_t queue, GTMSessionFetcher *fetcher) {
+  // The main queue is already serial, and does not need to be wrapped in a separate serial queue.
+  if (queue == dispatch_get_main_queue()) return NO;
+  // If the client provided blocks for passive sequential callbacks that have an expected ordering,
+  // e.g. progress blocks, these can reasonably be expected to arrive in sequential order. However,
+  // if the client provided a concurrent queue the blocks may be processed out-of-order, leading
+  // to potential data corruption.
+  bool hasSerialCallbacks = fetcher.accumulateDataBlock || fetcher.sendProgressBlock ||
+                            fetcher.receivedProgressBlock || fetcher.downloadProgressBlock ||
+                            fetcher.resumeDataBlock;
+  if (hasSerialCallbacks) return YES;
+
+  return NO;
 }
 
 static dispatch_queue_t SerialCallbackQueueForTargetQueue(
