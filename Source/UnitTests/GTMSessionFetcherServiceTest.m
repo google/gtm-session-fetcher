@@ -44,6 +44,46 @@
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
                     timeout:5.0];
 
+NSDictionary<NSString *, NSString *> *FetcherHeadersWithoutUserAgent(GTMSessionFetcher *fetcher) {
+  NSMutableDictionary<NSString *,NSString *> *headers = [fetcher.request.allHTTPHeaderFields mutableCopy];
+  [headers removeObjectForKey:@"User-Agent"];
+  return headers;
+}
+
+typedef NSDictionary<NSString *, NSString *> *(^HeaderDecoratorBlock)(NSURLRequest *);
+
+@interface GTMSessionFetcherTestHeaderDecorator : NSObject<GTMSessionFetcherHeaderDecorator>
+
+@property(nonatomic, readonly) HeaderDecoratorBlock block;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd;
+- (instancetype)initWithDecoratorBlock:(HeaderDecoratorBlock)block NS_DESIGNATED_INITIALIZER;
+
+@end
+
+@implementation GTMSessionFetcherTestHeaderDecorator
+
+@synthesize block = _block;
+
+- (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd {
+  return [self initWithDecoratorBlock:^(__unused NSURLRequest *request) { return headersToAdd; }];
+}
+
+- (instancetype)initWithDecoratorBlock:(HeaderDecoratorBlock)block {
+  self = [super init];
+  if (self) {
+    _block = block;
+  }
+  return self;
+}
+
+- (nullable NSDictionary<NSString *, NSString *> *)additionalHeadersForRequest:(NSURLRequest *)request {
+  return _block(request);
+}
+
+@end
+
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
 @end
@@ -819,6 +859,146 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:10 handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+}
+
+- (void)testEmptyHeaderDecorator {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+}
+
+- (void)testSingleHeaderDecorator {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar", @"baz": @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"bar", @"baz": @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testSingleHeaderDecoratorWithDifferentHeadersForEachRequest {
+  __block int i = 0;
+  GTMSessionFetcherTestHeaderDecorator *decorator =
+      [[GTMSessionFetcherTestHeaderDecorator alloc] initWithDecoratorBlock:^(__unused NSURLRequest *request) {
+          return @{@"foo": [NSString stringWithFormat:@"%d", i++]};
+        }];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcherA = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"0"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherA), expectedHeaders);
+
+  GTMSessionFetcher *fetcherB = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  expectedHeaders = @{@"foo": @"1"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherB), expectedHeaders);
+
+  GTMSessionFetcher *fetcherC = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  expectedHeaders = @{@"foo": @"2"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherC), expectedHeaders);
+}
+
+- (void)testRemoveSingleHeaderDecorator {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar", @"baz": @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  [service removeHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+}
+
+- (void)testSingleHeaderDecoratorWeakReferenceReleasedBeforeFetcherCreated {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  {
+    // Reference should be released after this block exits.
+    NS_VALID_UNTIL_END_OF_SCOPE GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar", @"baz": @"blech"}];
+    [service addHeaderDecorator:decorator];
+  }
+
+  // The header decorator should no longer add its headers after this point.
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+}
+
+- (void)testSingleHeaderDecoratorUserAgent {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"User-Agent": @"My User Agent"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"User-Agent": @"My User Agent"};
+  XCTAssertEqualObjects(fetcher.request.allHTTPHeaderFields, expectedHeaders);
+}
+
+- (void)testMultipleHeaderDecoratorsDifferentFields {
+  GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar"}];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"baz": @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decoratorA];
+  [service addHeaderDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"bar", @"baz": @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testMultipleHeaderDecoratorsOneRemoved {
+  GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar"}];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"baz": @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decoratorA];
+  [service addHeaderDecorator:decoratorB];
+  [service removeHeaderDecorator:decoratorA];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"baz": @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testMultipleHeaderDecoratorsOneWeakReferenceReleased {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"baz": @"blech"}];
+  {
+    // Reference should be released after this block exits.
+    NS_VALID_UNTIL_END_OF_SCOPE GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar"}];
+    [service addHeaderDecorator:decoratorA];
+    [service addHeaderDecorator:decoratorB];
+  }
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"baz": @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testMultipleHeaderDecoratorsSameFields {
+  GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar", @"baz": @"blech"}];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"quux", @"baz": @"xyzzy"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decoratorA];
+  [service addHeaderDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"quux", @"baz": @"xyzzy"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testMultipleHeaderDecoratorsSomeFieldsSame {
+  GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo": @"bar", @"baz": @"blech"}];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"baz": @"xyzzy", @"quux": @"corge"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decoratorA];
+  [service addHeaderDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"bar", @"baz": @"xyzzy", @"quux": @"corge"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
 - (void)testDelegateDispatcherForFetcher {

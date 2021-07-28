@@ -136,6 +136,8 @@
 // Alternative HTTP methods, like PUT, and custom headers can be specified by
 // creating the fetcher with an appropriate NSMutableURLRequest.
 //
+// Custom headers can also be provided per-request via an instance of
+// GTMSessionFetcherHeaderDecorator passed to -[GTMSessionFetcherService addHeaderDecorator:].
 //
 // Caching:
 //

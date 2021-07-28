@@ -35,6 +35,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
 
+// Ordered collection of id<GTMSessionFetcherHeaderDecorator>, held weakly.
+@property(atomic, strong, readonly) NSPointerArray *headerDecorators;
+
 @end
 
 // Since NSURLSession doesn't support a separate delegate per task (!), instances of this
@@ -122,6 +125,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             metricsCollectionBlock = _metricsCollectionBlock,
             properties = _properties,
             unusedSessionTimeout = _unusedSessionTimeout,
+            headerDecorators = _headerDecorators,
             testBlock = _testBlock;
 // clang-format on
 
@@ -156,6 +160,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
     _userAgent = GTMFetcherStandardUserAgentString(nil);
 #endif
+
+    _headerDecorators = [NSPointerArray weakObjectsPointerArray];
   }
   return self;
 }
@@ -202,12 +208,13 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   fetcher.skipBackgroundTask = self.skipBackgroundTask;
 #endif
 
+  [self decorateHeadersForRequest:request fetcher:fetcher];
+
   NSString *userAgent = self.userAgent;
-  if (userAgent.length > 0 && [request valueForHTTPHeaderField:@"User-Agent"] == nil) {
+  if (userAgent.length > 0 && [fetcher.request valueForHTTPHeaderField:@"User-Agent"] == nil) {
     [fetcher setRequestValue:userAgent forHTTPHeaderField:@"User-Agent"];
   }
   fetcher.testBlock = self.testBlock;
-
   return fetcher;
 }
 
@@ -222,6 +229,54 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)requestURLString {
   NSURL *url = [NSURL URLWithString:requestURLString];
   return [self fetcherWithURL:url];
+}
+
+- (void)addHeaderDecorator:(id<GTMSessionFetcherHeaderDecorator>)decorator {
+  @synchronized(self) {
+    [_headerDecorators addPointer:(__bridge void *)decorator];
+  }
+}
+
+- (void)removeHeaderDecorator:(id<GTMSessionFetcherHeaderDecorator>)decorator {
+  @synchronized(self) {
+    NSUInteger i = 0;
+    for (id<GTMSessionFetcherHeaderDecorator> headerDecorator in _headerDecorators) {
+      if (headerDecorator == decorator) {
+        break;
+      }
+      ++i;
+    }
+    GTMSESSION_ASSERT_DEBUG(i < _headerDecorators.count, @"header decorator %@ must be passed to -addHeaderDecorator: before removing", decorator);
+    if (i < _headerDecorators.count) {
+      [_headerDecorators removePointerAtIndex:i];
+    }
+  }
+}
+
+- (void)decorateHeadersForRequest:(NSURLRequest *)request
+                          fetcher:(GTMSessionFetcher *)fetcher {
+  @synchronized(self) {
+    BOOL needsCompact = NO;
+    for (id<GTMSessionFetcherHeaderDecorator> headerDecorator in _headerDecorators) {
+      if (!headerDecorator) {
+        // The last reference to a weakly-held header decorator was released.  Explicitly compact
+        // the array after this is finished.
+        needsCompact = YES;
+        continue;
+      }
+      NSDictionary<NSString *, NSString *> *_Nullable headers = [headerDecorator additionalHeadersForRequest:request];
+      for (NSString *headerName in headers) {
+        NSString *headerValue = headers[headerName];
+        [fetcher setRequestValue:headerValue forHTTPHeaderField:headerName];
+      }
+    }
+    if (needsCompact) {
+      // Work around http://www.openradar.me/15396578 by explicitly adding `NULL` pointer value
+      // first, then compacting.
+      [_headerDecorators addPointer:NULL];
+      [_headerDecorators compact];
+    }
+  }
 }
 
 // Returns a session for the fetcher's host, or nil.
