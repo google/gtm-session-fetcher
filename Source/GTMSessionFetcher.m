@@ -229,8 +229,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                            // released)
   id _userData;            // retained, if set by caller
   NSMutableDictionary *_properties;  // more data retained for caller
-  dispatch_queue_t _callbackQueue;   // the target of _serialCallbackQueue
-  dispatch_queue_t _serialCallbackQueue;
+  dispatch_queue_t _callbackQueue;   // the target of _internalCallbackQueue
+  dispatch_queue_t _internalCallbackQueue;
   dispatch_group_t _callbackGroup;   // read-only after creation
   NSOperationQueue *_delegateQueue;  // immutable after beginFetch
 
@@ -528,6 +528,9 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     // This ivar is set only here on the initial beginFetch so need not be synchronized.
     _initialBeginFetchDate = [[NSDate alloc] init];
   }
+
+  // Lock in the internal callback queue the first time beginFetch is called.
+  (void)[self internalCallbackQueue];
 
   if (self.sessionTask != nil) {
     // If cached fetcher returned through fetcherWithSessionIdentifier:, then it's
@@ -1786,24 +1789,24 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   // the blocks being released may call back into the fetcher or fetcher
   // service.
   dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
-  dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdSerialCallbackQueue;
+  dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdInternalCallbackQueue;
   GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     holdCallbackQueue = _callbackQueue;
-    holdSerialCallbackQueue = _serialCallbackQueue;
+    holdInternalCallbackQueue = _internalCallbackQueue;
     holdCompletionHandler = _completionHandler;
 
     _callbackQueue = nil;
-    _serialCallbackQueue = nil;
+    _internalCallbackQueue = nil;
     _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
   }
 
   // Set local callback pointers to nil here rather than let them release at the end of the scope
   // to make any problems due to the blocks being released be a bit more obvious in a stack trace.
   holdCallbackQueue = nil;
-  holdSerialCallbackQueue = nil;
+  holdInternalCallbackQueue = nil;
   holdCompletionHandler = nil;
 
   self.configurationBlock = nil;
@@ -1903,11 +1906,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
           void (^resumeBlock)(NSData *) = _resumeDataBlock;
           _resumeDataBlock = nil;
 
-          // Save serialCallbackQueue since releaseCallbacks clears it.
-          dispatch_queue_t serialCallbackQueue = [self serialCallbackQueueUnsynchronized];
+          // Save internalCallbackQueue since releaseCallbacks clears it.
+          dispatch_queue_t internalCallbackQueue = [self internalCallbackQueueUnsynchronized];
           dispatch_group_enter(_callbackGroup);
           [(NSURLSessionDownloadTask *)oldTask cancelByProducingResumeData:^(NSData *resumeData) {
-            [self invokeOnCallbackQueue:serialCallbackQueue
+            [self invokeOnCallbackQueue:internalCallbackQueue
                        afterUserStopped:YES
                                   block:^{
                                     resumeBlock(resumeData);
@@ -2466,7 +2469,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)invokeOnCallbackUnsynchronizedQueueAfterUserStopped:(BOOL)afterStopped
                                                       block:(void (^)(void))block {
   // testBlock simulation code may not be synchronizing when this is invoked.
-  [self invokeOnCallbackQueue:[self serialCallbackQueueUnsynchronized]
+  [self invokeOnCallbackQueue:[self internalCallbackQueueUnsynchronized]
              afterUserStopped:afterStopped
                         block:block];
 }
@@ -3738,7 +3741,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
                             @"callbackQueue should not change after beginFetch has been invoked");
 
     _callbackQueue = queue ?: dispatch_get_main_queue();
-    _serialCallbackQueue = nil;
+    // The internal callback queue cannot be changed once fetching has begun.
+    if (!_initialBeginFetchDate) _internalCallbackQueue = nil;
   }  // @synchronized(self)
 }
 
@@ -3749,21 +3753,40 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
  * run after the completion handler. Serial dispatch is guaranteed by dispatching to an intermediate
  * serial queue that targets the actual callback queue (which may or may not be serial).
  */
-- (nonnull dispatch_queue_t)serialCallbackQueue {
+- (nonnull dispatch_queue_t)internalCallbackQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    return [self serialCallbackQueueUnsynchronized];
+    return [self internalCallbackQueueUnsynchronized];
   }  // @synchronized(self)
 }
 
-- (nonnull dispatch_queue_t)serialCallbackQueueUnsynchronized {
+- (nonnull dispatch_queue_t)internalCallbackQueueUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
-  if (!_serialCallbackQueue) {
-    _serialCallbackQueue = SerialCallbackQueueForTargetQueue(_callbackQueue);
+  if (!_internalCallbackQueue) {
+    if (ShouldWrapCallbackQueueForFetcher(_callbackQueue, self)) {
+      _internalCallbackQueue = SerialCallbackQueueForTargetQueue(_callbackQueue);
+    } else {
+      _internalCallbackQueue = _callbackQueue;
+    }
   }
-  return _serialCallbackQueue;
+  return _internalCallbackQueue;
+}
+
+static BOOL ShouldWrapCallbackQueueForFetcher(dispatch_queue_t queue, GTMSessionFetcher *fetcher) {
+  // The main queue is already serial, and does not need to be wrapped in a separate serial queue.
+  if (queue == dispatch_get_main_queue()) return NO;
+  // If the client provided blocks for passive sequential callbacks that have an expected ordering,
+  // e.g. progress blocks, these can reasonably be expected to arrive in sequential order. However,
+  // if the client provided a concurrent queue the blocks may be processed out-of-order, leading
+  // to potential data corruption.
+  bool hasSerialCallbacks = fetcher.accumulateDataBlock || fetcher.sendProgressBlock ||
+                            fetcher.receivedProgressBlock || fetcher.downloadProgressBlock ||
+                            fetcher.resumeDataBlock;
+  if (hasSerialCallbacks) return YES;
+
+  return NO;
 }
 
 static dispatch_queue_t SerialCallbackQueueForTargetQueue(
@@ -3774,7 +3797,7 @@ static dispatch_queue_t SerialCallbackQueueForTargetQueue(
     return targetQueue;
   }
 
-  NSString *queueLabel = @"com.google.GTMSessionFetcher.serialCallbackQueue";
+  NSString *queueLabel = @"com.google.GTMSessionFetcher.internalCallbackQueue";
   // For anything other than the main queue, append the target queue's label (if one exists) to
   // provide clarity when viewing app behavior in the debugger.
   const char *targetQueueLabel = dispatch_queue_get_label(targetQueue);
@@ -3783,15 +3806,15 @@ static dispatch_queue_t SerialCallbackQueueForTargetQueue(
   }
 
 #if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
-  dispatch_queue_t serialCallbackQueue =
+  dispatch_queue_t internalCallbackQueue =
       dispatch_queue_create(queueLabel.UTF8String, DISPATCH_QUEUE_SERIAL);
-  dispatch_set_target_queue(serialCallbackQueue, targetQueue);
+  dispatch_set_target_queue(internalCallbackQueue, targetQueue);
 #else
-  dispatch_queue_t serialCallbackQueue =
+  dispatch_queue_t internalCallbackQueue =
       dispatch_queue_create_with_target(queueLabel.UTF8String, DISPATCH_QUEUE_SERIAL, targetQueue);
 #endif
 
-  return serialCallbackQueue;
+  return internalCallbackQueue;
 }
 
 - (nullable NSURLSession *)session {
