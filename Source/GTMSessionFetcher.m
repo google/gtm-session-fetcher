@@ -194,6 +194,17 @@ static NSDictionary *_Nullable GTMErrorUserInfoForData(NSData *_Nullable data,
   return userInfo.count > 0 ? userInfo : nil;
 }
 
+static NSInteger TestBlockStatusFromErrorOrResponse(NSError *_Nullable error,
+                                                    NSURLResponse *_Nullable response) {
+  if (error) {
+    return error.code;
+  }
+  if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
+    return [(NSHTTPURLResponse *)response statusCode];
+  }
+  return 200;
+}
+
 static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
 @implementation GTMSessionFetcher {
@@ -466,7 +477,13 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 // are already provided, and do not need to be copied.
 - (void)beginFetchForRetry {
   GTMSessionCheckNotSynchronized(self);
-
+  NSURLRequest *request = self.request;
+  if (request) {
+    NSURLRequest *newRequest = [_service decoratedRequestForRetry:request];
+    if (newRequest) {
+      [self updateMutableRequest:[newRequest mutableCopy]];
+    }
+  }
   [self beginFetchMayDelay:YES mayAuthorize:YES];
 }
 
@@ -499,8 +516,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   [self beginFetchWithCompletionHandler:handler];
 }
 
-- (void)beginFetchMayDelay:(BOOL)mayDelay
-              mayAuthorize:(BOOL)mayAuthorize {
+- (void)beginFetchMayDelay:(BOOL)mayDelay mayAuthorize:(BOOL)mayAuthorize {
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
@@ -1126,6 +1142,14 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
     }
 
+    NSInteger status = TestBlockStatusFromErrorOrResponse(responseError, response);
+    if (status >= 300 && status <= 399) {
+      NSURLRequest *newRequest = [_service decoratedRequestForRedirect:self->_request];
+      if (newRequest) {
+        _request = [newRequest mutableCopy];
+      }
+    }
+
     // If the fetcher has a challenge block, simulate a challenge.
     //
     // It might be nice to eventually let the user determine which testBlock
@@ -1251,7 +1275,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [queue addOperationWithBlock:^{
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
-    NSInteger status = responseError ? responseError.code : 200;
+    NSInteger status = TestBlockStatusFromErrorOrResponse(responseError, response);
     if (status >= 200 && status <= 399) {
       [self finishWithError:nil shouldRetry:NO];
     } else {
@@ -2150,6 +2174,11 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     // Log the response we just received
     [self setResponse:redirectResponse];
     [self logNowWithError:nil];
+
+    NSURLRequest *newRedirectRequest = [_service decoratedRequestForRedirect:redirectRequest];
+    if (newRedirectRequest) {
+      redirectRequest = newRedirectRequest;
+    }
 
     GTMSessionFetcherWillRedirectBlock willRedirectBlock = self.willRedirectBlock;
     if (willRedirectBlock) {

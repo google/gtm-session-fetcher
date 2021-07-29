@@ -44,15 +44,16 @@
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
                     timeout:5.0];
 
-NSDictionary<NSString *, NSString *> *FetcherHeadersWithoutUserAgent(GTMSessionFetcher *fetcher) {
+static NSDictionary<NSString *, NSString *> *FetcherHeadersWithoutUserAgent(GTMSessionFetcher *fetcher) {
   NSMutableDictionary<NSString *,NSString *> *headers = [fetcher.request.allHTTPHeaderFields mutableCopy];
   [headers removeObjectForKey:@"User-Agent"];
   return headers;
 }
 
-typedef NSDictionary<NSString *, NSString *> *(^HeaderDecoratorBlock)(NSURLRequest *);
+typedef NSDictionary<NSString *, NSString *> * (^HeaderDecoratorBlock)(
+    NSURLRequest *, GTMSessionFetcherHeaderDecoratorPhase phase);
 
-@interface GTMSessionFetcherTestHeaderDecorator : NSObject<GTMSessionFetcherHeaderDecorator>
+@interface GTMSessionFetcherTestHeaderDecorator : NSObject <GTMSessionFetcherHeaderDecorator>
 
 @property(nonatomic, readonly) HeaderDecoratorBlock block;
 
@@ -67,7 +68,10 @@ typedef NSDictionary<NSString *, NSString *> *(^HeaderDecoratorBlock)(NSURLReque
 @synthesize block = _block;
 
 - (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd {
-  return [self initWithDecoratorBlock:^(__unused NSURLRequest *request) { return headersToAdd; }];
+  return [self initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                                        __unused GTMSessionFetcherHeaderDecoratorPhase phase) {
+    return headersToAdd;
+  }];
 }
 
 - (instancetype)initWithDecoratorBlock:(HeaderDecoratorBlock)block {
@@ -78,8 +82,10 @@ typedef NSDictionary<NSString *, NSString *> *(^HeaderDecoratorBlock)(NSURLReque
   return self;
 }
 
-- (nullable NSDictionary<NSString *, NSString *> *)additionalHeadersForRequest:(NSURLRequest *)request {
-  return _block(request);
+- (nullable NSDictionary<NSString *, NSString *> *)
+    additionalHeadersForRequest:(NSURLRequest *)request
+                          phase:(GTMSessionFetcherHeaderDecoratorPhase)phase {
+  return _block(request, phase);
 }
 
 @end
@@ -882,23 +888,24 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
 - (void)testSingleHeaderDecoratorWithDifferentHeadersForEachRequest {
   __block int i = 0;
-  GTMSessionFetcherTestHeaderDecorator *decorator =
-      [[GTMSessionFetcherTestHeaderDecorator alloc] initWithDecoratorBlock:^(__unused NSURLRequest *request) {
-          return @{@"foo": [NSString stringWithFormat:@"%d", i++]};
-        }];
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                               __unused GTMSessionFetcherHeaderDecoratorPhase phase) {
+        return @{@"foo" : [NSString stringWithFormat:@"%d", i++]};
+      }];
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addHeaderDecorator:decorator];
   GTMSessionFetcher *fetcherA = [service fetcherWithURLString:@"https://www.html5zombo.com"];
-  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"0"};
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"0"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherA), expectedHeaders);
 
   GTMSessionFetcher *fetcherB = [service fetcherWithURLString:@"https://www.html5zombo.com"];
-  expectedHeaders = @{@"foo": @"1"};
+  expectedHeaders = @{@"foo" : @"1"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherB), expectedHeaders);
 
   GTMSessionFetcher *fetcherC = [service fetcherWithURLString:@"https://www.html5zombo.com"];
-  expectedHeaders = @{@"foo": @"2"};
+  expectedHeaders = @{@"foo" : @"2"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherC), expectedHeaders);
 }
 
@@ -999,6 +1006,165 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo": @"bar", @"baz": @"xyzzy", @"quux": @"corge"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testSingleHeaderDecoratorRedirect {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                               GTMSessionFetcherHeaderDecoratorPhase phase) {
+        if (phase != GTMSessionFetcherHeaderDecoratorPhaseRedirect) {
+          return @{};
+        }
+        return @{@"foo" : @"bar"};
+      }];
+  NSURL *url = [NSURL URLWithString:@"http://www.html5zombo.com"];
+  XCTAssertNotNil(url);
+  NSHTTPURLResponse *redirectResponse = [[NSHTTPURLResponse alloc] initWithURL:url
+                                                                    statusCode:302
+                                                                   HTTPVersion:@"HTTP/1.1"
+                                                                  headerFields:@{}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil
+                                                  fakedResponse:redirectResponse
+                                                     fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  // No headers should be added at creation time.
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Fetch should complete"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{@"foo" : @"bar"});
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:1 handler:nil];
+}
+
+- (void)testSingleHeaderDecoratorRedirectWithServer {
+  if (!_isServerRunning) {
+    XCTSkip(@"Test server not running");
+    return;
+  }
+  [_testServer setRedirectEnabled:YES];
+  if (![_testServer isRedirectEnabled]) {
+    XCTSkip(@"redirectServer failed to start");
+    return;
+  }
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                               GTMSessionFetcherHeaderDecoratorPhase phase) {
+        if (phase != GTMSessionFetcherHeaderDecoratorPhaseRedirect) {
+          return @{};
+        }
+        return @{@"foo" : @"bar"};
+      }];
+  NSURL *redirectURL = [_testServer localURLForFile:kValidFileName];
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:redirectURL];
+  XCTestExpectation *redirectExpectation =
+      [self expectationWithDescription:@"Redirect should complete"];
+  fetcher.willRedirectBlock =
+      ^(__unused NSHTTPURLResponse *redirectResponse, NSURLRequest *redirectRequest,
+        GTMSessionFetcherWillRedirectResponse response) {
+        response(redirectRequest);
+        [redirectExpectation fulfill];
+      };
+  // No headers should be added at creation time.
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Fetch should complete"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(fetcher.request.allHTTPHeaderFields[@"foo"], @"bar");
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:1 handler:nil];
+}
+
+- (void)testSingleHeaderDecoratorRetry {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                               GTMSessionFetcherHeaderDecoratorPhase phase) {
+        if (phase != GTMSessionFetcherHeaderDecoratorPhaseRetry) {
+          return @{};
+        }
+        return @{@"foo" : @"bar"};
+      }];
+  NSURL *url = [NSURL URLWithString:@"http://www.html5zombo.com"];
+  XCTAssertNotNil(url);
+  // Retry on HTTP error 502.
+  NSHTTPURLResponse *retryResponse = [[NSHTTPURLResponse alloc] initWithURL:url
+                                                                 statusCode:502
+                                                                HTTPVersion:@"HTTP/1.1"
+                                                               headerFields:@{}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil
+                                                  fakedResponse:retryResponse
+                                                     fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.retryEnabled = YES;
+  // The default is 60 seconds, which is too long for a test.
+  fetcher.maxRetryInterval = 0.003;
+  fetcher.minRetryInterval = 0.001;
+  // No headers should be added at creation time.
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Fetch should complete"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{@"foo" : @"bar"});
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:1 handler:nil];
+}
+
+- (void)testSingleHeaderDecoratorRetryWithServer {
+  if (!_isServerRunning) {
+    XCTSkip(@"Test server not running");
+    return;
+  }
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithDecoratorBlock:^(__unused NSURLRequest *request,
+                               GTMSessionFetcherHeaderDecoratorPhase phase) {
+        if (phase != GTMSessionFetcherHeaderDecoratorPhaseRetry) {
+          return @{};
+        }
+        return @{@"foo" : @"bar"};
+      }];
+  NSURLComponents *retryURLComponents =
+      [NSURLComponents componentsWithURL:[_testServer localURLForFile:kValidFileName]
+                 resolvingAgainstBaseURL:NO];
+  retryURLComponents.query = @"status=503";
+  NSURL *retryURL = retryURLComponents.URL;
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:retryURL];
+  fetcher.retryEnabled = YES;
+  // The default is 60 seconds, which is too long for a test.
+  fetcher.maxRetryInterval = 3;
+  fetcher.minRetryInterval = 0.001;
+  GTMSessionFetcher *__weak weakFetcher = fetcher;
+  fetcher.retryBlock = ^(__unused BOOL suggestedWillRetry, __unused NSError *error,
+                         GTMSessionFetcherRetryResponse response) {
+    BOOL shouldRetry;
+    if (!weakFetcher.retryCount) {
+      // Retry the first time.
+      shouldRetry = YES;
+    } else {
+      // Do not retry subsequent times.
+      shouldRetry = NO;
+    }
+    response(shouldRetry);
+  };
+
+  // No headers should be added at creation time.
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Fetch should complete"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(fetcher.request.allHTTPHeaderFields[@"foo"], @"bar");
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:1 handler:nil];
 }
 
 - (void)testDelegateDispatcherForFetcher {

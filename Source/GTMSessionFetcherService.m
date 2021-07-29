@@ -25,8 +25,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
-- (BOOL)beginFetchMayDelay:(BOOL)mayDelay
-              mayAuthorize:(BOOL)mayAuthorize;
+- (BOOL)beginFetchMayDelay:(BOOL)mayDelay mayAuthorize:(BOOL)mayAuthorize;
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
@@ -160,8 +159,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
     _userAgent = GTMFetcherStandardUserAgentString(nil);
 #endif
-
-    _headerDecorators = [NSPointerArray weakObjectsPointerArray];
   }
   return self;
 }
@@ -175,6 +172,12 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 // Clients may override this method. Clients should not override any other library methods.
 - (id)fetcherWithRequest:(NSURLRequest *)request fetcherClass:(Class)fetcherClass {
+  NSURLRequest *_Nullable decoratedRequest =
+      [self decorateHeadersForRequest:request phase:GTMSessionFetcherHeaderDecoratorPhaseCreation];
+  if (decoratedRequest) {
+    request = decoratedRequest;
+  }
+
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
                                                        configuration:self.configuration];
   fetcher.callbackQueue = self.callbackQueue;
@@ -208,8 +211,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   fetcher.skipBackgroundTask = self.skipBackgroundTask;
 #endif
 
-  [self decorateHeadersForRequest:request fetcher:fetcher];
-
   NSString *userAgent = self.userAgent;
   if (userAgent.length > 0 && [fetcher.request valueForHTTPHeaderField:@"User-Agent"] == nil) {
     [fetcher setRequestValue:userAgent forHTTPHeaderField:@"User-Agent"];
@@ -233,6 +234,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 - (void)addHeaderDecorator:(id<GTMSessionFetcherHeaderDecorator>)decorator {
   @synchronized(self) {
+    if (!_headerDecorators) {
+      _headerDecorators = [NSPointerArray weakObjectsPointerArray];
+    }
     [_headerDecorators addPointer:(__bridge void *)decorator];
   }
 }
@@ -253,30 +257,28 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
 }
 
-- (void)decorateHeadersForRequest:(NSURLRequest *)request
-                          fetcher:(GTMSessionFetcher *)fetcher {
+- (nullable NSURLRequest *)decorateHeadersForRequest:(NSURLRequest *)request
+                                               phase:(GTMSessionFetcherHeaderDecoratorPhase)phase {
+  NSArray<id<GTMSessionFetcherHeaderDecorator>> *headerDecorators;
   @synchronized(self) {
-    BOOL needsCompact = NO;
-    for (id<GTMSessionFetcherHeaderDecorator> headerDecorator in _headerDecorators) {
-      if (!headerDecorator) {
-        // The last reference to a weakly-held header decorator was released.  Explicitly compact
-        // the array after this is finished.
-        needsCompact = YES;
-        continue;
-      }
-      NSDictionary<NSString *, NSString *> *_Nullable headers = [headerDecorator additionalHeadersForRequest:request];
-      for (NSString *headerName in headers) {
-        NSString *headerValue = headers[headerName];
-        [fetcher setRequestValue:headerValue forHTTPHeaderField:headerName];
-      }
+    headerDecorators = _headerDecorators.allObjects;
+  }
+  NSMutableURLRequest *decoratedRequest = nil;
+  for (id<GTMSessionFetcherHeaderDecorator> headerDecorator in headerDecorators) {
+    NSDictionary<NSString *, NSString *> *_Nullable headers =
+        [headerDecorator additionalHeadersForRequest:request phase:phase];
+    if (!headers.count) {
+      continue;
     }
-    if (needsCompact) {
-      // Work around http://www.openradar.me/15396578 by explicitly adding `NULL` pointer value
-      // first, then compacting.
-      [_headerDecorators addPointer:NULL];
-      [_headerDecorators compact];
+    if (!decoratedRequest) {
+      decoratedRequest = [request mutableCopy];
+    }
+    for (NSString *headerName in headers) {
+      NSString *headerValue = headers[headerName];
+      [decoratedRequest setValue:headerValue forHTTPHeaderField:headerName];
     }
   }
+  return decoratedRequest;
 }
 
 // Returns a session for the fetcher's host, or nil.
@@ -424,6 +426,15 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 - (void)startFetcher:(GTMSessionFetcher *)fetcher {
   [fetcher beginFetchMayDelay:NO mayAuthorize:YES];
+}
+
+- (nullable NSURLRequest *)decoratedRequestForRedirect:(NSURLRequest *)request {
+  return [self decorateHeadersForRequest:request
+                                   phase:GTMSessionFetcherHeaderDecoratorPhaseRedirect];
+}
+
+- (nullable NSURLRequest *)decoratedRequestForRetry:(NSURLRequest *)request {
+  return [self decorateHeadersForRequest:request phase:GTMSessionFetcherHeaderDecoratorPhaseRetry];
 }
 
 // Internal utility. Returns a fetcher's delegate if it's a dispatcher, or nil if the fetcher

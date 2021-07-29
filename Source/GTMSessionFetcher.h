@@ -636,6 +636,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 @property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
 
+- (nullable NSURLRequest *)decoratedRequestForRedirect:(NSURLRequest *)request;
+- (nullable NSURLRequest *)decoratedRequestForRetry:(NSURLRequest *)request;
+
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
 #ifndef GTM_FETCHER_AUTHORIZATION_PROTOCOL
