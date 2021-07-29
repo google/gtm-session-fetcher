@@ -91,13 +91,7 @@ NS_ASSUME_NONNULL_END
 #endif
 
 #ifndef GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY
-#if (TARGET_OS_TV || TARGET_OS_WATCH ||                          \
-     (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) &&    \
-      MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) || \
-     (TARGET_OS_IPHONE && defined(__IPHONE_9_0) &&               \
-      __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0))
 #define GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY 1
-#endif
 #endif
 
 #if ((defined(TARGET_OS_MACCATALYST) && TARGET_OS_MACCATALYST) ||                                 \
@@ -2884,7 +2878,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)URLSession:(NSURLSession *)session
                           task:(NSURLSessionTask *)task
     didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics
-    API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+    API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
     GTMSessionFetcherMetricsCollectionBlock metricsCollectionBlock = _metricsCollectionBlock;
@@ -4511,17 +4505,6 @@ NSString *GTMFetcherSystemVersionString(void) {
 
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
-  // The Xcode 8 SDKs finally cleaned up this mess by providing TARGET_OS_OSX
-  // and TARGET_OS_IOS, but to build with older SDKs, those don't exist and
-  // instead one has to rely on TARGET_OS_MAC (which is true for iOS, watchOS,
-  // and tvOS) and TARGET_OS_IPHONE (which is true for iOS, watchOS, tvOS). So
-  // one has to order these carefully so you pick off the specific things
-  // first.
-  // If the code can ever assume Xcode 8 or higher (even when building for
-  // older OSes), then
-  //   TARGET_OS_MAC -> TARGET_OS_OSX
-  //   TARGET_OS_IPHONE -> TARGET_OS_IOS
-  //   TARGET_IPHONE_SIMULATOR -> TARGET_OS_SIMULATOR
 #if TARGET_OS_WATCH
     // watchOS - WKInterfaceDevice
 
@@ -4549,7 +4532,7 @@ NSString *GTMFetcherSystemVersionString(void) {
     sSavedSystemString =
         [[NSString alloc] initWithFormat:@"%@/%@ hw/%@", model, systemVersion, hardwareModel];
     // Example:  Apple_Watch/3.0 hw/Watch1_2
-#elif TARGET_OS_TV || TARGET_OS_IPHONE
+#elif TARGET_OS_TV || TARGET_OS_IOS
     // iOS and tvOS have UIDevice, use that.
     UIDevice *currentDevice = [UIDevice currentDevice];
 
@@ -4558,7 +4541,7 @@ NSString *GTMFetcherSystemVersionString(void) {
 
     NSString *systemVersion = [currentDevice systemVersion];
 
-#if TARGET_IPHONE_SIMULATOR || TARGET_OS_SIMULATOR
+#if TARGET_OS_SIMULATOR
     NSString *hardwareModel = @"sim";
 #else
     NSString *hardwareModel;
@@ -4576,43 +4559,13 @@ NSString *GTMFetcherSystemVersionString(void) {
                           model, systemVersion, hardwareModel];
     // Example:  iPod_Touch/2.2 hw/iPod1_1
     // Example:  Apple_TV/9.2 hw/AppleTV5,3
-#elif TARGET_OS_MAC
+#elif TARGET_OS_OSX
     // Mac build
     NSProcessInfo *procInfo = [NSProcessInfo processInfo];
-#if !defined(MAC_OS_X_VERSION_10_10)
-    BOOL hasOperatingSystemVersion = NO;
-#elif MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_10
-    BOOL hasOperatingSystemVersion =
-        [procInfo respondsToSelector:@selector(operatingSystemVersion)];
-#else
-    BOOL hasOperatingSystemVersion = YES;
-#endif
     NSString *versString;
-    if (hasOperatingSystemVersion) {
-#if defined(MAC_OS_X_VERSION_10_10)
-      // A reference to NSOperatingSystemVersion requires the 10.10 SDK.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunguarded-availability"
-// Disable unguarded availability warning as we can't use the @availability macro until we require
-// all clients to build with Xcode 9 or above.
-      NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
-#pragma clang diagnostic pop
-      versString = [NSString stringWithFormat:@"%ld.%ld.%ld",
-                    (long)version.majorVersion, (long)version.minorVersion,
-                    (long)version.patchVersion];
-#else
-#pragma unused(procInfo)
-#endif
-    } else {
-      // With Gestalt inexplicably deprecated in 10.8, we're reduced to reading
-      // the system plist file.
-      NSString *const kPath = @"/System/Library/CoreServices/SystemVersion.plist";
-      NSDictionary *plist = [NSDictionary dictionaryWithContentsOfFile:kPath];
-      versString = [plist objectForKey:@"ProductVersion"];
-      if (versString.length == 0) {
-        versString = @"10.?.?";
-      }
-    }
+    NSOperatingSystemVersion version = procInfo.operatingSystemVersion;
+    versString = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)version.majorVersion,
+                                            (long)version.minorVersion, (long)version.patchVersion];
 
     sSavedSystemString = [[NSString alloc] initWithFormat:@"MacOSX/%@", versString];
 #elif defined(_SYS_UTSNAME_H)

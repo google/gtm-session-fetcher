@@ -884,7 +884,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 - (void)testFetcherUsingMetricsCollectionBlockFromFetcherService API_AVAILABLE(ios(10.0),
                                                                                macosx(10.12),
                                                                                tvos(10.0),
-                                                                               watchos(3.0)) {
+                                                                               watchos(6.0)) {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);

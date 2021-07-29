@@ -67,7 +67,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, copy, nullable) NSDictionary<NSString *, id> *properties;
 @property(atomic, copy, nullable)
     GTMSessionFetcherMetricsCollectionBlock metricsCollectionBlock API_AVAILABLE(
-        ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0));
+        ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0));
 
 #if GTM_BACKGROUND_TASK_FETCHING
 @property(atomic, assign) BOOL skipBackgroundTask;

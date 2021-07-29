@@ -2054,7 +2054,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testCollectingMetrics_WithSuccessfulFetch API_AVAILABLE(ios(10.0), macosx(10.12),
-                                                                tvos(10.0), watchos(3.0)) {
+                                                                tvos(10.0), watchos(6.0)) {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2089,14 +2089,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testCollectingMetrics_WithSuccessfulFetch_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
   _fetcherService = nil;
   [self testCollectingMetrics_WithSuccessfulFetch];
 }
 
 - (void)testCollectingMetrics_WithWrongFetch_FaildToConnect API_AVAILABLE(ios(10.0), macosx(10.12),
                                                                           tvos(10.0),
-                                                                          watchos(3.0)) {
+                                                                          watchos(6.0)) {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2135,13 +2135,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testCollectingMetrics_WithWrongFetch_FaildToConnect_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
   _fetcherService = nil;
   [self testCollectingMetrics_WithWrongFetch_FaildToConnect];
 }
 
 - (void)testCollectingMetrics_WithWrongFetch_BadStatusCode API_AVAILABLE(ios(10.0), macosx(10.12),
-                                                                         tvos(10.0), watchos(3.0)) {
+                                                                         tvos(10.0), watchos(6.0)) {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2182,7 +2182,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testCollectingMetrics_WithWrongFetch_BadStatusCode_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
   _fetcherService = nil;
   [self testCollectingMetrics_WithWrongFetch_BadStatusCode];
 }

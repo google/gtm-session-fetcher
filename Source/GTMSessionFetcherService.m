@@ -151,11 +151,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     // Starting with the SDKs for OS X 10.11/iOS 9, the service has a default useragent.
     // Apps can remove this and get the default system "CFNetwork" useragent by setting the
     // fetcher service's userAgent property to nil.
-#if (!TARGET_OS_IPHONE && defined(MAC_OS_X_VERSION_10_11) &&    \
-     MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_11) || \
-    (TARGET_OS_IPHONE && defined(__IPHONE_9_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_9_0)
     _userAgent = GTMFetcherStandardUserAgentString(nil);
-#endif
   }
   return self;
 }
@@ -1262,7 +1258,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 - (void)URLSession:(NSURLSession *)session
                           task:(NSURLSessionTask *)task
     didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics
-    API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(3.0)) {
+    API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
   id<NSURLSessionTaskDelegate> fetcher = [self fetcherForTask:task];
   [fetcher URLSession:session task:task didFinishCollectingMetrics:metrics];
 }
