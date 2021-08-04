@@ -153,6 +153,9 @@ NS_ASSUME_NONNULL_END
 
 @property(atomic, readwrite, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
 
+// Ordered collection of id<GTMSessionFetcherHeaderDecorator>, held weakly.
+@property(atomic, strong, readonly) NSPointerArray *headerDecorators;
+
 @end
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
@@ -192,17 +195,6 @@ static NSDictionary *_Nullable GTMErrorUserInfoForData(NSData *_Nullable data,
   }
 
   return userInfo.count > 0 ? userInfo : nil;
-}
-
-static NSInteger TestBlockStatusFromErrorOrResponse(NSError *_Nullable error,
-                                                    NSURLResponse *_Nullable response) {
-  if (error) {
-    return error.code;
-  }
-  if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
-    return [(NSHTTPURLResponse *)response statusCode];
-  }
-  return 200;
 }
 
 static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
@@ -464,27 +456,19 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
 - (void)beginFetchWithCompletionHandler:(nullable GTMSessionFetcherCompletionHandler)handler {
   GTMSessionCheckNotSynchronized(self);
-
   _completionHandler = [handler copy];
 
   // The user may have called setDelegate: earlier if they want to use other
   // delegate-style callbacks during the fetch; otherwise, the delegate is nil,
   // which is fine.
-  [self beginFetchMayDelay:YES mayAuthorize:YES];
+  [self beginFetchMayDelay:YES mayAuthorize:YES mayDecorate:YES];
 }
 
 // Begin fetching the URL for a retry fetch. The delegate and completion handler
 // are already provided, and do not need to be copied.
 - (void)beginFetchForRetry {
   GTMSessionCheckNotSynchronized(self);
-  NSURLRequest *request = self.request;
-  if (request) {
-    NSURLRequest *newRequest = [_service decoratedRequestForRetry:request];
-    if (newRequest) {
-      [self updateMutableRequest:[newRequest mutableCopy]];
-    }
-  }
-  [self beginFetchMayDelay:YES mayAuthorize:YES];
+  [self beginFetchMayDelay:YES mayAuthorize:YES mayDecorate:YES];
 }
 
 - (GTMSessionFetcherCompletionHandler)completionHandlerWithTarget:(nullable id)target
@@ -516,7 +500,9 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   [self beginFetchWithCompletionHandler:handler];
 }
 
-- (void)beginFetchMayDelay:(BOOL)mayDelay mayAuthorize:(BOOL)mayAuthorize {
+- (void)beginFetchMayDelay:(BOOL)mayDelay
+              mayAuthorize:(BOOL)mayAuthorize
+               mayDecorate:(BOOL)mayDecorate {
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
@@ -835,6 +821,19 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
   }
 
+  if (mayDecorate && _headerDecorators.count) {
+    NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *headerDecorators;
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+      headerDecorators = self.headerDecorators.allObjects;
+    }
+    if (headerDecorators.count) {
+      [self decorateHeadersForRequest:fetchRequest
+                     headerDecorators:headerDecorators];
+      return;
+    }
+  }
+
   // set the default upload or download retry interval, if necessary
   if ([self isRetryEnabled] && self.maxRetryInterval <= 0) {
     if (isEffectiveHTTPGet || [effectiveHTTPMethod isEqual:@"HEAD"]) {
@@ -1142,14 +1141,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       [self invokeOnCallbackUnsynchronizedQueueAfterUserStopped:YES block:block];
     }
 
-    NSInteger status = TestBlockStatusFromErrorOrResponse(responseError, response);
-    if (status >= 300 && status <= 399) {
-      NSURLRequest *newRequest = [_service decoratedRequestForRedirect:self->_request];
-      if (newRequest) {
-        _request = [newRequest mutableCopy];
-      }
-    }
-
     // If the fetcher has a challenge block, simulate a challenge.
     //
     // It might be nice to eventually let the user determine which testBlock
@@ -1275,7 +1266,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [queue addOperationWithBlock:^{
     // Rather than invoke failToBeginFetchWithError: we want to simulate completion of
     // a connection that started and ended, so we'll call down to finishWithError:
-    NSInteger status = TestBlockStatusFromErrorOrResponse(responseError, response);
+    NSInteger status = responseError ? responseError.code : 200;
     if (status >= 200 && status <= 399) {
       [self finishWithError:nil shouldRetry:NO];
     } else {
@@ -1697,7 +1688,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
     // No authorizing possible, and authorizing happens only after any delay;
     // just begin fetching
-    [self beginFetchMayDelay:NO mayAuthorize:NO];
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
 }
 
@@ -1713,8 +1704,72 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     @synchronized(self) {
       _request = authorizedRequest;
     }
-    [self beginFetchMayDelay:NO mayAuthorize:NO];
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
+}
+
+- (void)decorateHeadersForRequest:(NSURLRequest *)fetchRequest
+                 headerDecorators:(NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *)headerDecorators {
+  GTMSessionCheckNotSynchronized(self);
+
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders start %zu decorators", headerDecorators.count);
+
+  dispatch_queue_t decorateCompletionQueue;
+  dispatch_group_t decorateCompletionGroup;
+  // Keep each header decorator's results in the order the header decorators were added, so if two
+  // decorators add the same header, the decorator added later will win.
+  __block NSMutableArray<NSDictionary<NSString *, NSString *> *> *decorateResults;
+  NSUInteger headerDecoratorsIndex = 0;
+  BOOL needsDecorate = NO;
+  for (id<GTMFetcherHeaderDecoratorProtocol> decorator in headerDecorators) {
+    if (![decorator shouldDecorateHeadersForRequest:fetchRequest]) {
+      ++headerDecoratorsIndex;
+      continue;
+    }
+    if (!needsDecorate) {
+      needsDecorate = YES;
+      decorateCompletionQueue = dispatch_queue_create("com.google.GTMFetcherHeaderDecorator", DISPATCH_QUEUE_SERIAL);
+      decorateCompletionGroup = dispatch_group_create();
+      decorateResults = [NSMutableArray arrayWithCapacity:headerDecorators.count];
+      for (NSUInteger decorateResultsIndex = 0; decorateResultsIndex < headerDecorators.count; ++decorateResultsIndex) {
+        decorateResults[decorateResultsIndex] = [NSDictionary dictionary];
+      }
+    }
+    NSUInteger decorateResultsIndex = headerDecoratorsIndex;
+    dispatch_group_enter(decorateCompletionGroup);
+    [decorator decorateHeadersForRequest:fetchRequest
+                       completionHandler:^(NSDictionary<NSString *, NSString *> *headers) {
+        dispatch_async(decorateCompletionQueue, ^{
+            decorateResults[decorateResultsIndex] = [headers copy];
+            dispatch_group_leave(decorateCompletionGroup);
+          });
+      }];
+    ++headerDecoratorsIndex;
+  }
+  if (!needsDecorate) {
+    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (not needed)");
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
+    return;
+  }
+
+  // If this session is held by the fetcher service, clear the session now so that we don't
+  // assume it's still valid after decoration completes.
+  if (self.canShareSession) {
+    self.session = nil;
+  }
+
+  dispatch_group_notify(decorateCompletionGroup, decorateCompletionQueue, ^{
+    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (%zu results)", decorateResults.count);
+    NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
+    for (NSDictionary<NSString *, NSString *> *decorateResult in decorateResults) {
+      for (NSString *headerName in decorateResult) {
+        NSString *headerValue = decorateResult[headerName];
+        [mutableRequest setValue:headerValue forHTTPHeaderField:headerName];
+      }
+    }
+    [self updateMutableRequest:mutableRequest];
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
+  });
 }
 
 - (BOOL)canFetchWithBackgroundSession {
@@ -2174,11 +2229,6 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     // Log the response we just received
     [self setResponse:redirectResponse];
     [self logNowWithError:nil];
-
-    NSURLRequest *newRedirectRequest = [_service decoratedRequestForRedirect:redirectRequest];
-    if (newRedirectRequest) {
-      redirectRequest = newRedirectRequest;
-    }
 
     GTMSessionFetcherWillRedirectBlock willRedirectBlock = self.willRedirectBlock;
     if (willRedirectBlock) {
@@ -3537,7 +3587,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
-            log = _log;
+            log = _log,
+            headerDecorators = _headerDecorators;
 
 #if !STRIP_GTM_FETCH_LOGGING
 @synthesize redirectedFromURL = _redirectedFromURL,
@@ -3593,6 +3644,33 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     [self updateRequestValue:value forHTTPHeaderField:field];
   } else {
     GTMSESSION_ASSERT_DEBUG(0, @"request may not be set after beginFetch has been invoked");
+  }
+}
+
+- (void)addHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    if (!_headerDecorators) {
+      _headerDecorators = [NSPointerArray weakObjectsPointerArray];
+    }
+    [_headerDecorators addPointer:(__bridge void *)decorator];
+  }
+}
+
+- (void)removeHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    NSUInteger i = 0;
+    for (id<GTMFetcherHeaderDecoratorProtocol> headerDecorator in _headerDecorators) {
+      if (headerDecorator == decorator) {
+        break;
+      }
+      ++i;
+    }
+    GTMSESSION_ASSERT_DEBUG(i < _headerDecorators.count, @"header decorator %@ must be passed to -addHeaderDecorator: before removing", decorator);
+    if (i < _headerDecorators.count) {
+      [_headerDecorators removePointerAtIndex:i];
+    }
   }
 }
 

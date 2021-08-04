@@ -24,33 +24,6 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-// Enumerates the different phases of the lifecycle of GTMSessionFetcher at which
-// a GTMSessionFetcherHeaderDecorator can optionally apply new HTTP headers.
-typedef NS_ENUM(NSInteger, GTMSessionFetcherHeaderDecoratorPhase) {
-  // Invoked when the GTMSessionFetcher is created.
-  GTMSessionFetcherHeaderDecoratorPhaseCreation = 1,
-  // Invoked when the GTMSessionFetcher encounters a redirect.
-  GTMSessionFetcherHeaderDecoratorPhaseRedirect = 2,
-  // Invoked when the GTMSessionFetcher retries a request.
-  GTMSessionFetcherHeaderDecoratorPhaseRetry = 3,
-};
-
-// Weakly-held decorator which can add HTTP header(s) to a request before it's sent out.  See
-// `-[GTMSessionFetcherService addHeaderDecorator:]` and `-[GTMSessionFetcherService
-// removeHeaderDecorator:]`.
-@protocol GTMSessionFetcherHeaderDecorator <NSObject>
-
-// Given a `request` at the specified `phase` of processing, returns an optional dictionary of
-// `{header_name: header_value, ...}` pairs to be added to the request.
-//
-// Similar to `-[NSURLSessionConfiguration HTTPAdditionalHeaders]`, but allows customizing HTTP
-// headers individually for *all* requests (not just the first request in a session).
-- (nullable NSDictionary<NSString *, NSString *> *)
-    additionalHeadersForRequest:(NSURLRequest *)request
-                          phase:(GTMSessionFetcherHeaderDecoratorPhase)phase;
-
-@end
-
 // Notifications.
 
 // This notification indicates a reusable session has become invalid. It is intended mainly for the
@@ -174,10 +147,10 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 // `-fetcherWithRequest:fetcherClass:`, each registered `decorator` can add HTTP header(s) to the
 // request before it starts.  If multiple decorators add the same header to a request, the most
 // recent decorator passed to this method wins.
-- (void)addHeaderDecorator:(id<GTMSessionFetcherHeaderDecorator>)decorator;
+- (void)addHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator;
 
 // Removes a `decorator` previously passed to `-removeHeaderDecorator:`.
-- (void)removeHeaderDecorator:(id<GTMSessionFetcherHeaderDecorator>)decorator;
+- (void)removeHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator;
 
 // Methods for use by the fetcher class only.
 - (nullable NSURLSession *)session;

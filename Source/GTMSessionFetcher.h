@@ -137,7 +137,7 @@
 // creating the fetcher with an appropriate NSMutableURLRequest.
 //
 // Custom headers can also be provided per-request via an instance of
-// GTMSessionFetcherHeaderDecorator passed to -[GTMSessionFetcherService addHeaderDecorator:].
+// `GTMFetcherHeaderDecoratorProtocol` passed to `-addHeaderDecorator:`.
 //
 // Caching:
 //
@@ -636,9 +636,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 @property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
 
-- (nullable NSURLRequest *)decoratedRequestForRedirect:(NSURLRequest *)request;
-- (nullable NSURLRequest *)decoratedRequestForRetry:(NSURLRequest *)request;
-
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
 #ifndef GTM_FETCHER_AUTHORIZATION_PROTOCOL
@@ -680,6 +677,17 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 @end
 #endif  // GTM_FETCHER_AUTHORIZATION_PROTOCOL
+
+// Adds HTTP header(s) to a request before it's sent out. See `-addHeaderDecorator:`
+// and `removeHeaderDecorator:`.
+
+@protocol GTMFetcherHeaderDecoratorProtocol <NSObject>
+
+- (BOOL)shouldDecorateHeadersForRequest:(NSURLRequest *)request;
+- (void)decorateHeadersForRequest:(NSURLRequest *)request
+                completionHandler:(void (^)(NSDictionary<NSString *, NSString *> *))handler;
+
+@end
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // A protocol for an alternative target for messages from GTMSessionFetcher to UIApplication.
@@ -735,6 +743,14 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // Set a header field value on the request. Header field value changes will not
 // affect a fetch after the fetch has begun.
 - (void)setRequestValue:(nullable NSString *)value forHTTPHeaderField:(NSString *)field;
+
+// Holds a weak reference to `decorator`. Each registered `decorator` can add HTTP header(s) to the
+// request before it starts.  If multiple decorators add the same header to a request, the most
+// recent decorator passed to this method wins.
+- (void)addHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator;
+
+// Removes a `decorator` previously passed to `-removeHeaderDecorator:`.
+- (void)removeHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator;
 
 // Data used for resuming a download task.
 @property(atomic, readonly, nullable) NSData *downloadResumeData;
