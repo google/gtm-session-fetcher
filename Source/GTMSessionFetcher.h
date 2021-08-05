@@ -616,12 +616,17 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 @protocol GTMFetcherHeaderDecoratorProtocol <NSObject>
 
 // Return YES if this request should have its headers decorated, NO otherwise.
+// This method must not block the caller (e.g., performing synchronous I/O).
 - (BOOL)shouldDecorateHeadersForRequest:(NSURLRequest *)request;
 
 // Called only if -shouldDecorateHeadersForRequest: returns YES.
 //
-// Invoke `handler({http_header_name: http_header_value, ...})` either synchronously or
-// asynchronously to add HTTP headers to the request.
+// Invoke `handler({http_header_name: http_header_value, ...})` on either synchronously or
+// asynchronously (on any queue) to add HTTP headers to the request.
+//
+// This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
+// work or I/O on a different queue, then invoke `handler` with the results after the blocking work
+// completes.
 - (void)decorateHeadersForRequest:(NSURLRequest *)request
                 completionHandler:(void (^)(NSDictionary<NSString *, NSString *> *))handler;
 

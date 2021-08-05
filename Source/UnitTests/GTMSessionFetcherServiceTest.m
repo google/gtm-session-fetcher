@@ -59,20 +59,22 @@ typedef NSDictionary<NSString *, NSString *> * (^DecorateHeadersBlock)(NSURLRequ
 
 @property(nonatomic, readonly) ShouldDecorateHeadersBlock shouldDecorateHeadersBlock;
 @property(nonatomic, readonly) DecorateHeadersBlock decorateHeadersBlock;
+@property(nonatomic, readonly) BOOL synchronous;
 
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd;
+- (instancetype)initWithHeadersSynchronous:(NSDictionary<NSString *, NSString *> *)headersToAdd;
 - (instancetype)initWithShouldDecorateHeadersBlock:
                     (ShouldDecorateHeadersBlock)shouldDecorateHeadersBlock
                               decorateHeadersBlock:(DecorateHeadersBlock)decorateHeadersBlock
-    NS_DESIGNATED_INITIALIZER;
+                                       synchronous:(BOOL)synchronous NS_DESIGNATED_INITIALIZER;
 
 @end
 
 @implementation GTMSessionFetcherTestHeaderDecorator
 
 @synthesize shouldDecorateHeadersBlock = _shouldDecorateHeadersBlock,
-            decorateHeadersBlock = _decorateHeadersBlock;
+            decorateHeadersBlock = _decorateHeadersBlock, synchronous = _synchronous;
 
 - (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd {
   return [self
@@ -81,16 +83,30 @@ typedef NSDictionary<NSString *, NSString *> * (^DecorateHeadersBlock)(NSURLRequ
       }
       decorateHeadersBlock:^(__unused NSURLRequest *request) {
         return headersToAdd;
-      }];
+      }
+      synchronous:NO];
+}
+
+- (instancetype)initWithHeadersSynchronous:(NSDictionary<NSString *, NSString *> *)headersToAdd {
+  return [self
+      initWithShouldDecorateHeadersBlock:^BOOL(__unused NSURLRequest *request) {
+        return YES;
+      }
+      decorateHeadersBlock:^(__unused NSURLRequest *request) {
+        return headersToAdd;
+      }
+      synchronous:YES];
 }
 
 - (instancetype)initWithShouldDecorateHeadersBlock:
                     (ShouldDecorateHeadersBlock)shouldDecorateHeadersBlock
-                              decorateHeadersBlock:(DecorateHeadersBlock)decorateHeadersBlock {
+                              decorateHeadersBlock:(DecorateHeadersBlock)decorateHeadersBlock
+                                       synchronous:(BOOL)synchronous {
   self = [super init];
   if (self) {
     _shouldDecorateHeadersBlock = shouldDecorateHeadersBlock;
     _decorateHeadersBlock = decorateHeadersBlock;
+    _synchronous = synchronous;
   }
   return self;
 }
@@ -101,7 +117,18 @@ typedef NSDictionary<NSString *, NSString *> * (^DecorateHeadersBlock)(NSURLRequ
 
 - (void)decorateHeadersForRequest:(NSURLRequest *)request
                 completionHandler:(void (^)(NSDictionary<NSString *, NSString *> *))handler {
-  handler(_decorateHeadersBlock(request));
+  if (self.synchronous) {
+    handler(_decorateHeadersBlock(request));
+  } else {
+    __weak __typeof__(self) weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      __strong __typeof__(self) strongSelf = weakSelf;
+      if (!strongSelf) {
+        return;
+      }
+      handler(strongSelf.decorateHeadersBlock(request));
+    });
+  }
 }
 
 @end
@@ -883,7 +910,50 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
 
-- (void)testEmptyHeaderDecorator {
+- (void)testSingleHeaderDecoratorSynchronous {
+  GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithHeadersSynchronous:@{@"foo" : @"bar", @"baz" : @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        [fetchCompleteExpectation fulfill];
+      }];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"bar", @"baz" : @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+  // The wait is intentionally after the assert, as we expect the header decorator to complete its
+  // work synchronously (but this test still needs to wait, as otherwise the NSNotifications posted
+  // asynchronously can affect other tests).
+  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+}
+
+- (void)testMultipleHeaderDecoratorsSynchronous {
+  GTMSessionFetcherTestHeaderDecorator *decoratorA =
+      [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeadersSynchronous:@{@"foo" : @"bar"}];
+  GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc]
+      initWithHeadersSynchronous:@{@"baz" : @"blech"}];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addHeaderDecorator:decoratorA];
+  [service addHeaderDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        [fetchCompleteExpectation fulfill];
+      }];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"bar", @"baz" : @"blech"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+  // The wait is intentionally after the assert, as we expect the header decorator to complete its
+  // work synchronously (but this test still needs to wait, as otherwise the NSNotifications posted
+  // asynchronously can affect other tests).
+  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+}
+
+- (void)testEmptyHeaderDecoratorAsynchronous {
   GTMSessionFetcherTestHeaderDecorator *decorator =
       [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{}];
   GTMSessionFetcherService *service =
@@ -899,7 +969,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
 
-- (void)testSingleHeaderDecorator {
+- (void)testSingleHeaderDecoratorAsynchronous {
   GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithHeaders:@{@"foo" : @"bar", @"baz" : @"blech"}];
   GTMSessionFetcherService *service =
@@ -916,7 +986,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
-- (void)testSingleHeaderDecoratorWithDifferentHeadersForEachRequest {
+- (void)testSingleHeaderDecoratorAsynchronousWithDifferentHeadersForEachRequest {
   __block int i = 0;
   GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithShouldDecorateHeadersBlock:^BOOL(__unused NSURLRequest *request) {
@@ -924,7 +994,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       }
       decorateHeadersBlock:^(__unused NSURLRequest *request) {
         return @{@"foo" : [NSString stringWithFormat:@"%d", i++]};
-      }];
+      }
+      synchronous:NO];
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addHeaderDecorator:decorator];
@@ -961,7 +1032,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherC), expectedHeadersC);
 }
 
-- (void)testRemoveSingleHeaderDecorator {
+- (void)testRemoveSingleHeaderDecoratorAsynchronous {
   GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithHeaders:@{@"foo" : @"bar", @"baz" : @"blech"}];
   GTMSessionFetcherService *service =
@@ -978,7 +1049,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
 
-- (void)testSingleHeaderDecoratorWeakReferenceReleasedBeforeFetcherCreated {
+- (void)testSingleHeaderDecoratorAsynchronousWeakReferenceReleasedBeforeFetcherCreated {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   {
@@ -1001,7 +1072,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
 
-- (void)testSingleHeaderDecoratorUserAgent {
+- (void)testSingleHeaderDecoratorAsynchronousUserAgent {
   GTMSessionFetcherTestHeaderDecorator *decorator = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithHeaders:@{@"User-Agent" : @"My User Agent"}];
   GTMSessionFetcherService *service =
@@ -1018,7 +1089,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(fetcher.request.allHTTPHeaderFields, expectedHeaders);
 }
 
-- (void)testMultipleHeaderDecoratorsDifferentFields {
+- (void)testMultipleHeaderDecoratorsAsynchronousDifferentFields {
   GTMSessionFetcherTestHeaderDecorator *decoratorA =
       [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo" : @"bar"}];
   GTMSessionFetcherTestHeaderDecorator *decoratorB =
@@ -1038,7 +1109,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
-- (void)testMultipleHeaderDecoratorsOneRemoved {
+- (void)testMultipleHeaderDecoratorsAsynchronousOneRemoved {
   GTMSessionFetcherTestHeaderDecorator *decoratorA =
       [[GTMSessionFetcherTestHeaderDecorator alloc] initWithHeaders:@{@"foo" : @"bar"}];
   GTMSessionFetcherTestHeaderDecorator *decoratorB =
@@ -1059,7 +1130,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
-- (void)testMultipleHeaderDecoratorsOneWeakReferenceReleased {
+- (void)testMultipleHeaderDecoratorsAsynchronousOneWeakReferenceReleased {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   GTMSessionFetcherTestHeaderDecorator *decoratorB =
@@ -1082,7 +1153,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
-- (void)testMultipleHeaderDecoratorsSameFields {
+- (void)testMultipleHeaderDecoratorsAsynchronousSameFields {
   GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithHeaders:@{@"foo" : @"bar", @"baz" : @"blech"}];
   GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc]
@@ -1102,7 +1173,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
 
-- (void)testMultipleHeaderDecoratorsSomeFieldsSame {
+- (void)testMultipleHeaderDecoratorsAsynchronousSomeFieldsSame {
   GTMSessionFetcherTestHeaderDecorator *decoratorA = [[GTMSessionFetcherTestHeaderDecorator alloc]
       initWithHeaders:@{@"foo" : @"bar", @"baz" : @"blech"}];
   GTMSessionFetcherTestHeaderDecorator *decoratorB = [[GTMSessionFetcherTestHeaderDecorator alloc]

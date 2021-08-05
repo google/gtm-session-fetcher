@@ -1708,41 +1708,31 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders start %zu decorators",
                        headerDecorators.count);
 
-  dispatch_queue_t decorateCompletionQueue;
-  dispatch_group_t decorateCompletionGroup;
   // Keep each header decorator's results in the order the header decorators were added, so if two
   // decorators add the same header, the decorator added later will win.
-  __block NSMutableArray<NSDictionary<NSString *, NSString *> *> *decorateResults;
-  NSUInteger headerDecoratorsIndex = 0;
-  BOOL needsDecorate = NO;
+  NSMutableArray<NSMutableDictionary<NSString *, NSString *> *> *results = nil;
+
+  // Dispatch group which is empty only when all decorators have invoked their
+  // completion handlers.
+  dispatch_group_t group = nil;
   for (id<GTMFetcherHeaderDecoratorProtocol> decorator in headerDecorators) {
     if (![decorator shouldDecorateHeadersForRequest:fetchRequest]) {
-      ++headerDecoratorsIndex;
       continue;
     }
-    if (!needsDecorate) {
-      needsDecorate = YES;
-      decorateCompletionQueue =
-          dispatch_queue_create("com.google.GTMFetcherHeaderDecorator", DISPATCH_QUEUE_SERIAL);
-      decorateCompletionGroup = dispatch_group_create();
-      decorateResults = [NSMutableArray arrayWithCapacity:headerDecorators.count];
-      for (NSUInteger decorateResultsIndex = 0; decorateResultsIndex < headerDecorators.count;
-           ++decorateResultsIndex) {
-        decorateResults[decorateResultsIndex] = [NSDictionary dictionary];
-      }
+    if (!results) {
+      results = [[NSMutableArray alloc] initWithCapacity:headerDecorators.count];
+      group = dispatch_group_create();
     }
-    NSUInteger decorateResultsIndex = headerDecoratorsIndex;
-    dispatch_group_enter(decorateCompletionGroup);
+    NSMutableDictionary<NSString *, NSString *> *resultHeaders = [NSMutableDictionary dictionary];
+    [results addObject:resultHeaders];
+    dispatch_group_enter(group);
     [decorator decorateHeadersForRequest:fetchRequest
                        completionHandler:^(NSDictionary<NSString *, NSString *> *headers) {
-                         dispatch_async(decorateCompletionQueue, ^{
-                           decorateResults[decorateResultsIndex] = [headers copy];
-                           dispatch_group_leave(decorateCompletionGroup);
-                         });
+                         [resultHeaders setDictionary:headers];
+                         dispatch_group_leave(group);
                        }];
-    ++headerDecoratorsIndex;
   }
-  if (!needsDecorate) {
+  if (!results) {
     GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (not needed)");
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
     return;
@@ -1754,19 +1744,42 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     self.session = nil;
   }
 
-  dispatch_group_notify(decorateCompletionGroup, decorateCompletionQueue, ^{
+  // If an asynchronous wait is necessary, don't strongly retain self in case the fetch
+  // gets cancelled while waiting.
+  __weak __typeof__(self) weakSelf = self;
+  dispatch_block_t mergeResultsAndContinue = ^{
+    __strong __typeof__(self) strongSelf = weakSelf;
+    if (!strongSelf) {
+      GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher was released before decorateHeaders completed, "
+                           @"ignoring decorate result");
+      return;
+    }
     GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (%zu results)",
-                         decorateResults.count);
-    NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
-    for (NSDictionary<NSString *, NSString *> *decorateResult in decorateResults) {
-      for (NSString *headerName in decorateResult) {
-        NSString *headerValue = decorateResult[headerName];
-        [mutableRequest setValue:headerValue forHTTPHeaderField:headerName];
+                         results.count);
+    NSMutableURLRequest *mutableRequest = [strongSelf.request mutableCopy];
+    for (NSDictionary<NSString *, NSString *> *resultHeaders in results) {
+      for (NSString *headerField in resultHeaders) {
+        NSString *value = resultHeaders[headerField];
+        [mutableRequest setValue:value forHTTPHeaderField:headerField];
       }
     }
-    [self updateMutableRequest:mutableRequest];
-    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
-  });
+    [strongSelf updateMutableRequest:mutableRequest];
+    [strongSelf beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
+  };
+
+  // Poll the group once to see if all decorators' completion handlers completed synchronously.
+  if (dispatch_group_wait(group, DISPATCH_TIME_NOW) == 0) {
+    // All completion handlers have completed synchronously.
+    mergeResultsAndContinue();
+    return;
+  }
+
+  // One or more of the decorators' completion handlers have not yet completed.  Create a temporary
+  // private serial queue upon which the fetcher will continue its work once all the completion
+  // handlers complete asynchronously.
+  dispatch_queue_t queue =
+      dispatch_queue_create("com.google.GTMSessionFetcherHeaderDecorator", DISPATCH_QUEUE_SERIAL);
+  dispatch_group_notify(group, queue, mergeResultsAndContinue);
 }
 
 - (BOOL)canFetchWithBackgroundSession {
