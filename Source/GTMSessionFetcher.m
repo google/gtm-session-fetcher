@@ -153,9 +153,6 @@ NS_ASSUME_NONNULL_END
 
 @property(atomic, readwrite, getter=isUsingBackgroundSession) BOOL usingBackgroundSession;
 
-// Ordered collection of id<GTMSessionFetcherHeaderDecorator>, held weakly.
-@property(atomic, strong, readonly) NSPointerArray *headerDecorators;
-
 @end
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
@@ -821,15 +818,10 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
   }
 
-  if (mayDecorate && _headerDecorators.count) {
-    NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *headerDecorators;
-    @synchronized(self) {
-      GTMSessionMonitorSynchronized(self);
-      headerDecorators = self.headerDecorators.allObjects;
-    }
+  if (mayDecorate) {
+    NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *headerDecorators = _service.headerDecorators;
     if (headerDecorators.count) {
-      [self decorateHeadersForRequest:fetchRequest
-                     headerDecorators:headerDecorators];
+      [self decorateHeadersForRequest:fetchRequest headerDecorators:headerDecorators];
       return;
     }
   }
@@ -1709,10 +1701,12 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }
 
 - (void)decorateHeadersForRequest:(NSURLRequest *)fetchRequest
-                 headerDecorators:(NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *)headerDecorators {
+                 headerDecorators:
+                     (NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *)headerDecorators {
   GTMSessionCheckNotSynchronized(self);
 
-  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders start %zu decorators", headerDecorators.count);
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders start %zu decorators",
+                       headerDecorators.count);
 
   dispatch_queue_t decorateCompletionQueue;
   dispatch_group_t decorateCompletionGroup;
@@ -1728,10 +1722,12 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     }
     if (!needsDecorate) {
       needsDecorate = YES;
-      decorateCompletionQueue = dispatch_queue_create("com.google.GTMFetcherHeaderDecorator", DISPATCH_QUEUE_SERIAL);
+      decorateCompletionQueue =
+          dispatch_queue_create("com.google.GTMFetcherHeaderDecorator", DISPATCH_QUEUE_SERIAL);
       decorateCompletionGroup = dispatch_group_create();
       decorateResults = [NSMutableArray arrayWithCapacity:headerDecorators.count];
-      for (NSUInteger decorateResultsIndex = 0; decorateResultsIndex < headerDecorators.count; ++decorateResultsIndex) {
+      for (NSUInteger decorateResultsIndex = 0; decorateResultsIndex < headerDecorators.count;
+           ++decorateResultsIndex) {
         decorateResults[decorateResultsIndex] = [NSDictionary dictionary];
       }
     }
@@ -1739,11 +1735,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     dispatch_group_enter(decorateCompletionGroup);
     [decorator decorateHeadersForRequest:fetchRequest
                        completionHandler:^(NSDictionary<NSString *, NSString *> *headers) {
-        dispatch_async(decorateCompletionQueue, ^{
-            decorateResults[decorateResultsIndex] = [headers copy];
-            dispatch_group_leave(decorateCompletionGroup);
-          });
-      }];
+                         dispatch_async(decorateCompletionQueue, ^{
+                           decorateResults[decorateResultsIndex] = [headers copy];
+                           dispatch_group_leave(decorateCompletionGroup);
+                         });
+                       }];
     ++headerDecoratorsIndex;
   }
   if (!needsDecorate) {
@@ -1759,7 +1755,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 
   dispatch_group_notify(decorateCompletionGroup, decorateCompletionQueue, ^{
-    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (%zu results)", decorateResults.count);
+    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorateHeaders complete (%zu results)",
+                         decorateResults.count);
     NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
     for (NSDictionary<NSString *, NSString *> *decorateResult in decorateResults) {
       for (NSString *headerName in decorateResult) {
@@ -3587,8 +3584,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
-            log = _log,
-            headerDecorators = _headerDecorators;
+            log = _log;
 
 #if !STRIP_GTM_FETCH_LOGGING
 @synthesize redirectedFromURL = _redirectedFromURL,
@@ -3644,33 +3640,6 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     [self updateRequestValue:value forHTTPHeaderField:field];
   } else {
     GTMSESSION_ASSERT_DEBUG(0, @"request may not be set after beginFetch has been invoked");
-  }
-}
-
-- (void)addHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-    if (!_headerDecorators) {
-      _headerDecorators = [NSPointerArray weakObjectsPointerArray];
-    }
-    [_headerDecorators addPointer:(__bridge void *)decorator];
-  }
-}
-
-- (void)removeHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-    NSUInteger i = 0;
-    for (id<GTMFetcherHeaderDecoratorProtocol> headerDecorator in _headerDecorators) {
-      if (headerDecorator == decorator) {
-        break;
-      }
-      ++i;
-    }
-    GTMSESSION_ASSERT_DEBUG(i < _headerDecorators.count, @"header decorator %@ must be passed to -addHeaderDecorator: before removing", decorator);
-    if (i < _headerDecorators.count) {
-      [_headerDecorators removePointerAtIndex:i];
-    }
   }
 }
 
