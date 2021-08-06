@@ -368,7 +368,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
       NSInputStream *inputStream = connDict[kInputStream];
       NSAssert(aStream == inputStream, @"Unexpected output stream has bytes");
 
-      const NSUInteger kMaxReadDataChunkSize = 32768;
+      enum EnumType : NSUInteger {kMaxReadDataChunkSize = 32768};
       NSMutableData *readData = [[NSMutableData alloc] init];
       uint8_t readDataBytes[kMaxReadDataChunkSize];
       NSInteger readDataSize = [inputStream read:readDataBytes maxLength:kMaxReadDataChunkSize];
