@@ -610,6 +610,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }  // extern "C"
 #endif
 
+// Completion handler passed to -[GTMFetcherDecoratorProtocol fetcherWillStart:completionHandler:].
+typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable,
+                                                                     NSError *_Nullable);
+
 // Allows intercepting a request and optionally modifying it throughout the lifetime of the
 // request. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
 // removeDecorator:]`.
@@ -617,20 +621,24 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 // Invoked just before a fetcher's request starts.
 //
-// After the decorator's work is complete, the decorator must invoke `handler()` either
-// synchronously or asynchronously (on any queue). Passing in either `nil` (if the request should
-// not be modified) or use `[fetcher.request mutableCopy]` to create a modified `request` to change
-// the request before it starts.
+// After the decorator's work is complete, the decorator must invoke `handler(request, error)`
+// either synchronously or asynchronously (on any queue).
 //
-// To detect retries, the decorator can look at `fetcher.retryCount`.
+// If `error` is non-nil, then the fetcher is stopped with the given error, and any further
+// decorators' `-fetcherWillStart:completionHandler:` methods are not invoked.
+//
+// Otherwise, the decorator may use `[fetcher.request mutableCopy]`, make changes to the mutable
+// copy of the request, and pass the result to the handler via the `request` parameter.
+//
+// To distinguish the initial fetch from retries, the decorator can look at `fetcher.retryCount`.
 //
 // This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
 // work or I/O on a different queue, then invoke `handler` with the results after the blocking work
 // completes.
 - (void)fetcherWillStart:(GTMSessionFetcher *)fetcher
-       completionHandler:(void (^)(NSURLRequest *_Nullable))handler;
+       completionHandler:(GTMFetcherDecoratorFetcherWillStartCompletionHandler)handler;
 
-// Invoked just after a fetcher's request finishes.
+// Invoked just after a fetcher's request finishes (either on success or on failure).
 //
 // After the decorator's work is complete, the decorator must invoke `handler()` either
 // synchronously or asynchronously (on any queue).

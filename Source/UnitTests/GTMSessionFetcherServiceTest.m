@@ -52,65 +52,71 @@ static NSDictionary<NSString *, NSString *> *FetcherHeadersWithoutUserAgent(
   return headers;
 }
 
-typedef NSURLRequest *_Nullable (^DecorateBlock)(GTMSessionFetcher *);
+typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
+                                      GTMFetcherDecoratorFetcherWillStartCompletionHandler);
 
 @interface GTMSessionFetcherTestDecorator : NSObject <GTMFetcherDecoratorProtocol>
 
-@property(nonatomic, readonly) DecorateBlock decorateBlock;
+@property(nonatomic, readonly) FetcherWillStartBlock fetcherWillStartBlock;
 @property(nonatomic, readonly) BOOL synchronous;
 @property(nonatomic, readonly, nullable) NSData *fetchedData;
-@property(nonatomic, readonly, nullable) NSError *error;
+@property(nonatomic, readonly, nullable) NSError *fetchError;
 
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd;
 - (instancetype)initWithHeadersSynchronous:(NSDictionary<NSString *, NSString *> *)headersToAdd;
-- (instancetype)initWithDecorateBlock:(DecorateBlock)decorateBlock
-                          synchronous:(BOOL)synchronous NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithFetcherWillStartBlock:(FetcherWillStartBlock)fetcherWillStartBlock
+                                  synchronous:(BOOL)synchronous NS_DESIGNATED_INITIALIZER;
 
 @end
 
 @implementation GTMSessionFetcherTestDecorator
 
-@synthesize decorateBlock = _decorateBlock, synchronous = _synchronous, fetchedData = _fetchedData,
-            error = _error;
+@synthesize fetcherWillStartBlock = _fetcherWillStartBlock, synchronous = _synchronous,
+            fetchedData = _fetchedData, fetchError = _fetchError;
 
 - (instancetype)initWithHeaders:(NSDictionary<NSString *, NSString *> *)headersToAdd {
   return [self
-      initWithDecorateBlock:^(GTMSessionFetcher *fetcher) {
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completionHandler) {
         NSMutableURLRequest *request = [fetcher.request mutableCopy];
         for (NSString *field in headersToAdd) {
           [request setValue:headersToAdd[field] forHTTPHeaderField:field];
         }
-        return request;
+        completionHandler(request, /*error=*/nil);
       }
-                synchronous:NO];
+                        synchronous:NO];
 }
 
 - (instancetype)initWithHeadersSynchronous:(NSDictionary<NSString *, NSString *> *)headersToAdd {
   return [self
-      initWithDecorateBlock:^(GTMSessionFetcher *fetcher) {
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completionHandler) {
         NSMutableURLRequest *request = [fetcher.request mutableCopy];
         for (NSString *field in headersToAdd) {
           [request setValue:headersToAdd[field] forHTTPHeaderField:field];
         }
-        return request;
+        completionHandler(request, /*error=*/nil);
       }
-                synchronous:YES];
+                        synchronous:YES];
 }
 
-- (instancetype)initWithDecorateBlock:(DecorateBlock)decorateBlock synchronous:(BOOL)synchronous {
+- (instancetype)initWithFetcherWillStartBlock:(FetcherWillStartBlock)fetcherWillStartBlock
+                                  synchronous:(BOOL)synchronous {
   self = [super init];
   if (self) {
-    _decorateBlock = decorateBlock;
+    _fetcherWillStartBlock = fetcherWillStartBlock;
     _synchronous = synchronous;
   }
   return self;
 }
 
 - (void)fetcherWillStart:(GTMSessionFetcher *)fetcher
-       completionHandler:(void (^)(NSURLRequest *_Nullable))handler {
+       completionHandler:(GTMFetcherDecoratorFetcherWillStartCompletionHandler)handler {
   if (self.synchronous) {
-    handler(_decorateBlock(fetcher));
+    _fetcherWillStartBlock(fetcher, handler);
   } else {
     __weak __typeof__(self) weakSelf = self;
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -118,7 +124,7 @@ typedef NSURLRequest *_Nullable (^DecorateBlock)(GTMSessionFetcher *);
       if (!strongSelf) {
         return;
       }
-      handler(strongSelf.decorateBlock(fetcher));
+      strongSelf.fetcherWillStartBlock(fetcher, handler);
     });
   }
 }
@@ -128,7 +134,7 @@ typedef NSURLRequest *_Nullable (^DecorateBlock)(GTMSessionFetcher *);
                    error:(nullable NSError *)error
        completionHandler:(void (^)(void))handler {
   _fetchedData = [data copy];
-  _error = error;
+  _fetchError = error;
   if (self.synchronous) {
     handler();
   } else {
@@ -937,6 +943,118 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:0.1 handler:nil];
 }
 
+- (void)testSingleDecoratorSynchronousAddHeaderOnRetry {
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  NSURL *url = [NSURL URLWithString:@"https://www.html5zombo.com"];
+  service.testBlock =
+      ^(GTMSessionFetcher *fetcher, GTMSessionFetcherTestResponse testResponseBlock) {
+        NSHTTPURLResponse *response;
+        NSData *data;
+        NSError *error;
+        if (fetcher.retryCount == 0) {
+          response = [[NSHTTPURLResponse alloc] initWithURL:url
+                                                 statusCode:504
+                                                HTTPVersion:@"HTTP/1.1"
+                                               headerFields:@{}];
+          data = nil;
+          error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain code:504 userInfo:nil];
+        } else {
+          response = [[NSHTTPURLResponse alloc] initWithURL:url
+                                                 statusCode:200
+                                                HTTPVersion:@"HTTP/1.1"
+                                               headerFields:@{}];
+          data = [@"Welcome to ZomboCom" dataUsingEncoding:NSUTF8StringEncoding];
+          error = nil;
+        }
+        testResponseBlock(response, data, error);
+      };
+
+  GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        if (!fetcher.retryCount) {
+          completion(/*request=*/nil, /*error=*/nil);
+          return;
+        }
+        // Add a `retry=1` header when the decorator is invoked on a retry.
+        NSMutableURLRequest *request = [fetcher.request mutableCopy];
+        [request setValue:@"1" forHTTPHeaderField:@"retry"];
+        completion(request, /*error=*/nil);
+      }
+                        synchronous:YES];
+
+  [service addDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.retryEnabled = YES;
+  fetcher.minRetryInterval = 0.01;
+  fetcher.maxRetryInterval = 0.05;
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        [fetchCompleteExpectation fulfill];
+      }];
+  [self waitForExpectationsWithTimeout:5 handler:nil];
+  NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"retry" : @"1"};
+  XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
+}
+
+- (void)testSingleDecoratorSynchronousWithError {
+  NSError *error = [NSError errorWithDomain:@"TestDomain" code:12345 userInfo:nil];
+  GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        completion(/*request=*/nil, error);
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(fetchError, error);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  XCTAssertNil(decorator.fetchedData);
+  XCTAssertEqualObjects(decorator.fetchError, error);
+}
+
+- (void)testMultipleDecoratorsSynchronousWithErrorShouldNotCallSubsequentDecorators {
+  NSError *error = [NSError errorWithDomain:@"TestDomain" code:12345 userInfo:nil];
+  GTMSessionFetcherTestDecorator *decoratorA = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        completion(/*request=*/nil, error);
+      }
+                        synchronous:YES];
+  GTMSessionFetcherTestDecorator *decoratorB = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        XCTFail(@"Subsequent decorator should not be invoked");
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decoratorA];
+  [service addDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqualObjects(fetchError, error);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  XCTAssertNil(decoratorA.fetchedData);
+  XCTAssertNil(decoratorB.fetchedData);
+  XCTAssertEqualObjects(decoratorA.fetchError, error);
+  XCTAssertEqualObjects(decoratorB.fetchError, error);
+}
+
 - (void)testMultipleDecoratorsSynchronous {
   GTMSessionFetcherTestDecorator *decoratorA =
       [[GTMSessionFetcherTestDecorator alloc] initWithHeadersSynchronous:@{@"foo" : @"bar"}];
@@ -984,19 +1102,21 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:0.1 handler:nil];
   XCTAssertEqualObjects(decoratorA.fetchedData, data);
   XCTAssertEqualObjects(decoratorB.fetchedData, data);
-  XCTAssertEqualObjects(decoratorA.error, error);
-  XCTAssertEqualObjects(decoratorB.error, error);
+  XCTAssertEqualObjects(decoratorA.fetchError, error);
+  XCTAssertEqualObjects(decoratorB.fetchError, error);
 }
 
 - (void)testSingleDecoratorSynchronousWithDifferentHeadersForEachRequest {
   __block int i = 0;
   GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
-      initWithDecorateBlock:^(GTMSessionFetcher *fetcher) {
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
         NSMutableURLRequest *request = [fetcher.request mutableCopy];
         [request setValue:[NSString stringWithFormat:@"%d", i++] forHTTPHeaderField:@"foo"];
-        return request;
+        completion(request, /*error=*/nil);
       }
-                synchronous:YES];
+                        synchronous:YES];
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addDecorator:decorator];
@@ -1070,12 +1190,14 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 - (void)testSingleDecoratorAsynchronousWithDifferentHeadersForEachRequest {
   __block int i = 0;
   GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
-      initWithDecorateBlock:^(GTMSessionFetcher *fetcher) {
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
         NSMutableURLRequest *request = [fetcher.request mutableCopy];
         [request setValue:[NSString stringWithFormat:@"%d", i++] forHTTPHeaderField:@"foo"];
-        return request;
+        completion(request, /*error=*/nil);
       }
-                synchronous:NO];
+                        synchronous:NO];
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addDecorator:decorator];
@@ -1294,8 +1416,8 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:0.5 handler:nil];
   XCTAssertEqualObjects(decoratorA.fetchedData, data);
   XCTAssertEqualObjects(decoratorB.fetchedData, data);
-  XCTAssertEqualObjects(decoratorA.error, error);
-  XCTAssertEqualObjects(decoratorB.error, error);
+  XCTAssertEqualObjects(decoratorA.fetchError, error);
+  XCTAssertEqualObjects(decoratorB.fetchError, error);
 }
 
 - (void)testDelegateDispatcherForFetcher {

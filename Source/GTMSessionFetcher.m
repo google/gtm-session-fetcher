@@ -1714,18 +1714,22 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
   __weak __typeof__(self) weakSelf = self;
   id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
-  GTMSESSION_LOG_DEBUG(
-      @"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, decorator %@",
-      decorators.count, index, decorator);
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, "
+                       @"retry count %zu, decorator %@",
+                       decorators.count, index, self.retryCount, decorator);
   [decorator fetcherWillStart:self
-            completionHandler:^(NSURLRequest *_Nullable newRequest) {
-              GTMSESSION_LOG_DEBUG(
-                  @"GTMSessionFetcher decorator requestWillStart index %zu complete, newRequest %@",
-                  index, newRequest);
+            completionHandler:^(NSURLRequest *_Nullable newRequest, NSError *_Nullable error) {
+              GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorator requestWillStart index %zu "
+                                   @"complete, newRequest %@, error %@",
+                                   index, newRequest, error);
               __strong __typeof__(self) strongSelf = weakSelf;
               if (!strongSelf) {
                 GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestWillStart "
                                      @"decorators completed, ignoring.");
+                return;
+              }
+              if (error) {
+                [self failToBeginFetchWithError:(NSError *_Nonnull)error];
                 return;
               }
               if (newRequest) {
@@ -1758,9 +1762,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
   __weak __typeof__(self) weakSelf = self;
   id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
-  GTMSESSION_LOG_DEBUG(
-      @"GTMSessionFetcher decorate requestDidFinish %zu decorators, index %zu, decorator %@",
-      decorators.count, index, decorator);
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators, index %zu, "
+                       @"retry count %zu, decorator %@",
+                       decorators.count, index, self.retryCount, decorator);
   [decorator fetcherDidFinish:self
                      withData:data
                         error:error
