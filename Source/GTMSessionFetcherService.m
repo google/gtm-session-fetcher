@@ -36,8 +36,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
 
-// Ordered collection of id<GTMFetcherHeaderDecoratorProtocol>, held weakly.
-@property(atomic, strong, readonly) NSPointerArray *headerDecoratorsPointerArray;
+// Ordered collection of id<GTMFetcherDecoratorProtocol>, held weakly.
+@property(atomic, strong, readonly) NSPointerArray *decoratorsPointerArray;
 
 @end
 
@@ -126,7 +126,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             metricsCollectionBlock = _metricsCollectionBlock,
             properties = _properties,
             unusedSessionTimeout = _unusedSessionTimeout,
-            headerDecoratorsPointerArray = _headerDecoratorsPointerArray,
+            decoratorsPointerArray = _decoratorsPointerArray,
             testBlock = _testBlock;
 // clang-format on
 
@@ -229,35 +229,35 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   return [self fetcherWithURL:url];
 }
 
-- (void)addHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
+- (void)addDecorator:(id<GTMFetcherDecoratorProtocol>)decorator {
   @synchronized(self) {
-    if (!_headerDecoratorsPointerArray) {
-      _headerDecoratorsPointerArray = [NSPointerArray weakObjectsPointerArray];
+    if (!_decoratorsPointerArray) {
+      _decoratorsPointerArray = [NSPointerArray weakObjectsPointerArray];
     }
-    [_headerDecoratorsPointerArray addPointer:(__bridge void *)decorator];
+    [_decoratorsPointerArray addPointer:(__bridge void *)decorator];
   }
 }
 
-- (NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *)headerDecorators {
+- (NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators {
   @synchronized(self) {
-    return _headerDecoratorsPointerArray.allObjects;
+    return _decoratorsPointerArray.allObjects;
   }
 }
 
-- (void)removeHeaderDecorator:(id<GTMFetcherHeaderDecoratorProtocol>)decorator {
+- (void)removeDecorator:(id<GTMFetcherDecoratorProtocol>)decorator {
   @synchronized(self) {
     NSUInteger i = 0;
-    for (id<GTMFetcherHeaderDecoratorProtocol> headerDecorator in _headerDecoratorsPointerArray) {
-      if (headerDecorator == decorator) {
+    for (id<GTMFetcherDecoratorProtocol> decoratorCandidate in _decoratorsPointerArray) {
+      if (decoratorCandidate == decorator) {
         break;
       }
       ++i;
     }
-    GTMSESSION_ASSERT_DEBUG(
-        i < _headerDecoratorsPointerArray.count,
-        @"header decorator %@ must be passed to -addHeaderDecorator: before removing", decorator);
-    if (i < _headerDecoratorsPointerArray.count) {
-      [_headerDecoratorsPointerArray removePointerAtIndex:i];
+    GTMSESSION_ASSERT_DEBUG(i < _decoratorsPointerArray.count,
+                            @"decorator %@ must be passed to -addDecorator: before removing",
+                            decorator);
+    if (i < _decoratorsPointerArray.count) {
+      [_decoratorsPointerArray removePointerAtIndex:i];
     }
   }
 }

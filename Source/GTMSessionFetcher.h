@@ -136,9 +136,8 @@
 // Alternative HTTP methods, like PUT, and custom headers can be specified by
 // creating the fetcher with an appropriate NSMutableURLRequest.
 //
-// Custom headers can also be provided per-request via an instance of
-// `GTMFetcherHeaderDecoratorProtocol` passed to
-// `-[GTMSessionFetcherService addHeaderDecorator:]`.
+// Custom headers can also be provided per-request via an instance of `GTMFetcherDecoratorProtocol`
+// passed to `-[GTMSessionFetcherService addDecorator:]`.
 //
 // Caching:
 //
@@ -611,24 +610,40 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }  // extern "C"
 #endif
 
-// Adds HTTP header(s) to a request before it's sent out. See `-[GTMSessionFetcherService
-// addHeaderDecorator:]` and `-[GTMSessionFetcherService removeHeaderDecorator:]`.
-@protocol GTMFetcherHeaderDecoratorProtocol <NSObject>
+// Allows intercepting a request and optionally modifying it throughout the lifetime of the
+// request. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
+// removeDecorator:]`.
+@protocol GTMFetcherDecoratorProtocol <NSObject>
 
-// Return YES if this request should have its headers decorated, NO otherwise.
-// This method must not block the caller (e.g., performing synchronous I/O).
-- (BOOL)shouldDecorateHeadersForRequest:(NSURLRequest *)request;
-
-// Called only if -shouldDecorateHeadersForRequest: returns YES.
+// Invoked just before a fetcher's request starts.
 //
-// Invoke `handler({http_header_name: http_header_value, ...})` on either synchronously or
-// asynchronously (on any queue) to add HTTP headers to the request.
+// After the decorator's work is complete, the decorator must invoke `handler()` either
+// synchronously or asynchronously (on any queue). Passing in either `nil` (if the request should
+// not be modified) or use `[fetcher.request mutableCopy]` to create a modified `request` to change
+// the request before it starts.
+//
+// To detect retries, the decorator can look at `fetcher.retryCount`.
 //
 // This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
 // work or I/O on a different queue, then invoke `handler` with the results after the blocking work
 // completes.
-- (void)decorateHeadersForRequest:(NSURLRequest *)request
-                completionHandler:(void (^)(NSDictionary<NSString *, NSString *> *))handler;
+- (void)fetcherWillStart:(GTMSessionFetcher *)fetcher
+       completionHandler:(void (^)(NSURLRequest *_Nullable))handler;
+
+// Invoked just after a fetcher's request finishes.
+//
+// After the decorator's work is complete, the decorator must invoke `handler()` either
+// synchronously or asynchronously (on any queue).
+//
+// To access the result of the fetch, the decorator can look at `fetcher.response`.
+//
+// This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
+// work or I/O on a different queue, then invoke `handler` with the results after the blocking work
+// completes.
+- (void)fetcherDidFinish:(GTMSessionFetcher *)fetcher
+                withData:(nullable NSData *)data
+                   error:(nullable NSError *)error
+       completionHandler:(void (^)(void))handler;
 
 @end
 
@@ -658,8 +673,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 @property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
 
-@property(atomic, readonly, strong, nullable)
-    NSArray<id<GTMFetcherHeaderDecoratorProtocol>> *headerDecorators;
+@property(atomic, readonly, strong, nullable) NSArray<id<GTMFetcherDecoratorProtocol>> *decorators;
 
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
