@@ -617,6 +617,8 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 // Allows intercepting a request and optionally modifying it throughout the lifetime of the
 // request. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
 // removeDecorator:]`.
+//
+// Decorator methods must be thread-safe, as they might be invoked on any queue.
 @protocol GTMFetcherDecoratorProtocol <NSObject>
 
 // Invoked just before a fetcher's request starts.
@@ -624,8 +626,10 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 // After the decorator's work is complete, the decorator must invoke `handler(request, error)`
 // either synchronously or asynchronously (on any queue).
 //
-// If `error` is non-nil, then the fetcher is stopped with the given error, and any further
-// decorators' `-fetcherWillStart:completionHandler:` methods are not invoked.
+// If no changes are to be made, pass `nil` for both `request` and `error`.
+//
+// Otherwise, if `error` is non-nil, then the fetcher is stopped with the given error, and any
+// further decorators' `-fetcherWillStart:completionHandler:` methods are not invoked.
 //
 // Otherwise, the decorator may use `[fetcher.request mutableCopy]`, make changes to the mutable
 // copy of the request, and pass the result to the handler via the `request` parameter.

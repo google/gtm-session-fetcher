@@ -1705,7 +1705,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (void)applyDecoratorsAtRequestWillStart:(NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators
                           startingAtIndex:(NSUInteger)index {
   GTMSessionCheckNotSynchronized(self);
-  if (index == decorators.count) {
+  if (index >= decorators.count) {
     GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators complete",
                          decorators.count);
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
@@ -1750,7 +1750,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                           startingAtIndex:(NSUInteger)index
                    shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
   GTMSessionCheckNotSynchronized(self);
-  if (index == decorators.count) {
+  if (index >= decorators.count) {
     GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators complete",
                          decorators.count);
     [self invokeFetchCallbacksOnCallbackQueueWithData:data
