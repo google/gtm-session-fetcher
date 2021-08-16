@@ -238,7 +238,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
 }
 
-- (NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators {
+- (nullable NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators {
   @synchronized(self) {
     return _decoratorsPointerArray.allObjects;
   }
