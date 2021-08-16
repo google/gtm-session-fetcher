@@ -821,6 +821,15 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   if (mayDecorate) {
     NSArray<id<GTMFetcherDecoratorProtocol>> *decorators = _service.decorators;
     if (decorators.count) {
+      // If this session is held by the fetcher service, clear the session now so that we don't
+      // assume it's still valid after decoration completes.
+      //
+      // The service will still hold on to the session, so as long as decoration doesn't take more
+      // than 30 seconds since the last request, the service's session will be re-used when the
+      // fetch actually starts.
+      if (self.canShareSession) {
+        self.session = nil;
+      }
       [self applyDecoratorsAtRequestWillStart:decorators startingAtIndex:0];
       return;
     }
@@ -1733,11 +1742,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                 return;
               }
               if (newRequest) {
-                // If this session is held by the fetcher service, clear the session now so that we
-                // don't assume it's still valid after decoration completes.
-                if (strongSelf.canShareSession) {
-                  strongSelf.session = nil;
-                }
                 [strongSelf updateMutableRequest:[newRequest mutableCopy]];
               }
               [strongSelf applyDecoratorsAtRequestWillStart:decorators startingAtIndex:index + 1];
