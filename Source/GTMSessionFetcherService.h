@@ -34,6 +34,27 @@ NS_ASSUME_NONNULL_BEGIN
 extern NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification;
 extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
+// Indicates whether/how to wrap the GTMSessionFetcherService's callback queue when passed to
+// created fetchers.
+typedef NS_ENUM(NSInteger, GTMSessionFetcherQueueBehavior) {
+  // A single serial queue will be created targeting the provided callback queue; this serial queue
+  // will be passed to each created fetcher as its callback queue. This ensures all fetchers'
+  // callbacks execute serially, and behaves similar to passing a serial queue to the service.
+  GTMSessionFetcherQueueBehaviorTargetOnce = 0,
+
+  // Every fetcher created by the service will be provided its own specific serial callback queue
+  // targeting the callback queue provided to the fetcher service. This should be used when a
+  // concurrent queue is provided as the service's callback queue.
+  GTMSessionFetcherQueueBehaviorTargetEveryFetcher,
+
+  // The callback queue provided to the service will be passed directly to each created fetcher.
+  // When used it is the client app's responsibility to provide a serial callback queue, otherwise
+  // callbacks may be executed out-of-order. This option may be desired if a serial queue is being
+  // provided and there's a very specific expectation of the queue on which the callbacks arrive
+  // (e.g. queue label).
+  GTMSessionFetcherQueueBehaviorDirect
+};
+
 @interface GTMSessionFetcherService : NSObject <GTMSessionFetcherServiceProtocol>
 
 // Queues of delayed and running fetchers. Each dictionary contains arrays
@@ -72,6 +93,12 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 #if GTM_BACKGROUND_TASK_FETCHING
 @property(atomic, assign) BOOL skipBackgroundTask;
 #endif
+
+// The callback queue behavior. Determines whether the callback queue is passed directly to
+// created fetchers, or whether an internal serial queue targeting the provided callbackQueue
+// will be provided (and whether that internal queue is created once for the service, or created
+// for each individual fetcher). Defaults to GTMSessionFetcherQueueBehaviorTargetOnce.
+@property(atomic, assign) GTMSessionFetcherQueueBehavior callbackQueueBehavior;
 
 // A default useragent of GTMFetcherStandardUserAgentString(nil) will be given to each fetcher
 // created by this service unless the request already has a user-agent header set.

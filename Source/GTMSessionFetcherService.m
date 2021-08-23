@@ -35,6 +35,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
 
+@property(atomic, strong, readonly) dispatch_queue_t internalCallbackQueue;
+
 @end
 
 // Since NSURLSession doesn't support a separate delegate per task (!), instances of this
@@ -80,6 +82,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   dispatch_semaphore_t _sessionCreationSemaphore;
 
   dispatch_queue_t _callbackQueue;
+  dispatch_queue_t _internalCallbackQueue;
+  GTMSessionFetcherQueueBehavior _callbackQueueBehavior;
   NSOperationQueue *_delegateQueue;
   NSHTTPCookieStorage *_cookieStorage;
   NSString *_userAgent;
@@ -125,6 +129,19 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             testBlock = _testBlock;
 // clang-format on
 
+static dispatch_queue_t CreateSerialDispatchQueueWithTarget(dispatch_queue_t targetQueue) {
+  const char *const kQueueLabel = "com.google.GTMSessionFetcher.internalCallbackQueue";
+
+#if TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0
+  dispatch_queue_t queue;
+  queue = dispatch_queue_create(kQueueLabel, DISPATCH_QUEUE_SERIAL);
+  dispatch_set_target_queue(queue, targetQueue);
+  return queue;
+#else
+  return dispatch_queue_create_with_target(kQueueLabel, DISPATCH_QUEUE_SERIAL, targetQueue);
+#endif
+}
+
 #if GTM_BACKGROUND_TASK_FETCHING
 @synthesize skipBackgroundTask = _skipBackgroundTask;
 #endif
@@ -141,6 +158,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
          initWithParentService:self
         sessionDiscardInterval:_unusedSessionTimeout];
     _callbackQueue = dispatch_get_main_queue();
+    _internalCallbackQueue = CreateSerialDispatchQueueWithTarget(_callbackQueue);
 
     _delegateQueue = [[NSOperationQueue alloc] init];
     _delegateQueue.maxConcurrentOperationCount = 1;
@@ -167,7 +185,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 - (id)fetcherWithRequest:(NSURLRequest *)request fetcherClass:(Class)fetcherClass {
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
                                                        configuration:self.configuration];
-  fetcher.callbackQueue = self.callbackQueue;
+  fetcher.callbackQueue = [self callbackQueueForNewFetcher];
   fetcher.sessionDelegateQueue = self.sessionDelegateQueue;
   fetcher.challengeBlock = self.challengeBlock;
   fetcher.credential = self.credential;
@@ -811,6 +829,59 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
 }
 
+- (nonnull dispatch_queue_t)callbackQueueForNewFetcher {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    switch (_callbackQueueBehavior) {
+      default:  // Fallthrough to the default, target-once behavior.
+      case GTMSessionFetcherQueueBehaviorTargetOnce:
+        return _internalCallbackQueue;
+      case GTMSessionFetcherQueueBehaviorTargetEveryFetcher:
+        return CreateSerialDispatchQueueWithTarget(_callbackQueue);
+      case GTMSessionFetcherQueueBehaviorDirect:
+        return _callbackQueue;
+    }
+  }
+}
+
+- (void)updateInternalQueueUnsynchronized {
+  GTMSessionCheckSynchronized(self);
+
+  if (_callbackQueueBehavior == GTMSessionFetcherQueueBehaviorTargetOnce) {
+    // Create an internal callback queue that will be passed to each created fetcher.
+    _internalCallbackQueue = CreateSerialDispatchQueueWithTarget(_callbackQueue);
+  } else {
+    // Direct and every-fetcher behavior don't require an internal queue.
+    _internalCallbackQueue = nil;
+  }
+}
+
+- (GTMSessionFetcherQueueBehavior)callbackQueueBehavior {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _callbackQueueBehavior;
+  }
+}
+
+- (void)setCallbackQueueBehavior:(GTMSessionFetcherQueueBehavior)callbackQueueBehavior {
+  @synchronized(self) {
+    if (callbackQueueBehavior == _callbackQueueBehavior) return;
+
+    _callbackQueueBehavior = callbackQueueBehavior;
+    [self updateInternalQueueUnsynchronized];
+  }
+}
+
+- (nonnull dispatch_queue_t)internalCallbackQueue {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _internalCallbackQueue;
+  }  // @synchronized(self)
+}
+
 - (nonnull dispatch_queue_t)callbackQueue {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -820,11 +891,15 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 }
 
 - (void)setCallbackQueue:(dispatch_queue_t)queue {
+  queue = queue ?: dispatch_get_main_queue();
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+    if (queue == _callbackQueue) return;
 
-    _callbackQueue = queue ?: dispatch_get_main_queue();
-  }  // @synchronized(self)
+    _callbackQueue = queue;
+    [self updateInternalQueueUnsynchronized];
+  }
 }
 
 - (NSOperationQueue *)sessionDelegateQueue {

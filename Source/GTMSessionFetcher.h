@@ -121,7 +121,7 @@
 // changing thread or queue to create or start a fetcher.
 //
 // Callbacks are run on the main thread; alternatively, the app may set the
-// fetcher's callbackQueue to a dispatch queue.
+// fetcher's callbackQueue to a serial dispatch queue.
 //
 // Once the fetcher's beginFetch method has been called, the fetcher's methods and
 // properties may be accessed from any thread.
@@ -1102,7 +1102,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // Log of request and response, if logging is enabled
 @property(atomic, copy, nullable) NSString *log;
 
-// Callbacks are run on this queue.  If none is supplied, the main queue is used.
+// Callbacks are run on this queue.  If none is supplied, the main queue is used. Any
+// queue provided must be a serial queue.
 //
 // This may not be changed once beginFetch has been invoked.
 @property(atomic, strong, null_resettable) dispatch_queue_t callbackQueue;

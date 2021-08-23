@@ -772,15 +772,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testCallbackQueue];
 }
 
-- (void)testCallbackQueue_SerialDispatch {
+- (void)runConcurrentServiceCallbackQueueBehaviorTest {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
+  // Use a concurrent callback queue for this test.
+  // DO NOT explicitly set the callbackQueueBehavior.
+  _fetcherService.callbackQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+
   NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
-
-  fetcher.callbackQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
 
   XCTestExpectation *dataAccumulatedExpectation =
       [self expectationWithDescription:@"Expected `accumulateDataBlock` to be called."];
@@ -798,18 +800,42 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [completionExpectation fulfill];
   }];
 
+  NSArray *orderedExpectations;
+  if (_fetcherService.callbackQueueBehavior == GTMSessionFetcherQueueBehaviorDirect) {
+    // When the service's queue behavior is Direct, no serialization occurs with the concurrent
+    // callback queue and the expectations be fulfilled "out-of-order".
+    orderedExpectations = @[ completionExpectation, dataAccumulatedExpectation ];
+  } else {
+    // Otherwise, serialization occurs (either per-service or per-fetcher) and the expectations
+    // should be fulfilled in the expected order.
+    orderedExpectations = @[ dataAccumulatedExpectation, completionExpectation ];
+  }
   // The accumulate data block should be called before the completion handler if the blocks are
   // dispatched serially to the callback queue.
-  [self waitForExpectations:@[ dataAccumulatedExpectation, completionExpectation ]
-                    timeout:_timeoutInterval
-               enforceOrder:YES];
+  [self waitForExpectations:orderedExpectations timeout:_timeoutInterval enforceOrder:YES];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
 
-- (void)testCallbackQueue_SerialDispatch_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testCallbackQueue_SerialDispatch];
+- (void)testServiceCallbackQueueBehaviorTargetOnce {
+  if (!_isServerRunning) return;
+
+  _fetcherService.callbackQueueBehavior = GTMSessionFetcherQueueBehaviorTargetOnce;
+  [self runConcurrentServiceCallbackQueueBehaviorTest];
+}
+
+- (void)testServiceCallbackQueueBehaviorTargetEveryFetcher {
+  if (!_isServerRunning) return;
+
+  _fetcherService.callbackQueueBehavior = GTMSessionFetcherQueueBehaviorTargetEveryFetcher;
+  [self runConcurrentServiceCallbackQueueBehaviorTest];
+}
+
+- (void)testServiceCallbackQueueBehaviorTargetDirect {
+  if (!_isServerRunning) return;
+
+  _fetcherService.callbackQueueBehavior = GTMSessionFetcherQueueBehaviorDirect;
+  [self runConcurrentServiceCallbackQueueBehaviorTest];
 }
 
 - (void)testStreamProviderFetch {
