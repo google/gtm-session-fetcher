@@ -1742,6 +1742,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                 return;
               }
               if (newRequest) {
+                // Copying `NSURLRequest` should be cheap, but in case profiling shows this
+                // operation is prohibitively expensive, this API might need to be changed to allow
+                // clients to manipulate `self.request` directly.
                 [strongSelf updateMutableRequest:[newRequest mutableCopy]];
               }
               [strongSelf applyDecoratorsAtRequestWillStart:decorators startingAtIndex:index + 1];

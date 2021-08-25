@@ -614,8 +614,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable,
                                                                      NSError *_Nullable);
 
-// Allows intercepting a request and optionally modifying it throughout the lifetime of the
-// request. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
+// Allows intercepting a request and optionally modifying it before the request (or a retry)
+// is sent. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
 // removeDecorator:]`.
 //
 // Decorator methods must be thread-safe, as they might be invoked on any queue.
