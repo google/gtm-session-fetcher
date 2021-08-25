@@ -26,7 +26,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
 - (BOOL)beginFetchMayDelay:(BOOL)mayDelay
-              mayAuthorize:(BOOL)mayAuthorize;
+              mayAuthorize:(BOOL)mayAuthorize
+               mayDecorate:(BOOL)mayDecorate;
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
@@ -34,6 +35,9 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
+
+// Ordered collection of id<GTMFetcherDecoratorProtocol>, held weakly.
+@property(atomic, strong, readonly) NSPointerArray *decoratorsPointerArray;
 
 @end
 
@@ -122,6 +126,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             metricsCollectionBlock = _metricsCollectionBlock,
             properties = _properties,
             unusedSessionTimeout = _unusedSessionTimeout,
+            decoratorsPointerArray = _decoratorsPointerArray,
             testBlock = _testBlock;
 // clang-format on
 
@@ -218,6 +223,39 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 - (GTMSessionFetcher *)fetcherWithURLString:(NSString *)requestURLString {
   NSURL *url = [NSURL URLWithString:requestURLString];
   return [self fetcherWithURL:url];
+}
+
+- (void)addDecorator:(id<GTMFetcherDecoratorProtocol>)decorator {
+  @synchronized(self) {
+    if (!_decoratorsPointerArray) {
+      _decoratorsPointerArray = [NSPointerArray weakObjectsPointerArray];
+    }
+    [_decoratorsPointerArray addPointer:(__bridge void *)decorator];
+  }
+}
+
+- (nullable NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators {
+  @synchronized(self) {
+    return _decoratorsPointerArray.allObjects;
+  }
+}
+
+- (void)removeDecorator:(id<GTMFetcherDecoratorProtocol>)decorator {
+  @synchronized(self) {
+    NSUInteger i = 0;
+    for (id<GTMFetcherDecoratorProtocol> decoratorCandidate in _decoratorsPointerArray) {
+      if (decoratorCandidate == decorator) {
+        break;
+      }
+      ++i;
+    }
+    GTMSESSION_ASSERT_DEBUG(i < _decoratorsPointerArray.count,
+                            @"decorator %@ must be passed to -addDecorator: before removing",
+                            decorator);
+    if (i < _decoratorsPointerArray.count) {
+      [_decoratorsPointerArray removePointerAtIndex:i];
+    }
+  }
 }
 
 // Returns a session for the fetcher's host, or nil.
@@ -364,7 +402,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 }
 
 - (void)startFetcher:(GTMSessionFetcher *)fetcher {
-  [fetcher beginFetchMayDelay:NO mayAuthorize:YES];
+  [fetcher beginFetchMayDelay:NO mayAuthorize:YES mayDecorate:YES];
 }
 
 // Internal utility. Returns a fetcher's delegate if it's a dispatcher, or nil if the fetcher

@@ -447,21 +447,19 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
 - (void)beginFetchWithCompletionHandler:(nullable GTMSessionFetcherCompletionHandler)handler {
   GTMSessionCheckNotSynchronized(self);
-
   _completionHandler = [handler copy];
 
   // The user may have called setDelegate: earlier if they want to use other
   // delegate-style callbacks during the fetch; otherwise, the delegate is nil,
   // which is fine.
-  [self beginFetchMayDelay:YES mayAuthorize:YES];
+  [self beginFetchMayDelay:YES mayAuthorize:YES mayDecorate:YES];
 }
 
 // Begin fetching the URL for a retry fetch. The delegate and completion handler
 // are already provided, and do not need to be copied.
 - (void)beginFetchForRetry {
   GTMSessionCheckNotSynchronized(self);
-
-  [self beginFetchMayDelay:YES mayAuthorize:YES];
+  [self beginFetchMayDelay:YES mayAuthorize:YES mayDecorate:YES];
 }
 
 - (GTMSessionFetcherCompletionHandler)completionHandlerWithTarget:(nullable id)target
@@ -494,7 +492,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 }
 
 - (void)beginFetchMayDelay:(BOOL)mayDelay
-              mayAuthorize:(BOOL)mayAuthorize {
+              mayAuthorize:(BOOL)mayAuthorize
+               mayDecorate:(BOOL)mayDecorate {
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
@@ -812,6 +811,23 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       // Authorizing the request will recursively call this beginFetch:mayDelay:
       // or failToBeginFetchWithError:.
       [self authorizeRequest];
+      return;
+    }
+  }
+
+  if (mayDecorate) {
+    NSArray<id<GTMFetcherDecoratorProtocol>> *decorators = _service.decorators;
+    if (decorators.count) {
+      // If this session is held by the fetcher service, clear the session now so that we don't
+      // assume it's still valid after decoration completes.
+      //
+      // The service will still hold on to the session, so as long as decoration doesn't take more
+      // than 30 seconds since the last request, the service's session will be re-used when the
+      // fetch actually starts.
+      if (self.canShareSession) {
+        self.session = nil;
+      }
+      [self applyDecoratorsAtRequestWillStart:decorators startingAtIndex:0];
       return;
     }
   }
@@ -1617,8 +1633,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                             userInfo:nil];
   }
 
-  [self invokeFetchCallbacksOnCallbackQueueWithData:nil error:error];
-  [self releaseCallbacks];
+  [self invokeFetchCallbacksOnCallbackQueueWithData:nil
+                                              error:error
+                                        mayDecorate:YES
+                             shouldReleaseCallbacks:YES];
 
   [_service fetcherDidStop:self];
 
@@ -1670,7 +1688,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
     // No authorizing possible, and authorizing happens only after any delay;
     // just begin fetching
-    [self beginFetchMayDelay:NO mayAuthorize:NO];
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
 }
 
@@ -1686,8 +1704,89 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     @synchronized(self) {
       _request = authorizedRequest;
     }
-    [self beginFetchMayDelay:NO mayAuthorize:NO];
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
+}
+
+- (void)applyDecoratorsAtRequestWillStart:(NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators
+                          startingAtIndex:(NSUInteger)index {
+  GTMSessionCheckNotSynchronized(self);
+  if (index >= decorators.count) {
+    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators complete",
+                         decorators.count);
+    [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
+    return;
+  }
+
+  __weak __typeof__(self) weakSelf = self;
+  id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, "
+                       @"retry count %zu, decorator %@",
+                       decorators.count, index, self.retryCount, decorator);
+  [decorator fetcherWillStart:self
+            completionHandler:^(NSURLRequest *_Nullable newRequest, NSError *_Nullable error) {
+              GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorator requestWillStart index %zu "
+                                   @"complete, newRequest %@, error %@",
+                                   index, newRequest, error);
+              __strong __typeof__(self) strongSelf = weakSelf;
+              if (!strongSelf) {
+                GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestWillStart "
+                                     @"decorators completed, ignoring.");
+                return;
+              }
+              if (error) {
+                [self failToBeginFetchWithError:(NSError *_Nonnull)error];
+                return;
+              }
+              if (newRequest) {
+                // Copying `NSURLRequest` should be cheap, but in case profiling shows this
+                // operation is prohibitively expensive, this API might need to be changed to allow
+                // clients to manipulate `self.request` directly.
+                [strongSelf updateMutableRequest:[newRequest mutableCopy]];
+              }
+              [strongSelf applyDecoratorsAtRequestWillStart:decorators startingAtIndex:index + 1];
+            }];
+}
+
+- (void)applyDecoratorsAtRequestDidFinish:(NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators
+                                 withData:(nullable NSData *)data
+                                    error:(nullable NSError *)error
+                          startingAtIndex:(NSUInteger)index
+                   shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
+  GTMSessionCheckNotSynchronized(self);
+  if (index >= decorators.count) {
+    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators complete",
+                         decorators.count);
+    [self invokeFetchCallbacksOnCallbackQueueWithData:data
+                                                error:error
+                                          mayDecorate:NO
+                               shouldReleaseCallbacks:shouldReleaseCallbacks];
+    return;
+  }
+
+  __weak __typeof__(self) weakSelf = self;
+  id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators, index %zu, "
+                       @"retry count %zu, decorator %@",
+                       decorators.count, index, self.retryCount, decorator);
+  [decorator fetcherDidFinish:self
+                     withData:data
+                        error:error
+            completionHandler:^{
+              GTMSESSION_LOG_DEBUG(
+                  @"GTMSessionFetcher decorator requestDidFinish index %zu complete", index);
+              __strong __typeof__(self) strongSelf = weakSelf;
+              if (!strongSelf) {
+                GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestDidFinish "
+                                     @"decorators completed, ignoring.");
+                return;
+              }
+              [strongSelf applyDecoratorsAtRequestDidFinish:decorators
+                                                   withData:data
+                                                      error:error
+                                            startingAtIndex:index + 1
+                                     shouldReleaseCallbacks:shouldReleaseCallbacks];
+            }];
 }
 
 - (BOOL)canFetchWithBackgroundSession {
@@ -2502,7 +2601,24 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 }
 
 - (void)invokeFetchCallbacksOnCallbackQueueWithData:(nullable NSData *)data
-                                              error:(nullable NSError *)error {
+                                              error:(nullable NSError *)error
+                                        mayDecorate:(BOOL)mayDecorate
+                             shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
+  if (mayDecorate) {
+    NSArray<id<GTMFetcherDecoratorProtocol>> *decorators = _service.decorators;
+    if (decorators.count) {
+      [self applyDecoratorsAtRequestDidFinish:decorators
+                                     withData:data
+                                        error:error
+                              startingAtIndex:0
+                       shouldReleaseCallbacks:shouldReleaseCallbacks];
+      return;
+    }
+  }
+
+  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher invoking fetch callbacks, data %@, error %@", data,
+                       error);
+
   // Callbacks will be released in the method stopFetchReleasingCallbacks:
   GTMSessionFetcherCompletionHandler handler;
   @synchronized(self) {
@@ -2532,6 +2648,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
       }];
     }
   }  // @synchronized(self)
+
+  if (shouldReleaseCallbacks) {
+    [self releaseCallbacks];
+  }
 }
 
 - (void)postNotificationOnMainThreadWithName:(NSString *)noteName
@@ -3050,10 +3170,13 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   [self sendStopNotificationIfNeeded];
 
   if (shouldStopFetching) {
-    [self invokeFetchCallbacksOnCallbackQueueWithData:downloadedData error:error];
     // The upload subclass doesn't want to release callbacks until upload chunks have completed.
     BOOL shouldRelease = [self shouldReleaseCallbacksUponCompletion];
-    [self stopFetchReleasingCallbacks:shouldRelease];
+    [self invokeFetchCallbacksOnCallbackQueueWithData:downloadedData
+                                                error:error
+                                          mayDecorate:YES
+                               shouldReleaseCallbacks:shouldRelease];
+    [self stopFetchReleasingCallbacks:NO];
   }
 
 #if !STRIP_GTM_FETCH_LOGGING

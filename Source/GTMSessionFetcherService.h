@@ -143,6 +143,15 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 - (void)stopAllFetchers;
 
+// Holds a weak reference to `decorator`. When creating a fetcher via
+// `-fetcherWithRequest:fetcherClass:`, each registered `decorator` can inspect and potentially
+// change the fetcher's request before it starts. Decorators are invoked in the order in which
+// they are passed to this method.
+- (void)addDecorator:(id<GTMFetcherDecoratorProtocol>)decorator;
+
+// Removes a `decorator` previously passed to `-removeDecorator:`.
+- (void)removeDecorator:(id<GTMFetcherDecoratorProtocol>)decorator;
+
 // Methods for use by the fetcher class only.
 - (nullable NSURLSession *)session;
 - (nullable NSURLSession *)sessionForFetcherCreation;
