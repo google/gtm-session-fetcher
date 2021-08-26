@@ -687,10 +687,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     dispatch_queue_t queue = queues[index % queues.count];
     dispatch_async(queue, ^{
       GTMSessionFetcher *fetcher = [service fetcherWithURL:validFileURL];
-
-      dispatch_queue_t callbackQueue =
-          queues[(index / queues.count) % queues.count];  // epicycle of queues
-      fetcher.callbackQueue = callbackQueue;
+      fetcher.callbackQueue = queues[(index / queues.count) % queues.count];  // epicycle of queues
 
       [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
         @synchronized(self) {
@@ -704,9 +701,12 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
             return;
           }
 
-          if (@available(iOS 10, *)) {
-            dispatch_assert_queue(callbackQueue);
-          }
+          const char *expectedQueueLabel =
+              dispatch_queue_get_label(queues[(index / 3) % queues.count]);
+          const char *actualQueueLabel = dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL);
+          XCTAssert(strcmp(actualQueueLabel, expectedQueueLabel) == 0,
+                    @"queue mismatch on index %lu: %s (expected %s)", (unsigned long)index,
+                    actualQueueLabel, expectedQueueLabel);
 
           XCTAssertNotNil(fetchData, @"index %lu", (unsigned long)index);
           XCTAssertNil(fetchError, @"index %lu", (unsigned long)index);
