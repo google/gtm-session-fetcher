@@ -90,7 +90,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 - (NSInteger)statusCodeUnsynchronized;
 
-@property(strong, atomic, readonly, nonnull) dispatch_queue_t internalCallbackQueue;
+@property(strong, atomic, readonly, nonnull) dispatch_queue_t serialCallbackQueue;
 
 - (BOOL)userStoppedFetching;
 
@@ -283,7 +283,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   uploadFetcher.sessionUserInfo = metadata;
   uploadFetcher.useBackgroundSession = YES;
   uploadFetcher.currentOffset = currentOffset;
-  uploadFetcher.delegateCallbackQueue = uploadFetcher.internalCallbackQueue;
+  uploadFetcher.delegateCallbackQueue = uploadFetcher.serialCallbackQueue;
   uploadFetcher.allowedInsecureSchemes = @[ @"http" ];  // Allowed on restored upload fetcher.
   return uploadFetcher;
 }
@@ -916,7 +916,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // We'll hold onto the superclass's callback queue so we can invoke the handler
   // even after the superclass has released the queue and its callback handler, as
   // happens during auth failure.
-  [self setDelegateCallbackQueue:self.internalCallbackQueue];
+  [self setDelegateCallbackQueue:self.serialCallbackQueue];
   self.completionHandler = handler;
 
   if ([self isRestartedUpload]) {
@@ -1401,7 +1401,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // Make a new chunk fetcher.
   //
   GTMSessionFetcher *chunkFetcher = [GTMSessionFetcher fetcherWithRequest:chunkRequest];
-  chunkFetcher.callbackQueue = self.internalCallbackQueue;
+  chunkFetcher.callbackQueue = self.serialCallbackQueue;
   chunkFetcher.sessionUserInfo = self.sessionUserInfo;
   chunkFetcher.configurationBlock = self.configurationBlock;
   chunkFetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
@@ -1678,7 +1678,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     [self sendCancelUploadWithFetcherProperties:[self properties]];
     self.uploadLocationURL = nil;
   } else {
-    [self invokeOnCallbackQueue:self.internalCallbackQueue
+    [self invokeOnCallbackQueue:self.serialCallbackQueue
                afterUserStopped:YES
                           block:^{
                             // Repeated calls to stopFetching may cause this path to be reached
