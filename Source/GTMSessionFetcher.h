@@ -1102,7 +1102,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // Log of request and response, if logging is enabled
 @property(atomic, copy, nullable) NSString *log;
 
-// Callbacks are run on this queue.  If none is supplied, the main queue is used.
+// Callbacks are run on this queue. If none is supplied, the main queue is used.
+//
+// CAUTION: This block MUST be a serial queue. Setting a concurrent queue may result in callbacks
+// arriving out-of-order.
 @property(atomic, strong, null_resettable) dispatch_queue_t callbackQueue;
 
 // The queue used internally by the session to invoke its delegate methods in the fetcher.
