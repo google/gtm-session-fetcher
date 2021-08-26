@@ -736,9 +736,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
       [self expectationWithDescription:@"testCallbackQueue main"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
-    if (@available(iOS 10, *)) {
-      dispatch_assert_queue(dispatch_get_main_queue());
-    }
+    XCTAssertTrue([NSThread isMainThread], @"Unexpected queue %s",
+                  dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL));
     [finishExpectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -756,9 +755,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   finishExpectation = [self expectationWithDescription:@"testCallbackQueue specific"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     [self assertSuccessfulGettysburgFetchWithFetcher:fetcher data:data error:error];
-    if (@available(iOS 10, *)) {
-      dispatch_assert_queue(bgQueue);
-    }
+    BOOL areSame = (strcmp(dispatch_queue_get_label(bgQueue),
+                           dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL)) == 0);
+    XCTAssert(areSame, @"Unexpected queue: %s ≠ %s",
+              dispatch_queue_get_label(DISPATCH_CURRENT_QUEUE_LABEL),
+              dispatch_queue_get_label(bgQueue));
     [finishExpectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -770,46 +771,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testCallbackQueue_WithoutFetcherService {
   _fetcherService = nil;
   [self testCallbackQueue];
-}
-
-- (void)testCallbackQueue_SerialDispatch {
-  if (!_isServerRunning) return;
-
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
-
-  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
-
-  fetcher.callbackQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
-
-  XCTestExpectation *dataAccumulatedExpectation =
-      [self expectationWithDescription:@"Expected `accumulateDataBlock` to be called."];
-  fetcher.accumulateDataBlock = ^(NSData *buffer) {
-    // Simulate real work to increase the likelihood that the completion handler will be run
-    // concurrently.
-    sleep(1);
-
-    [dataAccumulatedExpectation fulfill];
-  };
-
-  XCTestExpectation *completionExpectation =
-      [self expectationWithDescription:@"Expected the fetch to complete."];
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    [completionExpectation fulfill];
-  }];
-
-  // The accumulate data block should be called before the completion handler if the blocks are
-  // dispatched serially to the callback queue.
-  [self waitForExpectations:@[ dataAccumulatedExpectation, completionExpectation ]
-                    timeout:_timeoutInterval
-               enforceOrder:YES];
-
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
-}
-
-- (void)testCallbackQueue_SerialDispatch_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testCallbackQueue_SerialDispatch];
 }
 
 - (void)testStreamProviderFetch {
