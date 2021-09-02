@@ -811,7 +811,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
   }
 
-  if (mayDecorate) {
+  if (mayDecorate && [_service respondsToSelector:@selector(decorators)]) {
     NSArray<id<GTMFetcherDecoratorProtocol>> *decorators = _service.decorators;
     if (decorators.count) {
       // If this session is held by the fetcher service, clear the session now so that we don't
@@ -2594,7 +2594,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                                               error:(nullable NSError *)error
                                         mayDecorate:(BOOL)mayDecorate
                              shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
-  if (mayDecorate) {
+  if (mayDecorate && [_service respondsToSelector:@selector(decorators)]) {
     NSArray<id<GTMFetcherDecoratorProtocol>> *decorators = _service.decorators;
     if (decorators.count) {
       [self applyDecoratorsAtRequestDidFinish:decorators

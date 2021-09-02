@@ -686,6 +686,9 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
 
+@optional
+// This property is optional, for now, to enable releasing the feature without breaking existing
+// code that fakes the service but doesn't implement this.
 @property(atomic, readonly, strong, nullable) NSArray<id<GTMFetcherDecoratorProtocol>> *decorators;
 
 @end  // @protocol GTMSessionFetcherServiceProtocol
