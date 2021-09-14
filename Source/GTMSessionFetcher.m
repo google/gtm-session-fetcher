@@ -501,6 +501,9 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   NSURL *fetchRequestURL = fetchRequest.URL;
   NSString *priorSessionIdentifier = self.sessionIdentifier;
 
+  GTMSESSION_LOG_DEBUG(@"%@ %p URL:%@ beginFetchMayDelay:%d mayAuthorize:%d mayDecorate:%d",
+                       [self class], self, _request.URL, mayDelay, mayAuthorize, mayDecorate);
+
   // A utility block for creating error objects when we fail to start the fetch.
   NSError * (^beginFailureError)(NSInteger) = ^(NSInteger code) {
     NSString *urlString = fetchRequestURL.absoluteString;
