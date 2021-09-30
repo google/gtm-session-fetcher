@@ -109,9 +109,10 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 // Sets the callback queue, specifying that the provided queue is a concurrent queue.
 //
-// When a concurrent queue is explicitly provided via this setter, the the service
-// will wrap the concurrent queue with a new serial queue for each fetcher instance
-// that is created, ensuring all callbacks for a given fetcher instance occur serially.
+// When a concurrent queue is explicitly provided via this setter, then each new fetcher
+// instance created by the service will be provided a new serial queue targeting the
+// concurrent callback queue; this will ensure callbacks for each instance are executed
+// in order, while callbacks from separate fetcher instances are not blocked by each other.
 //
 // The service behavior when resetting the callback queue after providing a concurrent
 // queue is unspecified.
