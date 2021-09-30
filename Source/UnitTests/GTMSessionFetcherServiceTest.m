@@ -412,6 +412,39 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   }
 }
 
+- (void)testConcurrentCallbackQueue {
+  if (!_isServerRunning) return;
+
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  [service setConcurrentCallbackQueue:dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0)];
+
+  XCTestExpectation *progressExpectation = [self expectationWithDescription:@"progress block"];
+  XCTestExpectation *completionExpectation = [self expectationWithDescription:@"completion"];
+
+  NSURL *fileURL = [_testServer localURLForFile:kValidFileName];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
+  fetcher.receivedProgressBlock = ^(int64_t bytesReceived, int64_t totalBytesReceived) {
+    // Sleep for a time before fulfilling the expectation.
+    sleep(1);
+    [progressExpectation fulfill];
+  };
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [completionExpectation fulfill];
+  }];
+
+  // The progress block should be executed prior to the completion block, even though
+  // they will be dispatched at essentially the same time; if they are executing on
+  // the global concurrent queue, the completion will fulfill its expectation first
+  // due to the sleep in the progress block.
+  [self waitForExpectations:@[ progressExpectation, completionExpectation ]
+                    timeout:5
+               enforceOrder:YES];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+}
+
 - (void)testStopAllFetchers {
   if (!_isServerRunning) return;
 
