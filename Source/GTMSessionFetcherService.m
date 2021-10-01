@@ -83,6 +83,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   // Fetchers will wait on this if another fetcher is creating the shared NSURLSession.
   dispatch_semaphore_t _sessionCreationSemaphore;
 
+  BOOL _callbackQueueIsConcurrent;
   dispatch_queue_t _callbackQueue;
   NSOperationQueue *_delegateQueue;
   NSHTTPCookieStorage *_cookieStorage;
@@ -168,11 +169,38 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
 #pragma mark Generate a new fetcher
 
+// Creates a serial queue targetting the service's callback, meant to be provided to a new
+// GTMSessionFetcher instance.
+//
+// This method is not intended to be overrideable by clients.
+- (nonnull dispatch_queue_t)serialQueueForNewFetcher:(GTMSessionFetcher *)fetcher {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (!_callbackQueueIsConcurrent) return _callbackQueue;
+
+    static const char *kQueueLabel = "com.google.GTMSessionFetcher.serialCallbackQueue";
+    dispatch_queue_t queue;
+#if TARGET_OS_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
+    // All targets except iPhone < iOS 10 support dispatch_queue_create_with_target().
+    // iOS builds supporting <iOS 10 will create the queue and set the target separately,
+    // but all other builds have mininum support that includes the one-stop function.
+    queue = dispatch_queue_create(kQueueLabel, DISPATCH_QUEUE_SERIAL);
+    dispatch_set_target_queue(queue, _callbackQueue);
+#else
+    // All other targets support dispatch_queue_create_with_target()
+    queue = dispatch_queue_create_with_target(kQueueLabel, DISPATCH_QUEUE_SERIAL, _callbackQueue);
+#endif
+
+    return queue;
+  }
+}
+
 // Clients may override this method. Clients should not override any other library methods.
 - (id)fetcherWithRequest:(NSURLRequest *)request fetcherClass:(Class)fetcherClass {
   GTMSessionFetcher *fetcher = [[fetcherClass alloc] initWithRequest:request
                                                        configuration:self.configuration];
-  fetcher.callbackQueue = self.callbackQueue;
+  fetcher.callbackQueue = [self serialQueueForNewFetcher:fetcher];
   fetcher.sessionDelegateQueue = self.sessionDelegateQueue;
   fetcher.challengeBlock = self.challengeBlock;
   fetcher.credential = self.credential;
@@ -858,10 +886,27 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 }
 
 - (void)setCallbackQueue:(dispatch_queue_t)queue {
+  [self setCallbackQueue:queue isConcurrent:NO];
+}
+
+- (void)setConcurrentCallbackQueue:(dispatch_queue_t)queue {
+  [self setCallbackQueue:queue isConcurrent:YES];
+}
+
+- (void)setCallbackQueue:(dispatch_queue_t)queue isConcurrent:(BOOL)isConcurrent {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+#if DEBUG
+    // Warn when changing from a concurrent queue to a serial queue.
+    if (_callbackQueueIsConcurrent && (!isConcurrent || !queue)) {
+      GTMSESSION_LOG_DEBUG(
+          @"WARNING: Resetting the service callback queue from concurrent to serial");
+    }
+#endif  // DEBUG
+
     _callbackQueue = queue ?: dispatch_get_main_queue();
+    _callbackQueueIsConcurrent = queue ? isConcurrent : NO;
   }  // @synchronized(self)
 }
 
