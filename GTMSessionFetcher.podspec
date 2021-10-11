@@ -42,8 +42,7 @@ Pod::Spec.new do |s|
   end
 
   s.subspec 'LogView' do |sp|
-    # Only relevant for iOS
-    sp.platform = :ios
+    # Only relevant for iOS, files compile away on others.
     sp.source_files =
       'Source/GTMSessionFetcherLogViewController.{h,m}'
     sp.dependency 'GTMSessionFetcher/Core', "#{s.version}"
