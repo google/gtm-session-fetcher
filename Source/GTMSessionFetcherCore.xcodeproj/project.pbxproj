@@ -81,11 +81,8 @@
 		4FEE143B1BB223DE002ACBF8 /* GTMSessionUploadFetcher.h in Headers */ = {isa = PBXBuildFile; fileRef = 4F6F7E8018D6B2CD00CA4B4C /* GTMSessionUploadFetcher.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		4FEE143C1BB223DE002ACBF8 /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
 		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
-		8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */; };
 		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
-		8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
 		8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
-		8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8EC5669118AAFB1200E2C97D /* UIKit.framework */; };
 		F46D935D1D9D4DEB00590137 /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
 		F46D935E1D9D4DEB00590137 /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
 		F46D935F1D9D4DEB00590137 /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
@@ -217,9 +214,7 @@
 		4FEE14271BB22328002ACBF8 /* GTMSessionFetcherIOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetcherIOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4FEE142B1BB22328002ACBF8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = MainStoryboard.storyboard; path = TestApps/FetcheriOSTestApp/MainStoryboard.storyboard; sourceTree = SOURCE_ROOT; };
-		8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS7.0.sdk/System/Library/Frameworks/CoreGraphics.framework; sourceTree = DEVELOPER_DIR; };
 		8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcheriOSTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8EC5669118AAFB1200E2C97D /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = Library/Frameworks/UIKit.framework; sourceTree = DEVELOPER_DIR; };
 		8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcheriOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetchertvOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4A872051DA3EACE00D69E09 /* GTMSessionFetchertvOS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetchertvOS.h; sourceTree = "<group>"; };
@@ -267,9 +262,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8E809F7218BC3AAE0040AE83 /* CoreGraphics.framework in Frameworks */,
 				4FA8DB7D193D13A40071BC92 /* Security.framework in Frameworks */,
-				8EC5669218AAFB1200E2C97D /* UIKit.framework in Frameworks */,
 				8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -278,7 +271,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8EC566A818AAFB1300E2C97D /* UIKit.framework in Frameworks */,
 				4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */,
 				8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */,
 			);
@@ -374,13 +366,11 @@
 		4F5566B31862981000D6D62C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				8E809F7118BC3AAE0040AE83 /* CoreGraphics.framework */,
 				4FA8DB7A193D13A30071BC92 /* Security.framework */,
 				4F5566B71862981000D6D62C /* Foundation.framework */,
 				4F5566B81862981000D6D62C /* CoreData.framework */,
 				4F5566B91862981000D6D62C /* AppKit.framework */,
 				4F5566B41862981000D6D62C /* Cocoa.framework */,
-				8EC5669118AAFB1200E2C97D /* UIKit.framework */,
 				4F34A21D187CCBB50012E91E /* Other Frameworks */,
 			);
 			name = Frameworks;
