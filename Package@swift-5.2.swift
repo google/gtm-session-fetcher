@@ -65,7 +65,7 @@ let package = Package(
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "Source/UnitTests"
+            path: "UnitTests"
             // Resources hot wired in the source file themselves.
         )
     ]

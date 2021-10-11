@@ -31,8 +31,6 @@ let package = Package(
                 "GTMSessionFetcherOSX",
                 "GTMSessionFetchertvOS",
                 "GTMSessionFetcherwatchOS",
-                "TestApps",
-                "UnitTests",
                 "GTMGatherInputStream.m",
                 "GTMMIMEDocument.m",
                 "GTMReadMonitorInputStream.m",
@@ -59,8 +57,6 @@ let package = Package(
                 "GTMSessionFetcherOSX",
                 "GTMSessionFetchertvOS",
                 "GTMSessionFetcherwatchOS",
-                "TestApps",
-                "UnitTests",
                 "GTMSessionFetcher.m",
                 "GTMSessionFetcherLogging.m",
                 "GTMSessionFetcherLogViewController.m",
@@ -86,8 +82,6 @@ let package = Package(
                 "GTMSessionFetcherOSX",
                 "GTMSessionFetchertvOS",
                 "GTMSessionFetcherwatchOS",
-                "TestApps",
-                "UnitTests",
                 "GTMGatherInputStream.m",
                 "GTMMIMEDocument.m",
                 "GTMReadMonitorInputStream.m",
@@ -105,7 +99,7 @@ let package = Package(
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "Source/UnitTests",
+            path: "UnitTests",
             // Resources not working as of Swfit 5.3
             // - https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
             // - https://bugs.swift.org/browse/SR-13560

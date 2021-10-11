@@ -318,7 +318,7 @@
 				4F34A222187CCBB50012E91E /* Supporting Files */,
 			);
 			name = FetcherOSXTestApp;
-			path = TestApps/FetcherOSXTestApp;
+			path = ../TestApps/FetcherOSXTestApp;
 			sourceTree = SOURCE_ROOT;
 		};
 		4F34A222187CCBB50012E91E /* Supporting Files */ = {
@@ -414,7 +414,7 @@
 				4F5566D01862981000D6D62C /* Supporting Files */,
 			);
 			name = Tests;
-			path = UnitTests;
+			path = ../UnitTests;
 			sourceTree = SOURCE_ROOT;
 		};
 		4F5566D01862981000D6D62C /* Supporting Files */ = {
@@ -473,7 +473,7 @@
 				8EC5669418AAFB1200E2C97D /* Supporting Files */,
 			);
 			name = FetcheriOSTestApp;
-			path = TestApps/FetcheriOSTestApp;
+			path = ../TestApps/FetcheriOSTestApp;
 			sourceTree = SOURCE_ROOT;
 		};
 		8EC5669418AAFB1200E2C97D /* Supporting Files */ = {
@@ -1036,12 +1036,12 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
+				GCC_PREFIX_HEADER = "../TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				INFOPLIST_FILE = "../TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = app;
@@ -1053,8 +1053,8 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
-				INFOPLIST_FILE = "TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
+				GCC_PREFIX_HEADER = "../TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Prefix.pch";
+				INFOPLIST_FILE = "../TestApps/FetcherOSXTestApp/FetcherOSXTestApp-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = app;
@@ -1239,7 +1239,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = xctest;
@@ -1259,7 +1259,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = xctest;
@@ -1355,12 +1355,12 @@
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				GCC_PREFIX_HEADER = "../TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
+				INFOPLIST_FILE = "../TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1381,8 +1381,8 @@
 					"$(DEVELOPER_FRAMEWORKS_DIR)",
 				);
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
-				INFOPLIST_FILE = "TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
+				GCC_PREFIX_HEADER = "../TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Prefix.pch";
+				INFOPLIST_FILE = "../TestApps/FetcheriOSTestApp/FetcheriOSTestApp-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1404,7 +1404,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1426,7 +1426,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1479,7 +1479,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetchertvOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -1494,7 +1494,7 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
+				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetchertvOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
