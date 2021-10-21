@@ -1239,7 +1239,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = xctest;
@@ -1259,7 +1258,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				WRAPPER_EXTENSION = xctest;
@@ -1404,7 +1402,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1426,7 +1423,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.google.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1479,7 +1475,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetchertvOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -1494,7 +1489,6 @@
 					"GTMSESSION_ASSERT_AS_LOG=1",
 					"GTMSESSION_UNIT_TESTING=1",
 				);
-				INFOPLIST_FILE = "../UnitTests/SupportingFiles/GTMSessionFetcherTest-Info.plist";
 				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetchertvOSTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
