@@ -883,13 +883,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testHTTPAuthentication {
   if (!_isServerRunning) return;
 
-#if TARGET_OS_TV || TARGET_OS_IPHONE
-#define EXPECTED_COUNT 2
-#else
-#define EXPECTED_COUNT 3
-#endif
-
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(EXPECTED_COUNT, EXPECTED_COUNT);
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(3, 3);
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
   NSURLCredential *goodCredential =
@@ -917,12 +911,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 
-#if TARGET_OS_TV || TARGET_OS_IPHONE
-  // https://github.com/google/gtm-session-fetcher/issues/67
-  //
-  // This started failing with ~iOS 10 release/toolchain.
-#pragma message "HTTP Digest Authentication testing disabled"
-#else
   // Verify Digest Authentication.
   fetcher = [self fetcherWithURLString:localURLString];
   fetcher.credential = goodCredential;
@@ -938,7 +926,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
-#endif
 
   //
   // Try a failed Basic authentication.
@@ -967,14 +954,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // Check the notifications.
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-  XCTAssertEqual(fnctr.fetchStarted, EXPECTED_COUNT, @"%@", fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, EXPECTED_COUNT, @"%@", fnctr.fetchersStoppedDescriptions);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, EXPECTED_COUNT);
+  XCTAssertEqual(fnctr.fetchStarted, 3, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 3, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 3);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
 #if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
-  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)EXPECTED_COUNT);
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, 3U);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
 #endif
 }
