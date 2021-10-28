@@ -1196,8 +1196,8 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 // TODO(seh): How do we route this to an appropriate fetcher?
 
 - (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(NSError *)error {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@", [self class], self,
-                           session, error);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@", [self class],
+                               self, session, error);
   NSDictionary *localTaskToFetcherMap;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
