@@ -501,6 +501,10 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   NSURL *fetchRequestURL = fetchRequest.URL;
   NSString *priorSessionIdentifier = self.sessionIdentifier;
 
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URL:%@ beginFetchMayDelay:%d mayAuthorize:%d mayDecorate:%d",
+                               [self class], self, _request.URL, mayDelay, mayAuthorize,
+                               mayDecorate);
+
   // A utility block for creating error objects when we fail to start the fetch.
   NSError * (^beginFailureError)(NSInteger) = ^(NSInteger code) {
     NSString *urlString = fetchRequestURL.absoluteString;
@@ -2209,7 +2213,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                     newRequest:(NSURLRequest *)redirectRequest
              completionHandler:(void (^)(NSURLRequest *_Nullable))handler {
   [self setSessionTask:task];
-  GTM_LOG_SESSION_DELEGATE(
+  GTMSESSION_LOG_DEBUG_VERBOSE(
       @"%@ %p URLSession:%@ task:%@ willPerformHTTPRedirection:%@ newRequest:%@", [self class],
       self, session, task, redirectResponse, redirectRequest);
 
@@ -2268,8 +2272,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     didReceiveResponse:(NSURLResponse *)response
      completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))handler {
   [self setSessionTask:dataTask];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveResponse:%@", [self class],
-                           self, session, dataTask, response);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveResponse:%@",
+                               [self class], self, session, dataTask, response);
   __auto_type accumulateAndFinish = ^(NSURLSessionResponseDisposition dispositionValue) {
     // This method is called when the server has determined that it
     // has enough information to create the NSURLResponse
@@ -2321,8 +2325,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)URLSession:(NSURLSession *)session
                  dataTask:(NSURLSessionDataTask *)dataTask
     didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didBecomeDownloadTask:%@",
-                           [self class], self, session, dataTask, downloadTask);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ dataTask:%@ didBecomeDownloadTask:%@",
+                               [self class], self, session, dataTask, downloadTask);
   [self setSessionTask:downloadTask];
 }
 
@@ -2332,8 +2336,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
       completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
                                   NSURLCredential *_Nullable credential))handler {
   [self setSessionTask:task];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didReceiveChallenge:%@", [self class],
-                           self, session, task, challenge);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ task:%@ didReceiveChallenge:%@", [self class],
+                               self, session, task, challenge);
 
   GTMSessionFetcherChallengeBlock challengeBlock = self.challengeBlock;
   if (challengeBlock) {
@@ -2670,8 +2674,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                  task:(NSURLSessionTask *)uploadTask
     needNewBodyStream:(void (^)(NSInputStream *_Nullable bodyStream))completionHandler {
   [self setSessionTask:uploadTask];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ needNewBodyStream:", [self class], self,
-                           session, uploadTask);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ task:%@ needNewBodyStream:", [self class],
+                               self, session, uploadTask);
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2700,10 +2704,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
               totalBytesSent:(int64_t)totalBytesSent
     totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
   [self setSessionTask:task];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didSendBodyData:%lld"
-                           @" totalBytesSent:%lld totalBytesExpectedToSend:%lld",
-                           [self class], self, session, task, bytesSent, totalBytesSent,
-                           totalBytesExpectedToSend);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ task:%@ didSendBodyData:%lld"
+                               @" totalBytesSent:%lld totalBytesExpectedToSend:%lld",
+                               [self class], self, session, task, bytesSent, totalBytesSent,
+                               totalBytesExpectedToSend);
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2730,9 +2734,9 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     didReceiveData:(NSData *)data {
   [self setSessionTask:dataTask];
   NSUInteger bufferLength = data.length;
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveData:%p (%llu bytes)",
-                           [self class], self, session, dataTask, data,
-                           (unsigned long long)bufferLength);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ dataTask:%@ didReceiveData:%p (%llu bytes)",
+                               [self class], self, session, dataTask, data,
+                               (unsigned long long)bufferLength);
   if (bufferLength == 0) {
     // Observed on completing an out-of-process upload.
     return;
@@ -2786,8 +2790,9 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     willCacheResponse:(NSCachedURLResponse *)proposedResponse
     completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
     GTM_SWIFT_DISABLE_ASYNC {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ dataTask:%@ willCacheResponse:%@ %@", [self class],
-                           self, session, dataTask, proposedResponse, proposedResponse.response);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ dataTask:%@ willCacheResponse:%@ %@",
+                               [self class], self, session, dataTask, proposedResponse,
+                               proposedResponse.response);
   GTMSessionFetcherWillCacheURLResponseBlock callback;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -2811,10 +2816,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                  didWriteData:(int64_t)bytesWritten
             totalBytesWritten:(int64_t)totalBytesWritten
     totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didWriteData:%lld"
-                           @" bytesWritten:%lld totalBytesExpectedToWrite:%lld",
-                           [self class], self, session, downloadTask, bytesWritten,
-                           totalBytesWritten, totalBytesExpectedToWrite);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ downloadTask:%@ didWriteData:%lld"
+                               @" bytesWritten:%lld totalBytesExpectedToWrite:%lld",
+                               [self class], self, session, downloadTask, bytesWritten,
+                               totalBytesWritten, totalBytesExpectedToWrite);
   [self setSessionTask:downloadTask];
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -2840,10 +2845,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
           downloadTask:(NSURLSessionDownloadTask *)downloadTask
      didResumeAtOffset:(int64_t)fileOffset
     expectedTotalBytes:(int64_t)expectedTotalBytes {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didResumeAtOffset:%lld"
-                           @" expectedTotalBytes:%lld",
-                           [self class], self, session, downloadTask, fileOffset,
-                           expectedTotalBytes);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ downloadTask:%@ didResumeAtOffset:%lld"
+                               @" expectedTotalBytes:%lld",
+                               [self class], self, session, downloadTask, fileOffset,
+                               expectedTotalBytes);
   [self setSessionTask:downloadTask];
 }
 
@@ -2852,8 +2857,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     didFinishDownloadingToURL:(NSURL *)downloadLocationURL {
   // Download may have relaunched app, so update _sessionTask.
   [self setSessionTask:downloadTask];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ downloadTask:%@ didFinishDownloadingToURL:%@",
-                           [self class], self, session, downloadTask, downloadLocationURL);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ downloadTask:%@ didFinishDownloadingToURL:%@",
+                               [self class], self, session, downloadTask, downloadLocationURL);
   NSNumber *fileSizeNum;
   [downloadLocationURL getResourceValue:&fileSizeNum forKey:NSURLFileSizeKey error:NULL];
   @synchronized(self) {
@@ -2919,8 +2924,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                     task:(NSURLSessionTask *)task
     didCompleteWithError:(NSError *)error {
   [self setSessionTask:task];
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ task:%@ didCompleteWithError:%@", [self class],
-                           self, session, task, error);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ task:%@ didCompleteWithError:%@", [self class],
+                               self, session, task, error);
 
   NSInteger status = self.statusCode;
   BOOL forceAssumeRetry = NO;
@@ -3002,7 +3007,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 #if TARGET_OS_IPHONE
 - (void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session {
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSessionDidFinishEventsForBackgroundURLSession:%@",
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSessionDidFinishEventsForBackgroundURLSession:%@",
                            [self class], self, session);
   [self removePersistedBackgroundSessionFromDefaults];
 
@@ -3033,10 +3038,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)URLSession:(NSURLSession *)session didBecomeInvalidWithError:(nullable NSError *)error {
   // This may happen repeatedly for retries.  On authentication callbacks, the retry
   // may begin before the prior session sends the didBecomeInvalid delegate message.
-  GTM_LOG_SESSION_DELEGATE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@", [self class], self,
-                           session, error);
+  GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ didBecomeInvalidWithError:%@", [self class],
+                               self, session, error);
   if (session == (NSURLSession *)self.session) {
-    GTM_LOG_SESSION_DELEGATE(@"  Unexpected retained invalid session: %@", session);
+    GTMSESSION_LOG_DEBUG_VERBOSE(@"  Unexpected retained invalid session: %@", session);
     self.session = nil;
   }
 }
