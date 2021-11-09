@@ -104,11 +104,12 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
                                     (unsigned long)_headers.count, (unsigned long)_bodyData.length];
 }
 
-- (BOOL)isEqual:(GTMMIMEDocumentPart *)other {
+- (BOOL)isEqual:(id)other {
   if (self == other) return YES;
   if (![other isKindOfClass:[GTMMIMEDocumentPart class]]) return NO;
-  return ((_bodyData == other->_bodyData || [_bodyData isEqual:other->_bodyData]) &&
-          (_headers == other->_headers || [_headers isEqual:other->_headers]));
+  GTMMIMEDocumentPart *otherPart = (GTMMIMEDocumentPart *)other;
+  return ((_bodyData == otherPart->_bodyData || [_bodyData isEqual:otherPart->_bodyData]) &&
+          (_headers == otherPart->_headers || [_headers isEqual:otherPart->_headers]));
 }
 
 - (NSUInteger)hash {
