@@ -151,11 +151,11 @@
   [_inputStream close];
 }
 
-- (id)delegate {
+- (id<NSStreamDelegate>)delegate {
   return [_inputStream delegate];
 }
 
-- (void)setDelegate:(id)delegate {
+- (void)setDelegate:(id<NSStreamDelegate>)delegate {
   [_inputStream setDelegate:delegate];
 }
 
