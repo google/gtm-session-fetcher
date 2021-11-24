@@ -438,9 +438,12 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
             numberOfPartsWithHeaders++;
           }  // crlfOffsets.count == 0
         }    // hasAnotherCRLF
-        GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
-                                                                    body:(NSData *)bodyData];
-        [parts addObject:part];
+        
+        if (bodyData) {
+          GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
+                                                                      body:(NSData *)bodyData];
+          [parts addObject:part];
+        }
       }  //  previousPartDataLength < 2
       previousBoundaryOffset = currentBoundaryOffset.integerValue;
     }
