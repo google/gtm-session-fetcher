@@ -111,6 +111,11 @@
 //
 // Returns an array of GTMMIMEDocumentParts.  Returns nil if no part can
 // be found.
+//
+// NOTE: if MIME parts in the data are malformed, the resulting array may
+// still contain GTMMIMEDocumentParts in the position where the malformed
+// parts appeared; these parts will have an empty NSData body and nil
+// headers.
 + (nullable NSArray<GTMMIMEDocumentPart *> *)MIMEPartsWithBoundary:(nonnull NSString *)boundary
                                                               data:(nonnull NSData *)
                                                                        fullDocumentData;

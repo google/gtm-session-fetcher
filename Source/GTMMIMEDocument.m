@@ -438,8 +438,11 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
             numberOfPartsWithHeaders++;
           }  // crlfOffsets.count == 0
         }    // hasAnotherCRLF
-        GTMMIMEDocumentPart *part = [GTMMIMEDocumentPart partWithHeaders:headers
-                                                                    body:(NSData *)bodyData];
+
+        // bodyData being nil reflects malformed data; if so provide an empty
+        // NSData object rather than pass nil to a nonnull parameter.
+        GTMMIMEDocumentPart *part =
+            [GTMMIMEDocumentPart partWithHeaders:headers body:(NSData *)bodyData ?: [NSData data]];
         [parts addObject:part];
       }  //  previousPartDataLength < 2
       previousBoundaryOffset = currentBoundaryOffset.integerValue;

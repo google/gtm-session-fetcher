@@ -817,9 +817,11 @@ static NSMutableData *DataForTestWithLength(NSUInteger length);
 
   NSArray *parts = [GTMMIMEDocument MIMEPartsWithBoundary:docBoundary data:docData];
   XCTAssertEqual(parts.count, (NSUInteger)1);
+  // Malformed input results in nil headers and an empty NSData body.
   GTMMIMEDocumentPart *part0 = parts[0];
   XCTAssertNil(part0.headers);
-  XCTAssertNil(part0.body);
+  XCTAssertNotNil(part0.body);
+  XCTAssertEqual(part0.body.length, 0);
 }
 
 @end
