@@ -1602,8 +1602,14 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
               totalBytesExpectedToSend:(int64_t)totalBytesExpected {
   GTMSessionCheckNotSynchronized(self);
 
+  // The clang included with Xcode 13.3 betas added a -Wunused-but-set-variable warning,
+  // which doesn't (yet) skip variables annotated with objc_precie_lifetime. Since that
+  // warning is not available in all Xcodes, turn off the -Wunused warning group entirely.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused"
   // Ensure the chunk fetcher survives the callback in case the user pauses the upload process.
   __block GTMSessionFetcher *holdFetcher = self.chunkFetcher;
+#pragma clang diagnostic pop
 
   [self invokeOnCallbackQueue:self.delegateCallbackQueue
              afterUserStopped:NO

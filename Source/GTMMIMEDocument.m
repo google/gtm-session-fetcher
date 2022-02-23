@@ -401,8 +401,14 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
         // and map that two-byte subrange.
         const void *partDataBuffer;
         size_t partDataBufferSize;
+        // The clang included with Xcode 13.3 betas added a -Wunused-but-set-variable warning,
+        // which doesn't (yet) skip variables annotated with objc_precie_lifetime. Since that
+        // warning is not available in all Xcodes, turn off the -Wunused warning group entirely.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused"
         dispatch_data_t mappedPartData NS_VALID_UNTIL_END_OF_SCOPE =
             dispatch_data_create_map(partData, &partDataBuffer, &partDataBufferSize);
+#pragma clang diagnostic pop
         dispatch_data_t bodyData;
         NSDictionary *headers;
         BOOL hasAnotherCRLF =

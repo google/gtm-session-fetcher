@@ -1874,11 +1874,17 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }
 
 - (void)releaseCallbacks {
+  // The clang included with Xcode 13.3 betas added a -Wunused-but-set-variable warning,
+  // which doesn't (yet) skip variables annotated with objc_precie_lifetime. Since that
+  // warning is not available in all Xcodes, turn off the -Wunused warning group entirely.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused"
   // Avoid releasing blocks in the sync section since objects dealloc'd by
   // the blocks being released may call back into the fetcher or fetcher
   // service.
   dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
   GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
+#pragma clang diagnostic pop
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
