@@ -401,8 +401,14 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
         // and map that two-byte subrange.
         const void *partDataBuffer;
         size_t partDataBufferSize;
+        // It's necessary to ignore -Wunused-but-set-variable warnings, as the variables with
+        // objc_precise_lifetime semantics are being used to force ARC to release objects at
+        // a known time.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
         dispatch_data_t mappedPartData NS_VALID_UNTIL_END_OF_SCOPE =
             dispatch_data_create_map(partData, &partDataBuffer, &partDataBufferSize);
+#pragma clang diagnostic pop
         dispatch_data_t bodyData;
         NSDictionary *headers;
         BOOL hasAnotherCRLF =

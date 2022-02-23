@@ -1602,8 +1602,11 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
               totalBytesExpectedToSend:(int64_t)totalBytesExpected {
   GTMSessionCheckNotSynchronized(self);
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
   // Ensure the chunk fetcher survives the callback in case the user pauses the upload process.
   __block GTMSessionFetcher *holdFetcher = self.chunkFetcher;
+#pragma clang diagnostic pop
 
   [self invokeOnCallbackQueue:self.delegateCallbackQueue
              afterUserStopped:NO

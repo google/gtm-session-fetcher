@@ -1878,11 +1878,16 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }
 
 - (void)releaseCallbacks {
+  // Need to ignore -Wunused-but-set-variable until it no longer applies to objc_precise_lifetime
+  // attributed variables.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
   // Avoid releasing blocks in the sync section since objects dealloc'd by
   // the blocks being released may call back into the fetcher or fetcher
   // service.
   dispatch_queue_t NS_VALID_UNTIL_END_OF_SCOPE holdCallbackQueue;
   GTMSessionFetcherCompletionHandler NS_VALID_UNTIL_END_OF_SCOPE holdCompletionHandler;
+#pragma clang diagnostic pop
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
