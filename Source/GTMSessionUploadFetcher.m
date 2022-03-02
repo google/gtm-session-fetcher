@@ -1250,7 +1250,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                                     // dont allow the updating of fileLength for uploads not using a
                                     // data provider as they should know the file length before the
                                     // upload starts.
-                                    if (self->_uploadDataProvider != nil && uploadFileLength > 0) {
+                                    if (self.uploadDataProvider != nil && uploadFileLength > 0) {
                                       [self setUploadFileLength:uploadFileLength];
                                       // Update the command and content-length headers if this is
                                       // the last chunk to be sent.
