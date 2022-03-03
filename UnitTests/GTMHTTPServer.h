@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 //
 //  GTMHTTPServer.h
 //
@@ -123,3 +127,5 @@ enum {
 - (void)setHeaderValuesFromDictionary:(NSDictionary *)dict;
 
 @end
+
+#endif  // !TARGET_OS_WATCH

@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -3250,3 +3254,5 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   return result;
 }
+
+#endif  // !TARGET_OS_WATCH
