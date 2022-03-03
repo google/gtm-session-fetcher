@@ -28,14 +28,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        FLAG: ["", "--use-static-frameworks"]
         PLATFORM: ["ios", "macos", "tvos", "watchos"]
-
+        CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v2
+    # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
       run:  |
         pod lib lint \
-          ${{ matrix.FLAG }} \
+          --configuration=${{ matrix.CONFIGURATION }} \
+          --platforms=${{ matrix.PLATFORM }} \
+          GTMSessionFetcher.podspec
+    - name: Pod lib lint - Use Static Frameworks
+      run:  |
+        pod lib lint --use-static-frameworks \
+          --configuration=${{ matrix.CONFIGURATION }} \
           --platforms=${{ matrix.PLATFORM }} \
           GTMSessionFetcher.podspec
