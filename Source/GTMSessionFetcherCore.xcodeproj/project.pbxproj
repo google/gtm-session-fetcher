@@ -83,6 +83,18 @@
 		4FEE6531192D8451001B6234 /* MainStoryboard.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */; };
 		8EC5668E18AAFB1200E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
 		8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4F5566B71862981000D6D62C /* Foundation.framework */; };
+		F42D3FA727D11A0600DFBE32 /* GTMSessionUploadFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E8118D6B2CD00CA4B4C /* GTMSessionUploadFetcher.m */; };
+		F42D3FA827D11A0600DFBE32 /* GTMSessionFetcher.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7B18D6B2CD00CA4B4C /* GTMSessionFetcher.m */; };
+		F42D3FA927D11A0600DFBE32 /* GTMSessionFetcherService.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7F18D6B2CD00CA4B4C /* GTMSessionFetcherService.m */; };
+		F42D3FAA27D11A0600DFBE32 /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
+		F42D3FAB27D11A0600DFBE32 /* GTMSessionFetcherLogging.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7D18D6B2CD00CA4B4C /* GTMSessionFetcherLogging.m */; };
+		F42D3FAC27D11A0600DFBE32 /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
+		F42D3FAD27D11A0600DFBE32 /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
+		F42D3FAE27D11A2300DFBE32 /* GTMGatherInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4FE52ABB18D7A37000C78136 /* GTMGatherInputStreamTest.m */; };
+		F42D3FAF27D11A2300DFBE32 /* GTMSessionFetcherUtilityTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */; };
+		F42D3FB027D11A2300DFBE32 /* GTMSessionFetcherCookieTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */; };
+		F42D3FB127D11A2300DFBE32 /* GTMReadMonitorInputStreamTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */; };
+		F42D3FB527D11A2300DFBE32 /* GTMMIMEDocumentTest.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */; };
 		F46D935D1D9D4DEB00590137 /* GTMGatherInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7518D6B2CC00CA4B4C /* GTMGatherInputStream.m */; };
 		F46D935E1D9D4DEB00590137 /* GTMMIMEDocument.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7718D6B2CC00CA4B4C /* GTMMIMEDocument.m */; };
 		F46D935F1D9D4DEB00590137 /* GTMReadMonitorInputStream.m in Sources */ = {isa = PBXBuildFile; fileRef = 4F6F7E7918D6B2CD00CA4B4C /* GTMReadMonitorInputStream.m */; };
@@ -194,7 +206,6 @@
 		4F6F7EB518D6B4A900CA4B4C /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-568h@2x.png"; sourceTree = "<group>"; };
 		4F6F7EB618D6B4A900CA4B4C /* FetcheriOSTestApp-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "FetcheriOSTestApp-Info.plist"; sourceTree = "<group>"; };
 		4F6F7EB718D6B4A900CA4B4C /* FetcheriOSTestApp-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "FetcheriOSTestApp-Prefix.pch"; sourceTree = "<group>"; };
-		4F6F7EBC18D6B5B200CA4B4C /* GTMSessionFetcherTest-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GTMSessionFetcherTest-Info.plist"; sourceTree = "<group>"; };
 		4F6F7EC118D6B60300CA4B4C /* GTMMIMEDocumentTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMMIMEDocumentTest.m; sourceTree = "<group>"; };
 		4F6F7EC218D6B60300CA4B4C /* GTMReadMonitorInputStreamTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMReadMonitorInputStreamTest.m; sourceTree = "<group>"; };
 		4F6F7EC318D6B60300CA4B4C /* GTMSessionFetcherCookieTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GTMSessionFetcherCookieTest.m; sourceTree = "<group>"; };
@@ -215,6 +226,7 @@
 		4FEE6530192D8451001B6234 /* MainStoryboard.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; path = MainStoryboard.storyboard; sourceTree = "<group>"; };
 		8EC5668D18AAFB1200E2C97D /* FetcheriOSTestApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FetcheriOSTestApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcheriOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F42D3FA027D1198C00DFBE32 /* FetcherwatchOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FetcherwatchOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = GTMSessionFetchertvOS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4A872051DA3EACE00D69E09 /* GTMSessionFetchertvOS.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GTMSessionFetchertvOS.h; sourceTree = "<group>"; };
 		F4A872061DA3EACE00D69E09 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -272,6 +284,13 @@
 			files = (
 				4FA8DB7E193D13A40071BC92 /* Security.framework in Frameworks */,
 				8EC566A718AAFB1300E2C97D /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F42D3F9D27D1198C00DFBE32 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +378,7 @@
 				F4A872031DA3EACE00D69E09 /* GTMSessionFetchertvOS.framework */,
 				F4A8721D1DA3EDE700D69E09 /* FetchertvOSTests.xctest */,
 				F4B18F811F0EC6C200E55018 /* GTMSessionFetcherwatchOS.framework */,
+				F42D3FA027D1198C00DFBE32 /* FetcherwatchOSTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -411,20 +431,10 @@
 				4F6F7EC618D6B60300CA4B4C /* GTMSessionFetcherUtilityTest.m */,
 				4FBD7F78186523400048382E /* Data */,
 				4F5566FE1862A17A00D6D62C /* Server */,
-				4F5566D01862981000D6D62C /* Supporting Files */,
 			);
 			name = Tests;
 			path = ../UnitTests;
 			sourceTree = SOURCE_ROOT;
-		};
-		4F5566D01862981000D6D62C /* Supporting Files */ = {
-			isa = PBXGroup;
-			children = (
-				4F6F7EBC18D6B5B200CA4B4C /* GTMSessionFetcherTest-Info.plist */,
-			);
-			name = "Supporting Files";
-			path = SupportingFiles;
-			sourceTree = "<group>";
 		};
 		4F5566FE1862A17A00D6D62C /* Server */ = {
 			isa = PBXGroup;
@@ -674,6 +684,23 @@
 			productReference = 8EC566A518AAFB1200E2C97D /* FetcheriOSTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		F42D3F9F27D1198C00DFBE32 /* FetcherwatchOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F42D3FA427D1198C00DFBE32 /* Build configuration list for PBXNativeTarget "FetcherwatchOSTests" */;
+			buildPhases = (
+				F42D3F9C27D1198C00DFBE32 /* Sources */,
+				F42D3F9D27D1198C00DFBE32 /* Frameworks */,
+				F42D3F9E27D1198C00DFBE32 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FetcherwatchOSTests;
+			productName = FetcherwatchOSTests;
+			productReference = F42D3FA027D1198C00DFBE32 /* FetcherwatchOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		F4A872021DA3EACE00D69E09 /* GTMSessionFetchertvOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F4A8720A1DA3EACE00D69E09 /* Build configuration list for PBXNativeTarget "GTMSessionFetchertvOS" */;
@@ -756,6 +783,9 @@
 					8EC566A418AAFB1200E2C97D = {
 						TestTargetID = 8EC5668C18AAFB1200E2C97D;
 					};
+					F42D3F9F27D1198C00DFBE32 = {
+						CreatedOnToolsVersion = 13.2.1;
+					};
 					F4A872021DA3EACE00D69E09 = {
 						CreatedOnToolsVersion = 8.0;
 						ProvisioningStyle = Automatic;
@@ -789,6 +819,7 @@
 				F4A872021DA3EACE00D69E09 /* GTMSessionFetchertvOS */,
 				F4A8721C1DA3EDE700D69E09 /* FetchertvOSTests */,
 				F4B18F6A1F0EC6C200E55018 /* GTMSessionFetcherwatchOS */,
+				F42D3F9F27D1198C00DFBE32 /* FetcherwatchOSTests */,
 			);
 		};
 /* End PBXProject section */
@@ -838,6 +869,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				4F6F7ED518D6B61700CA4B4C /* gettysburgaddress.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F42D3F9E27D1198C00DFBE32 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -973,6 +1011,25 @@
 				4F6F7EDD18D6B62900CA4B4C /* GTMSessionFetcherTestServer.m in Sources */,
 				4F6F7EDB18D6B62900CA4B4C /* GTMHTTPServer.m in Sources */,
 				F46D935E1D9D4DEB00590137 /* GTMMIMEDocument.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F42D3F9C27D1198C00DFBE32 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F42D3FB127D11A2300DFBE32 /* GTMReadMonitorInputStreamTest.m in Sources */,
+				F42D3FAA27D11A0600DFBE32 /* GTMGatherInputStream.m in Sources */,
+				F42D3FB027D11A2300DFBE32 /* GTMSessionFetcherCookieTest.m in Sources */,
+				F42D3FAD27D11A0600DFBE32 /* GTMMIMEDocument.m in Sources */,
+				F42D3FAF27D11A2300DFBE32 /* GTMSessionFetcherUtilityTest.m in Sources */,
+				F42D3FAB27D11A0600DFBE32 /* GTMSessionFetcherLogging.m in Sources */,
+				F42D3FAC27D11A0600DFBE32 /* GTMReadMonitorInputStream.m in Sources */,
+				F42D3FAE27D11A2300DFBE32 /* GTMGatherInputStreamTest.m in Sources */,
+				F42D3FA727D11A0600DFBE32 /* GTMSessionUploadFetcher.m in Sources */,
+				F42D3FA827D11A0600DFBE32 /* GTMSessionFetcher.m in Sources */,
+				F42D3FB527D11A2300DFBE32 /* GTMMIMEDocumentTest.m in Sources */,
+				F42D3FA927D11A0600DFBE32 /* GTMSessionFetcherService.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1431,6 +1488,34 @@
 			};
 			name = Release;
 		};
+		F42D3FA527D1198C00DFBE32 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"GTMSESSION_ASSERT_AS_LOG=1",
+					"GTMSESSION_UNIT_TESTING=1",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetcherwatchOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+			};
+			name = Debug;
+		};
+		F42D3FA627D1198C00DFBE32 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"GTMSESSION_ASSERT_AS_LOG=1",
+					"GTMSESSION_UNIT_TESTING=1",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.google.FetcherwatchOSTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+			};
+			name = Release;
+		};
 		F4A872081DA3EACE00D69E09 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1593,6 +1678,15 @@
 			buildConfigurations = (
 				8EC566B518AAFB1300E2C97D /* Debug */,
 				8EC566B618AAFB1300E2C97D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F42D3FA427D1198C00DFBE32 /* Build configuration list for PBXNativeTarget "FetcherwatchOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F42D3FA527D1198C00DFBE32 /* Debug */,
+				F42D3FA627D1198C00DFBE32 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
