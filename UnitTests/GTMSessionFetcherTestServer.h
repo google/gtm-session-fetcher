@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #import <Foundation/Foundation.h>
 
 typedef enum {
@@ -53,3 +57,5 @@ typedef enum {
 + (NSData *)generatedBodyDataWithLength:(NSUInteger)length;
 
 @end
+
+#endif  // !TARGET_OS_WATCH

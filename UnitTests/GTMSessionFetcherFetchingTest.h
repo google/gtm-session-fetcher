@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #import <XCTest/XCTest.h>
 #import <stdlib.h>
 #import <sys/sysctl.h>
@@ -135,3 +139,5 @@ extern NSString *const kSubUIAppBackgroundTaskEnded;
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif  // !TARGET_OS_WATCH

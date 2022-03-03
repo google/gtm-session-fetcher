@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -757,3 +761,5 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 @end
+
+#endif  // !TARGET_OS_WATCH
