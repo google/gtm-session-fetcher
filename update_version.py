@@ -21,10 +21,6 @@ import sys
 
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 _PODSPEC_PATH = os.path.join(_PROJECT_ROOT, 'GTMSessionFetcher.podspec')
-_XCODE_PROJECT_PATH = os.path.join(_PROJECT_ROOT,
-                                   'Source',
-                                   'GTMSessionFetcherCore.xcodeproj',
-                                   'project.pbxproj')
 
 
 def main(args):
@@ -44,14 +40,6 @@ def main(args):
                        pod_content)
   assert ver_str in pod_content
   open(_PODSPEC_PATH, 'w').write(pod_content)
-
-  # Xcode project
-  xcode_project_content = open(_XCODE_PROJECT_PATH).read()
-  xcode_project_content = re.sub(r'CURRENT_PROJECT_VERSION = \d+\.\d+\.\d+',
-                                 'CURRENT_PROJECT_VERSION = %s' % (ver_str,),
-                                 xcode_project_content)
-  assert ver_str in xcode_project_content
-  open(_XCODE_PROJECT_PATH, 'w').write(xcode_project_content)
 
   return 0
 
