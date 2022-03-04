@@ -35,13 +35,13 @@ jobs:
     # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
       run:  |
-        pod lib lint \
+        pod lib lint --verbose \
           --configuration=${{ matrix.CONFIGURATION }} \
           --platforms=${{ matrix.PLATFORM }} \
           GTMSessionFetcher.podspec
     - name: Pod lib lint - Use Static Frameworks
       run:  |
-        pod lib lint --use-static-frameworks \
+        pod lib lint --verbose --use-static-frameworks \
           --configuration=${{ matrix.CONFIGURATION }} \
           --platforms=${{ matrix.PLATFORM }} \
           GTMSessionFetcher.podspec
