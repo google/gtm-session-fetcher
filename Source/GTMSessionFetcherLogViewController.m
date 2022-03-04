@@ -224,7 +224,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 }
 
 - (void)doneButtonClicked:(UIBarButtonItem *)barButtonItem {
-  void (^block)() = self.callbackBlock;
+  void (^block)(void) = self.callbackBlock;
   block();
   self.callbackBlock = nil;
 }
