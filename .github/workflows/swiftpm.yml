@@ -1,0 +1,36 @@
+name: SwiftPM
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - '*.podspec'
+    - '**.xcodeproj**'
+    - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/xcode.yml'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - '*.podspec'
+    - '**.xcodeproj**'
+    - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/xcode.yml'
+
+jobs:
+  swift:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        CONFIGURATION: ["debug", "release"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and Test
+      run:  |
+        set -eu
+        swift build --configuration ${{ matrix.CONFIGURATION }}
+        swift test --configuration ${{ matrix.CONFIGURATION }}

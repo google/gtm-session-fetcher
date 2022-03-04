@@ -1,0 +1,41 @@
+name: CocoaPods
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - 'Package*.swift'
+    - '**.xcodeproj**'
+    - 'Source/SwiftPackage/**'
+    - '.github/workflows/swiftpm.yml'
+    - '.github/workflows/xcode.yml'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - 'Package*.swift'
+    - '**.xcodeproj**'
+    - 'Source/SwiftPackage/**'
+    - '.github/workflows/swiftpm.yml'
+    - '.github/workflows/xcode.yml'
+
+jobs:
+  pod-lib-lint:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        FLAG: ["", "--use-static-frameworks"]
+        PLATFORM: ["ios", "macos", "tvos", "watchos"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Pod lib lint
+      run:  |
+        pod lib lint \
+          ${{ matrix.FLAG }} \
+          --platforms=${{ matrix.PLATFORM }} \
+          GTMSessionFetcher.podspec
