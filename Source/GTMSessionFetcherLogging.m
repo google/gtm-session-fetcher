@@ -257,7 +257,7 @@ static NSString *gLoggingProcessName = nil;
   }
 }
 
-// formattedStringFromData returns a prettyprinted string for XML or JSON input,
+// formattedStringFromData returns a prettyprinted string for JSON input,
 // and a plain string for other input data
 - (NSString *)formattedStringFromData:(NSData *)inputData
                           contentType:(NSString *)contentType
@@ -291,51 +291,6 @@ static NSString *gLoggingProcessName = nil;
       }
     }
   }
-
-#if !TARGET_OS_IPHONE && !GTM_SKIP_LOG_XMLFORMAT
-  // verify that this data starts with the bytes indicating XML
-
-  NSString *const kXMLLintPath = @"/usr/bin/xmllint";
-  static BOOL gHasCheckedAvailability = NO;
-  static BOOL gIsXMLLintAvailable = NO;
-
-  if (!gHasCheckedAvailability) {
-    gIsXMLLintAvailable = [[NSFileManager defaultManager] fileExistsAtPath:kXMLLintPath];
-    gHasCheckedAvailability = YES;
-  }
-  if (gIsXMLLintAvailable && inputData.length > 5 && strncmp(inputData.bytes, "<?xml", 5) == 0) {
-    // call xmllint to format the data
-    NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:kXMLLintPath];
-
-    // use the dash argument to specify stdin as the source file
-    [task setArguments:@[ @"--format", @"-" ]];
-    [task setEnvironment:@{}];
-
-    NSPipe *inputPipe = [NSPipe pipe];
-    NSPipe *outputPipe = [NSPipe pipe];
-    [task setStandardInput:inputPipe];
-    [task setStandardOutput:outputPipe];
-
-    [task launch];
-
-    [[inputPipe fileHandleForWriting] writeData:inputData];
-    [[inputPipe fileHandleForWriting] closeFile];
-
-    // drain the stdout before waiting for the task to exit
-    NSData *formattedData = [[outputPipe fileHandleForReading] readDataToEndOfFile];
-
-    [task waitUntilExit];
-
-    int status = [task terminationStatus];
-    if (status == 0 && formattedData.length > 0) {
-      // success
-      inputData = formattedData;
-    }
-  }
-#else
-  // we can't call external tasks on the iPhone; leave the XML unformatted
-#endif
 
   NSString *dataStr = [[NSString alloc] initWithData:inputData encoding:NSUTF8StringEncoding];
   return dataStr;
@@ -430,8 +385,8 @@ static NSString *gLoggingProcessName = nil;
   // each response's NSData goes into its own xml or txt file, though all responses for this run of
   // the app share a main html file. This counter tracks all fetch responses for this app run.
   //
-  // we'll use a local variable since this routine may be reentered while waiting for XML formatting
-  // to be completed by an external task
+  // we'll use a local variable since this routine may be reentered while waiting for formatting
+  // to be completed.
   static int gResponseCounter = 0;
   int responseCounter = ++gResponseCounter;
 
@@ -464,13 +419,10 @@ static NSString *gLoggingProcessName = nil;
                                                JSON:&responseJSON];
     NSString *responseDataExtn = nil;
     NSData *dataToWrite = nil;
-    if (responseDataStr) {
-      // we were able to make a UTF-8 string from the response data
-      if ([responseMIMEType isEqual:@"application/atom+xml"] ||
-          [responseMIMEType hasSuffix:@"/xml"]) {
-        responseDataExtn = @"xml";
-        dataToWrite = [responseDataStr dataUsingEncoding:NSUTF8StringEncoding];
-      }
+    if ([responseMIMEType isEqual:@"application/atom+xml"] ||
+        [responseMIMEType hasSuffix:@"/xml"]) {
+      responseDataExtn = @"xml";
+      dataToWrite = downloadedData;
     } else if ([responseMIMEType isEqual:@"image/jpeg"]) {
       responseDataExtn = @"jpg";
       dataToWrite = downloadedData;
