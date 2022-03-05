@@ -1299,6 +1299,12 @@ static const char *const kGTMSessionFetcherUploadChunkQueueLabel =
 
     GTMSessionUploadFetcherDataProviderResponse response = ^(
         NSData *chunkData, int64_t uploadFileLength, NSError *chunkError) {
+#if DEBUG
+      // Ensure any potential file IO is taking place on the chunk work queue.
+      if (@available(ios 10.0, *)) {
+        dispatch_assert_queue(self.chunkWorkQueue);
+      }
+#endif
       self.subdataGenerating = NO;
 
       // dont allow the updating of fileLength for uploads not using a
