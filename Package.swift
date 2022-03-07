@@ -33,10 +33,6 @@ let package = Package(
             name: "GTMSessionFetcherCore",
             path: "Source",
             exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
                 "GTMGatherInputStream.m",
                 "GTMMIMEDocument.m",
                 "GTMReadMonitorInputStream.m",
@@ -59,10 +55,6 @@ let package = Package(
             dependencies: ["GTMSessionFetcherCore"],
             path: "Source",
             exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
                 "GTMSessionFetcher.m",
                 "GTMSessionFetcherLogging.m",
                 "GTMSessionFetcherLogViewController.m",
@@ -84,10 +76,6 @@ let package = Package(
             dependencies: ["GTMSessionFetcherCore"],
             path: "Source",
             exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
                 "GTMGatherInputStream.m",
                 "GTMMIMEDocument.m",
                 "GTMReadMonitorInputStream.m",

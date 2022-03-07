@@ -7,21 +7,18 @@ on:
     - '*.md'
     - 'LICENSE'
     - '*.podspec'
-    - '**.xcodeproj**'
     - '.github/workflows/cocoapods.yml'
-    - '.github/workflows/xcode.yml'
   pull_request:
     branches: [ main ]
     paths-ignore:
     - '*.md'
     - 'LICENSE'
     - '*.podspec'
-    - '**.xcodeproj**'
     - '.github/workflows/cocoapods.yml'
-    - '.github/workflows/xcode.yml'
 
 jobs:
   swift:
+    # The swift command line only support build/testing for macOS on.
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -34,3 +31,38 @@ jobs:
         set -eu
         swift build --configuration ${{ matrix.CONFIGURATION }}
         swift test --configuration ${{ matrix.CONFIGURATION }}
+
+  xcodebuild:
+    # Job(s) to build for all the platforms to ensure that is working and the
+    # tests are passing.
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        PLATFORM: ["ios", "macos", "tvos", "watchos"]
+        CONFIGURATION: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and Test
+      run:  |
+        set -eu
+        case "${{matrix.PLATFORM}}" in
+          ios)
+            DESTINATION="platform=iOS Simulator,name=iPhone 8,OS=latest"
+            ;;
+          macos)
+            DESTINATION="platform=macOS"
+            ;;
+          tvos)
+            DESTINATION="platform=tvOS Simulator,name=Apple TV,OS=latest"
+            ;;
+          watchos)
+            DESTINATION="platform=WatchOS Simulator,name=Apple Watch Series 7 - 45mm,OS=latest"
+            ;;
+        esac
+
+        xcodebuild \
+          -scheme GTMSessionFetcher-Package \
+          -configuration ${{ matrix.CONFIGURATION }} \
+          -destination "${DESTINATION}" \
+          build test

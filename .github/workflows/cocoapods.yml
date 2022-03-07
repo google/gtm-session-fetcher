@@ -7,20 +7,16 @@ on:
     - '*.md'
     - 'LICENSE'
     - 'Package*.swift'
-    - '**.xcodeproj**'
     - 'Source/SwiftPackage/**'
     - '.github/workflows/swiftpm.yml'
-    - '.github/workflows/xcode.yml'
   pull_request:
     branches: [ main ]
     paths-ignore:
     - '*.md'
     - 'LICENSE'
     - 'Package*.swift'
-    - '**.xcodeproj**'
     - 'Source/SwiftPackage/**'
     - '.github/workflows/swiftpm.yml'
-    - '.github/workflows/xcode.yml'
 
 jobs:
   pod-lib-lint:
