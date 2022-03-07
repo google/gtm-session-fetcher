@@ -22,6 +22,9 @@
 #endif
 
 #import <XCTest/XCTest.h>
+#import <stdlib.h>
+#import <sys/sysctl.h>
+#import <unistd.h>
 
 #import "GTMSessionFetcherTestServer.h"
 #if SWIFT_PACKAGE
@@ -46,7 +49,7 @@
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
 #define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                    timeout:5.0];
+                    timeout:10.0];
 
 static NSDictionary<NSString *, NSString *> *FetcherHeadersWithoutUserAgent(
     GTMSessionFetcher *fetcher) {
@@ -184,6 +187,7 @@ typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
 @interface GTMSessionFetcherServiceTest : XCTestCase {
   GTMSessionFetcherTestServer *_testServer;
   BOOL _isServerRunning;
+  NSTimeInterval _timeoutInterval;
 }
 
 @end
@@ -192,6 +196,31 @@ typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
 static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
 @implementation GTMSessionFetcherServiceTest
+
+static bool IsCurrentProcessBeingDebugged(void) {
+  int result = 0;
+
+  pid_t pid = getpid();
+  int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+  u_int mibSize = sizeof(mib) / sizeof(int);
+  size_t actualSize;
+
+  if (sysctl(mib, mibSize, NULL, &actualSize, NULL, 0) == 0) {
+    if (actualSize >= sizeof(struct kinfo_proc)) {
+      struct kinfo_proc *info = (struct kinfo_proc *)malloc(actualSize);
+
+      if (info) {
+        // This comes from looking at the Darwin xnu Kernel
+        if (sysctl(mib, mibSize, info, &actualSize, NULL, 0) == 0)
+          result = (info->kp_proc.p_flag & P_TRACED) ? 1 : 0;
+
+        free(info);
+      }
+    }
+  }
+
+  return result;
+}
 
 - (NSString *)docRootPath {
   // Find a test file.
@@ -208,6 +237,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
 
   _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
   _isServerRunning = _testServer != nil;
+  _timeoutInterval = IsCurrentProcessBeingDebugged() ? 3600.0 : 30.0;
 
   XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping service tests\n");
@@ -402,7 +432,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     }];
   }
 
-  [self waitForExpectations:expectations timeout:15];
+  [self waitForExpectations:expectations timeout:_timeoutInterval];
 
   XCTAssertEqual(pending.count, (NSUInteger)0, @"still pending: %@", pending);
   XCTAssertEqual(running.count, (NSUInteger)0, @"still running: %@", running);
@@ -443,7 +473,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // the global concurrent queue, the completion will fulfill its expectation first
   // due to the sleep in the progress block.
   [self waitForExpectations:@[ progressExpectation, completionExpectation ]
-                    timeout:5
+                    timeout:_timeoutInterval
                enforceOrder:YES];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
@@ -537,7 +567,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertEqual(fetcher.session.delegate, fetcher);
   }
 
-  [self waitForExpectations:@[ completionExpectation ] timeout:10];
+  [self waitForExpectations:@[ completionExpectation ] timeout:_timeoutInterval];
 
   // We should have one unique session per fetcher.
   XCTAssertEqual(uniqueTasks.count, urlArray.count);
@@ -572,7 +602,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertEqual(fetcher.session.delegate, service.sessionDelegate);
   }
 
-  [self waitForExpectations:@[ completionExpectation ] timeout:10];
+  [self waitForExpectations:@[ completionExpectation ] timeout:_timeoutInterval];
 
   // We should have used two sessions total.
   XCTAssertEqual(uniqueTasks.count, urlArray.count);
@@ -598,7 +628,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
                                  return YES;
                                }];
 
-  [self waitForExpectations:@[ exp ] timeout:5.0];
+  [self waitForExpectations:@[ exp ] timeout:_timeoutInterval];
 
   // Ensure all started fetchers have stopped.
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
@@ -679,7 +709,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       [expectation fulfill];
     }];
   }
-  [self waitForExpectations:@[ expectation ] timeout:10];
+  [self waitForExpectations:@[ expectation ] timeout:_timeoutInterval];
 
   // Here we verify that all fetchers were called back.
   XCTAssertEqual(numberOfCallsBack, (int)urlArray.count);
@@ -752,7 +782,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     });
   }
 
-  [self waitForExpectationsWithTimeout:5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   XCTAssertLessThan(overloadIndexes.count, 10U);
   if (overloadIndexes.count) {
@@ -838,7 +868,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     }];
   }
 
-  [self waitForExpectationsWithTimeout:10 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
@@ -866,7 +896,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertNil(fetchError);
     [expectFinishedWithData fulfill];
   }];
-  [self waitForExpectationsWithTimeout:10 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   // Test with error.
   NSError *error = [NSError errorWithDomain:@"example.com" code:-321 userInfo:nil];
@@ -880,7 +910,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertEqualObjects(fetchError, error);
     [expectFinishedWithError fulfill];
   }];
-  [self waitForExpectationsWithTimeout:10 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
@@ -955,7 +985,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     [expectReceiveResponse fulfill];
   }];
 
-  [self waitForExpectationsWithTimeout:10 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 }
@@ -977,7 +1007,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // The wait is intentionally after the assert, as we expect the header decorator to complete its
   // work synchronously (but this test still needs to wait, as otherwise the NSNotifications posted
   // asynchronously can affect other tests).
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 - (void)testSingleDecoratorSynchronousAddHeaderOnRetry {
@@ -1031,7 +1061,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"retry" : @"1"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1054,7 +1084,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertEqualObjects(fetchError, error);
     [fetchCompleteExpectation fulfill];
   }];
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertNil(decorator.fetchedData);
   XCTAssertEqualObjects(decorator.fetchError, error);
 }
@@ -1085,7 +1115,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     XCTAssertEqualObjects(fetchError, error);
     [fetchCompleteExpectation fulfill];
   }];
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertNil(decoratorA.fetchedData);
   XCTAssertNil(decoratorB.fetchedData);
   XCTAssertEqualObjects(decoratorA.fetchError, error);
@@ -1116,7 +1146,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // The wait is intentionally after the assert, as we expect the header decorator to complete its
   // work synchronously (but this test still needs to wait, as otherwise the NSNotifications posted
   // asynchronously can affect other tests).
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 - (void)testMultipleDecoratorsSynchronousFetchedDataAndError {
@@ -1136,7 +1166,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertEqualObjects(decoratorA.fetchedData, data);
   XCTAssertEqualObjects(decoratorB.fetchedData, data);
   XCTAssertEqualObjects(decoratorA.fetchError, error);
@@ -1188,7 +1218,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
   // The wait is intentionally after the assert, as we expect the header decorator to complete its
   // work synchronously (but this test still needs to wait, as otherwise the NSNotifications posted
   // asynchronously can affect other tests).
-  [self waitForExpectationsWithTimeout:0.1 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 - (void)testEmptyDecoratorAsynchronous {
@@ -1203,7 +1233,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
 
@@ -1219,7 +1249,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"bar", @"baz" : @"blech"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1245,7 +1275,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectationA fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   GTMSessionFetcher *fetcherB = [service fetcherWithURLString:@"https://www.html5zombo.com"];
   XCTestExpectation *fetchCompleteExpectationB =
       [self expectationWithDescription:@"Fetch complete"];
@@ -1253,7 +1283,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectationB fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   GTMSessionFetcher *fetcherC = [service fetcherWithURLString:@"https://www.html5zombo.com"];
   XCTestExpectation *fetchCompleteExpectationC =
       [self expectationWithDescription:@"Fetch complete"];
@@ -1261,7 +1291,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectationC fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   NSDictionary<NSString *, NSString *> *expectedHeadersA = @{@"foo" : @"0"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcherA), expectedHeadersA);
@@ -1284,7 +1314,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
 
@@ -1306,7 +1336,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), @{});
 }
@@ -1323,7 +1353,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"User-Agent" : @"My User Agent"};
   XCTAssertEqualObjects(fetcher.request.allHTTPHeaderFields, expectedHeaders);
 }
@@ -1343,7 +1373,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"bar", @"baz" : @"blech"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1364,7 +1394,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"baz" : @"blech"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1387,7 +1417,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"baz" : @"blech"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1407,7 +1437,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders = @{@"foo" : @"quux", @"baz" : @"xyzzy"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
 }
@@ -1427,7 +1457,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   NSDictionary<NSString *, NSString *> *expectedHeaders =
       @{@"foo" : @"bar", @"baz" : @"xyzzy", @"quux" : @"corge"};
   XCTAssertEqualObjects(FetcherHeadersWithoutUserAgent(fetcher), expectedHeaders);
@@ -1450,7 +1480,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         [fetchCompleteExpectation fulfill];
       }];
-  [self waitForExpectationsWithTimeout:0.5 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   XCTAssertEqualObjects(decoratorA.fetchedData, data);
   XCTAssertEqualObjects(decoratorB.fetchedData, data);
   XCTAssertEqualObjects(decoratorA.fetchError, error);
@@ -1542,7 +1572,7 @@ static NSString *const kValidFileName = @"gettysburgaddress.txt";
     [expectation fulfill];
   }];
 
-  [self waitForExpectationsWithTimeout:10 handler:nil];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
