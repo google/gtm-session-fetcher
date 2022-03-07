@@ -71,6 +71,9 @@ typedef NS_ENUM(NSUInteger, GTMSessionUploadFetcherStatus) {
 NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     @"kGTMSessionFetcherUploadLocationObtainedNotification";
 
+static const char *const kGTMSessionFetcherUploadChunkQueueLabel =
+    "com.google.GTMSessionFetcher.chunkWorkQueue";
+
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ProtectedMethods)
 
@@ -109,6 +112,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 @property(assign, atomic) int64_t uploadGranularity;
 @property(assign, atomic) BOOL allowsCellularAccess;
 
+@property(atomic, readonly) dispatch_queue_t chunkWorkQueue;
+
 @end
 
 @implementation GTMSessionUploadFetcher {
@@ -117,6 +122,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // We'll call through to the delegate's completion handler.
   GTMSessionFetcherCompletionHandler _delegateCompletionHandler;
   dispatch_queue_t _delegateCallbackQueue;
+
+  // Queue where the work of generating data chunks is handled.
+  dispatch_queue_t _chunkWorkQueue;
 
   // The initial fetch's body length and bytes actually sent are
   // needed for calculating progress during subsequent chunk uploads
@@ -374,6 +382,27 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   return uploadFetchers;
 }
 
+- (dispatch_queue_t)chunkWorkQueue {
+  @synchronized(self) {
+    if (!_chunkWorkQueue) {
+      dispatch_queue_t targetQueue = dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0);
+#if TARGET_OS_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
+      // All targets except iPhone < iOS 10 support dispatch_queue_create_with_target().
+      // iOS builds supporting <iOS 10 will create the queue and set the target separately,
+      // but all other builds have mininum support that includes the one-stop function.
+      _chunkWorkQueue =
+          dispatch_queue_create(kGTMSessionFetcherUploadChunkQueueLabel, DISPATCH_QUEUE_SERIAL);
+      dispatch_set_target_queue(_chunkWorkQueue, targetQueue);
+#else
+      // All other targets support dispatch_queue_create_with_target()
+      _chunkWorkQueue = dispatch_queue_create_with_target(kGTMSessionFetcherUploadChunkQueueLabel,
+                                                          DISPATCH_QUEUE_SERIAL, targetQueue);
+#endif
+    }
+    return _chunkWorkQueue;
+  }
+}
+
 - (void)setUploadData:(NSData *)data {
   BOOL changed = NO;
 
@@ -621,12 +650,27 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 // Make a subdata of the upload data.
+//
+// The response block will always be called on the chunkWorkQueue.
 - (void)generateChunkSubdataWithOffset:(int64_t)offset
                                 length:(int64_t)length
                               response:(GTMSessionUploadFetcherDataProviderResponse)response {
+#if DEBUG
+  // Ensure any potential file IO is taking place on the chunk work queue.
+  if (@available(ios 10.0, *)) {
+    dispatch_assert_queue(self.chunkWorkQueue);
+  }
+#endif
   GTMSessionUploadFetcherDataProvider uploadDataProvider = self.uploadDataProvider;
   if (uploadDataProvider) {
-    uploadDataProvider(offset, length, response);
+    uploadDataProvider(offset, length,
+                       ^(NSData *chunkData, int64_t fullUploadLength, NSError *chunkError) {
+                         // The response block may involve file IO; ensure it executes on the
+                         // chunk work queue.
+                         dispatch_async(self.chunkWorkQueue, ^{
+                           response(chunkData, fullUploadLength, chunkError);
+                         });
+                       });
     return;
   }
 
@@ -666,28 +710,30 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
   NSURL *uploadFileURL = self.uploadFileURL;
   if (uploadFileURL) {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      [self generateChunkSubdataFromFileURL:uploadFileURL
-                                     offset:offset
-                                     length:length
-                                   response:response];
-    });
+    [self generateChunkSubdataFromFileURL:uploadFileURL
+                                   offset:offset
+                                   length:length
+                                 response:response];
     return;
   }
   GTMSESSION_ASSERT_DEBUG(_uploadFileHandle, @"Unexpectedly missing upload data package");
   NSFileHandle *uploadFileHandle = self.uploadFileHandle;
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    [self generateChunkSubdataFromFileHandle:uploadFileHandle
-                                      offset:offset
-                                      length:length
-                                    response:response];
-  });
+  [self generateChunkSubdataFromFileHandle:uploadFileHandle
+                                    offset:offset
+                                    length:length
+                                  response:response];
 }
 
 - (void)generateChunkSubdataFromFileHandle:(NSFileHandle *)fileHandle
                                     offset:(int64_t)offset
                                     length:(int64_t)length
                                   response:(GTMSessionUploadFetcherDataProviderResponse)response {
+#if DEBUG
+  // Ensure any potential file IO is taking place on the chunk work queue.
+  if (@available(ios 10.0, *)) {
+    dispatch_assert_queue(self.chunkWorkQueue);
+  }
+#endif
   NSData *resultData;
   NSError *error;
   @try {
@@ -705,6 +751,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
                                  offset:(int64_t)offset
                                  length:(int64_t)length
                                response:(GTMSessionUploadFetcherDataProviderResponse)response {
+#if DEBUG
+  // Ensure any potential file IO is taking place on the chunk work queue.
+  if (@available(ios 10.0, *)) {
+    dispatch_assert_queue(self.chunkWorkQueue);
+  }
+#endif
+
   GTMSessionCheckNotSynchronized(self);
 
   NSData *resultData;
@@ -957,14 +1010,16 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
         // There was a test block, so we won't do chunk fetches, but we simulate obtaining
         // the data to be uploaded from the upload data provider block or the file handle,
         // and then call back.
-        [self generateChunkSubdataWithOffset:0
-                                      length:[self fullUploadLength]
-                                    response:^(NSData *generateData, int64_t fullUploadLength,
-                                               NSError *generateError) {
-                                      [self invokeFinalCallbackWithData:data
-                                                                  error:error
-                                               shouldInvalidateLocation:YES];
-                                    }];
+        dispatch_async(self.chunkWorkQueue, ^{
+          [self generateChunkSubdataWithOffset:0
+                                        length:[self fullUploadLength]
+                                      response:^(NSData *generateData, int64_t fullUploadLength,
+                                                 NSError *generateError) {
+                                        [self invokeFinalCallbackWithData:data
+                                                                    error:error
+                                                 shouldInvalidateLocation:YES];
+                                      }];
+        });
       }
     }
   }];
@@ -1120,7 +1175,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // use the properties in each chunk fetcher
   NSDictionary *props = [self properties];
 
-  [self uploadNextChunkWithOffset:offset fetcherProperties:props];
+  dispatch_async(self.chunkWorkQueue, ^{
+    [self uploadNextChunkWithOffset:offset fetcherProperties:props];
+  });
 }
 
 - (void)sendQueryForUploadOffsetWithFetcherProperties:(NSDictionary *)props {
@@ -1239,75 +1296,70 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   } else {
     // Make an NSData for the subset for this upload chunk.
     self.subdataGenerating = YES;
-    [self generateChunkSubdataWithOffset:offset
-                                  length:chunkSize
-                                response:^(NSData *chunkData, int64_t uploadFileLength,
-                                           NSError *chunkError) {
-                                  // The subdata methods may leave us on a background thread.
-                                  dispatch_async(dispatch_get_main_queue(), ^{
-                                    self.subdataGenerating = NO;
 
-                                    // dont allow the updating of fileLength for uploads not using a
-                                    // data provider as they should know the file length before the
-                                    // upload starts.
-                                    if (self.uploadDataProvider != nil && uploadFileLength > 0) {
-                                      [self setUploadFileLength:uploadFileLength];
-                                      // Update the command and content-length headers if this is
-                                      // the last chunk to be sent.
-                                      if (offset + chunkSize >= uploadFileLength) {
-                                        int64_t updatedChunkSize =
-                                            [self updateChunkFetcher:chunkFetcher
-                                                    forChunkAtOffset:offset];
-                                        if (updatedChunkSize == 0) {
-                                          // Calling beginChunkFetcher early when there is no more
-                                          // data to send allows us to properly handle nil chunkData
-                                          // below without having to account for the case where we
-                                          // are just finalizing the file.
-                                          chunkFetcher.bodyData = [[NSData alloc] init];
-                                          [self beginChunkFetcher:chunkFetcher offset:offset];
-                                          return;
-                                        }
-                                      }
-                                    }
+    GTMSessionUploadFetcherDataProviderResponse response = ^(
+        NSData *chunkData, int64_t uploadFileLength, NSError *chunkError) {
+#if DEBUG
+      // Ensure any potential file IO is taking place on the chunk work queue.
+      if (@available(ios 10.0, *)) {
+        dispatch_assert_queue(self.chunkWorkQueue);
+      }
+#endif
+      self.subdataGenerating = NO;
 
-                                    if (chunkData == nil) {
-                                      NSError *responseError = chunkError;
-                                      if (!responseError) {
-                                        responseError =
-                                            [self uploadChunkUnavailableErrorWithDescription:
-                                                      @"chunkData is nil"];
-                                      }
-                                      [self invokeFinalCallbackWithData:nil
-                                                                  error:responseError
-                                               shouldInvalidateLocation:YES];
-                                      return;
-                                    }
+      // dont allow the updating of fileLength for uploads not using a
+      // data provider as they should know the file length before the
+      // upload starts.
+      if (self.uploadDataProvider != nil && uploadFileLength > 0) {
+        [self setUploadFileLength:uploadFileLength];
+        // Update the command and content-length headers if this is
+        // the last chunk to be sent.
+        if (offset + chunkSize >= uploadFileLength) {
+          int64_t updatedChunkSize = [self updateChunkFetcher:chunkFetcher forChunkAtOffset:offset];
+          if (updatedChunkSize == 0) {
+            // Calling beginChunkFetcher early when there is no more
+            // data to send allows us to properly handle nil chunkData
+            // below without having to account for the case where we
+            // are just finalizing the file.
+            chunkFetcher.bodyData = [[NSData alloc] init];
+            [self beginChunkFetcher:chunkFetcher offset:offset];
+            return;
+          }
+        }
+      }
 
-                                    BOOL didWriteFile = NO;
-                                    if (isUploadingFileURL) {
-                                      // Make a temporary file with the data subset.
-                                      NSString *tempName =
-                                          [NSString stringWithFormat:@"GTMUpload_temp_%@",
-                                                                     [[NSUUID UUID] UUIDString]];
-                                      NSString *tempPath = [NSTemporaryDirectory()
-                                          stringByAppendingPathComponent:tempName];
-                                      NSError *writeError;
-                                      didWriteFile = [chunkData writeToFile:tempPath
-                                                                    options:NSDataWritingAtomic
-                                                                      error:&writeError];
-                                      if (didWriteFile) {
-                                        chunkFetcher.bodyFileURL = [NSURL fileURLWithPath:tempPath];
-                                      } else {
-                                        GTMSESSION_LOG_DEBUG(@"writeToFile failed: %@\n%@",
-                                                             writeError, tempPath);
-                                      }
-                                    }
-                                    if (!didWriteFile) {
-                                      chunkFetcher.bodyData = [chunkData copy];
-                                    }
-                                    [self beginChunkFetcher:chunkFetcher offset:offset];
-                                  });
-                                }];
+      if (chunkData == nil) {
+        NSError *responseError = chunkError;
+        if (!responseError) {
+          responseError = [self uploadChunkUnavailableErrorWithDescription:@"chunkData is nil"];
+        }
+        [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:YES];
+        return;
+      }
+
+      BOOL didWriteFile = NO;
+      if (isUploadingFileURL) {
+        // Make a temporary file with the data subset.
+        NSString *tempName =
+            [NSString stringWithFormat:@"GTMUpload_temp_%@", [[NSUUID UUID] UUIDString]];
+        NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:tempName];
+        NSError *writeError;
+        didWriteFile = [chunkData writeToFile:tempPath
+                                      options:NSDataWritingAtomic
+                                        error:&writeError];
+        if (didWriteFile) {
+          chunkFetcher.bodyFileURL = [NSURL fileURLWithPath:tempPath];
+        } else {
+          GTMSESSION_LOG_DEBUG(@"writeToFile failed: %@\n%@", writeError, tempPath);
+        }
+      }
+      if (!didWriteFile) {
+        chunkFetcher.bodyData = [chunkData copy];
+      }
+      [self beginChunkFetcher:chunkFetcher offset:offset];
+    };
+
+    [self generateChunkSubdataWithOffset:offset length:chunkSize response:response];
   }
 }
 
@@ -1399,7 +1451,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // Make a new chunk fetcher.
   //
   GTMSessionFetcher *chunkFetcher = [GTMSessionFetcher fetcherWithRequest:chunkRequest];
-  chunkFetcher.callbackQueue = self.callbackQueue;
+  chunkFetcher.callbackQueue = self.chunkWorkQueue;
   chunkFetcher.sessionUserInfo = self.sessionUserInfo;
   chunkFetcher.configurationBlock = self.configurationBlock;
   chunkFetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
