@@ -39,7 +39,7 @@
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
 #define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                    timeout:5.0];
+                    timeout:10.0];
 
 @interface GTMSessionFetcherChunkedUploadTest : GTMSessionFetcherBaseTest
 @end
