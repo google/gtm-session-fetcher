@@ -1245,13 +1245,6 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @end
 
-@interface GTMSessionFetcher (BackwardsCompatibilityOnly)
-// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves;
-// this method is deprecated and will be removed soon.
-- (void)setCookieStorageMethod:(NSInteger)method
-    __deprecated_msg("Create an NSHTTPCookieStorage and set .cookieStorage directly.");
-@end
-
 // Until we can just instantiate NSHTTPCookieStorage for local use, we'll
 // implement all the public methods ourselves.  This stores cookies only in
 // memory.  Additional methods are provided for testing.

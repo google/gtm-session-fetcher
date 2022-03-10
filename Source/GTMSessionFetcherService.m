@@ -93,8 +93,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   NSURLCredential *_credential;       // Username & password.
   NSURLCredential *_proxyCredential;  // Credential supplied to proxy servers.
 
-  NSInteger _cookieStorageMethod;
-
   id<GTMFetcherAuthorizationProtocol> _authorizer;
 
   // For waitForCompletionOfAllFetchersWithTimeout: we need to wait on stopped fetchers since
@@ -141,7 +139,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     _delayedFetchersByHost = [[NSMutableDictionary alloc] init];
     _runningFetchersByHost = [[NSMutableDictionary alloc] init];
     _maxRunningFetchersPerHost = 10;
-    _cookieStorageMethod = -1;
     _unusedSessionTimeout = 60.0;
     _delegateDispatcher = [[GTMSessionFetcherSessionDelegateDispatcher alloc]
          initWithParentService:self
@@ -220,12 +217,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   }
   fetcher.properties = self.properties;
   fetcher.service = self;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  if (self.cookieStorageMethod >= 0) {
-    [fetcher setCookieStorageMethod:self.cookieStorageMethod];
-  }
-#pragma clang diagnostic pop
 
 #if GTM_BACKGROUND_TASK_FETCHING
   fetcher.skipBackgroundTask = self.skipBackgroundTask;
@@ -1009,26 +1000,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   _stoppedFetchersToWaitFor = nil;
 
   return !didTimeOut;
-}
-
-@end
-
-@implementation GTMSessionFetcherService (BackwardsCompatibilityOnly)
-
-- (NSInteger)cookieStorageMethod {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    return _cookieStorageMethod;
-  }
-}
-
-- (void)setCookieStorageMethod:(NSInteger)cookieStorageMethod {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    _cookieStorageMethod = cookieStorageMethod;
-  }
 }
 
 @end
