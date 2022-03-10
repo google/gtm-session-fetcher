@@ -386,21 +386,6 @@
 extern "C" {
 #endif
 
-#if !defined(GTMBridgeFetcher)
-// The bridge macros are deprecated, and should be replaced; GTMHTTPFetcher is no longer
-// supported and all code should switch to use GTMSessionFetcher types directly.
-#define GTMBridgeFetcher GTMSessionFetcher
-#define GTMBridgeFetcherService GTMSessionFetcherService
-#define GTMBridgeFetcherServiceProtocol GTMSessionFetcherServiceProtocol
-#define GTMBridgeAssertValidSelector GTMSessionFetcherAssertValidSelector
-#define GTMBridgeCookieStorage GTMSessionCookieStorage
-#define GTMBridgeCleanedUserAgentString GTMFetcherCleanedUserAgentString
-#define GTMBridgeSystemVersionString GTMFetcherSystemVersionString
-#define GTMBridgeApplicationIdentifier GTMFetcherApplicationIdentifier
-#define kGTMBridgeFetcherStatusDomain kGTMSessionFetcherStatusDomain
-#define kGTMBridgeFetcherStatusBadRequest GTMSessionFetcherStatusBadRequest
-#endif
-
 // When creating background sessions to perform out-of-process uploads and
 // downloads, on app launch any background sessions must be reconnected in
 // order to receive events that occurred while the app was not running.
@@ -1258,13 +1243,6 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 #endif  // STRIP_GTM_FETCH_LOGGING
 
-@end
-
-@interface GTMSessionFetcher (BackwardsCompatibilityOnly)
-// Clients using GTMSessionFetcher should set the cookie storage explicitly themselves;
-// this method is deprecated and will be removed soon.
-- (void)setCookieStorageMethod:(NSInteger)method
-    __deprecated_msg("Create an NSHTTPCookieStorage and set .cookieStorage directly.");
 @end
 
 // Until we can just instantiate NSHTTPCookieStorage for local use, we'll
