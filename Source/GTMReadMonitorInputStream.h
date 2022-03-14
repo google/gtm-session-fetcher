@@ -15,19 +15,6 @@
 
 #import <Foundation/Foundation.h>
 
-// These will be removed in the near future, folks should move off of them.
-#ifndef GTM_NONNULL
-#if defined(__has_attribute)
-#if __has_attribute(nonnull)
-#define GTM_NONNULL(x) __attribute__((nonnull x))
-#else
-#define GTM_NONNULL(x)
-#endif
-#else
-#define GTM_NONNULL(x)
-#endif
-#endif
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface GTMReadMonitorInputStream : NSInputStream <NSStreamDelegate>
