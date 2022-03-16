@@ -1115,6 +1115,8 @@ static const char *const kGTMSessionFetcherUploadChunkQueueLabel =
 - (void)invokeFinalCallbackWithData:(NSData *)data
                               error:(NSError *)error
            shouldInvalidateLocation:(BOOL)shouldInvalidateLocation {
+  dispatch_queue_t queue;
+  GTMSessionFetcherCompletionHandler handler;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1122,18 +1124,26 @@ static const char *const kGTMSessionFetcherUploadChunkQueueLabel =
       _uploadLocationURL = nil;
     }
 
-    dispatch_queue_t queue = _delegateCallbackQueue;
-    GTMSessionFetcherCompletionHandler handler = _delegateCompletionHandler;
-    if (queue && handler) {
-      [self invokeOnCallbackQueue:queue
-                 afterUserStopped:NO
-                            block:^{
-                              handler(data, error);
-                            }];
-    }
+    // Wait to dispatch the completion handler until after releasing callbacks. Because
+    // action on the upload fetcher often takes place on a background queue, there can
+    // be issues with CI tests failing due to load making the dispatched callback to
+    // execute and the tests resume and assert callbacks have been released prior to that
+    // actually occurring.
+    //
+    // However under normal operation this should also be a perfectly fine change.
+    queue = _delegateCallbackQueue;
+    handler = _delegateCompletionHandler;
   }  // @synchronized(self)
 
   [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching];
+
+  if (queue && handler) {
+    [self invokeOnCallbackQueue:queue
+               afterUserStopped:NO
+                          block:^{
+                            handler(data, error);
+                          }];
+  }
 }
 
 - (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation {
