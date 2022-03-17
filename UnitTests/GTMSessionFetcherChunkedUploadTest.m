@@ -191,6 +191,24 @@ static const NSUInteger kBigUploadDataLength = 199000;
   return request;
 }
 
+- (NSMutableURLRequest *)validUploadFileRequestWithParameters:(NSDictionary *)params {
+  NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+  validURLString = [validURLString stringByAppendingString:@".location"];
+  // Add any parameters from the dictionary.
+  if (params.count) {
+    NSMutableArray *array = [NSMutableArray array];
+    for (NSString *key in params) {
+      [array addObject:[NSString stringWithFormat:@"%@=%@", key,
+                                                  [[params objectForKey:key] description]]];
+    }
+    NSString *paramsStr = [array componentsJoinedByString:@"&"];
+    validURLString = [validURLString stringByAppendingFormat:@"?%@", paramsStr];
+  }
+  NSMutableURLRequest *request = [self requestWithURLString:validURLString];
+  [request setValue:@"UploadTest" forHTTPHeaderField:@"User-Agent"];
+  return request;
+}
+
 // We use the sendBytes callback to pause and restart an upload,
 // and to change the upload location URL to cause a chunk upload
 // failure and retry.
@@ -1348,7 +1366,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-  NSURLRequest *request = [self validUploadFileRequest];
+  // Add a sleep on the server side during each chunk fetch, to ensure there is time to pause
+  // the fetcher before all chunk fetches complete.
+  NSURLRequest *request = [self validUploadFileRequestWithParameters:@{@"sleep" : @"0.2"}];
   NSData *bigData = [self bigUploadData];
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
@@ -1407,7 +1427,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-  NSURLRequest *request = [self validUploadFileRequest];
+  // Add a sleep on the server side during each chunk fetch, to ensure there is time to pause
+  // the fetcher before all chunk fetches complete.
+  NSURLRequest *request = [self validUploadFileRequestWithParameters:@{@"sleep" : @"0.2"}];
   NSData *bigData = [self bigUploadData];
   GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                                                         uploadMIMEType:@"text/plain"
