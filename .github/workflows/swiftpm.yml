@@ -15,6 +15,9 @@ on:
     - 'LICENSE'
     - '*.podspec'
     - '.github/workflows/cocoapods.yml'
+  schedule:
+    # Run the first and fifteenth of every month at 5:12 UTC
+    - cron:  '5 12 1,15 * *'
 
 jobs:
   swift:
