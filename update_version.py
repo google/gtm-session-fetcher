@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # update_version.py.py - Helper for the library's version number
 #
 # Copyright 2017 Google Inc. All rights reserved.
