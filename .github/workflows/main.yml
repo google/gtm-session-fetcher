@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 1_7_branch ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 1_7_branch ]
 
 jobs:
   xcode:
