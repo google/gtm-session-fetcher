@@ -24,7 +24,7 @@
 #import <AppKit/AppKit.h>
 #endif
 
-#import <sys/utsname.h>
+#include <sys/utsname.h>
 
 #ifndef STRIP_GTM_FETCH_LOGGING
 #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.

@@ -22,9 +22,9 @@
 #endif
 
 #import <XCTest/XCTest.h>
-#import <stdlib.h>
-#import <sys/sysctl.h>
-#import <unistd.h>
+#include <stdlib.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
 
 #import "GTMSessionFetcherTestServer.h"
 #if SWIFT_PACKAGE
