@@ -26,9 +26,9 @@
 //  http://developer.apple.com/samplecode/CocoaHTTPServer/index.html
 //
 
-#import <netinet/in.h>
-#import <sys/socket.h>
-#import <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #define GTMHTTPSERVER_DEFINE_GLOBALS
 #import "GTMHTTPServer.h"

@@ -23,7 +23,7 @@
 
 #import "GTMSessionFetcherLogViewController.h"
 
-#import <objc/runtime.h>
+#include <objc/runtime.h>
 
 #import "GTMSessionFetcher.h"
 #import "GTMSessionFetcherLogging.h"
