@@ -64,8 +64,10 @@ jobs:
             ;;
         esac
 
+        set -o pipefail
         xcodebuild \
-          -scheme GTMSessionFetcher-Package \
-          -configuration ${{ matrix.CONFIGURATION }} \
-          -destination "${DESTINATION}" \
-          build test
+            -scheme GTMSessionFetcher-Package \
+            -configuration ${{ matrix.CONFIGURATION }} \
+            -destination "${DESTINATION}" \
+            build test \
+          | xcpretty
