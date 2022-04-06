@@ -1,0 +1,56 @@
+name: TestApps
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - '*.podspec'
+    - 'Package*.swift'
+    - 'Source/SwiftPackage/**'
+    - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/swiftpm.yml'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+    - '*.md'
+    - 'LICENSE'
+    - '*.podspec'
+    - 'Package*.swift'
+    - 'Source/SwiftPackage/**'
+    - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/swiftpm.yml'
+
+jobs:
+  xcodebuild:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # iOS runs into codesigning requirements to build applications, haven't
+        # found a good way to suppress that and just ensure things build.
+        #PLATFORM: ["iOS", "macOS"]
+        PLATFORM: ["macOS"]
+        CONFIGURATION: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run:  |
+        set -eu
+        case "${{matrix.PLATFORM}}" in
+          iOS)
+            XCODE_SCHEME="iOSTestApp"
+            ;;
+          macOS)
+            XCODE_SCHEME="OSXTestApp"
+            ;;
+        esac
+
+        set -o pipefail
+        xcodebuild \
+            -project TestApps/TestApps.xcodeproj \
+            -scheme "${XCODE_SCHEME}" \
+            -configuration ${{ matrix.CONFIGURATION }} \
+            build \
+          | xcpretty

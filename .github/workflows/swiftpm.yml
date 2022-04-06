@@ -6,15 +6,19 @@ on:
     paths-ignore:
     - '*.md'
     - 'LICENSE'
+    - 'TestApps/**'
     - '*.podspec'
     - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/test_apps.yml'
   pull_request:
     branches: [ main ]
     paths-ignore:
     - '*.md'
     - 'LICENSE'
+    - 'TestApps/**'
     - '*.podspec'
     - '.github/workflows/cocoapods.yml'
+    - '.github/workflows/test_apps.yml'
   schedule:
     # Run the first and fifteenth of every month at 5:12 UTC
     - cron:  '5 12 1,15 * *'
