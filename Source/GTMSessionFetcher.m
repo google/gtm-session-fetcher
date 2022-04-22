@@ -2622,36 +2622,42 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
   // Callbacks will be released in the method stopFetchReleasingCallbacks:
   GTMSessionFetcherCompletionHandler handler;
+  dispatch_queue_t callbackQueue;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+    // Capture the completion handler and callback queue, and call them only
+    // after releasing any callbacks to ensure the order of release vs
+    // callback is deterministic given potential QoS differences between
+    // callback queue and whatever queue this method eventually executes on.
     handler = _completionHandler;
-
-    if (handler) {
-      [self invokeOnCallbackQueueUnlessStopped:^{
-        handler(data, error);
-
-        // Post a notification, primarily to allow code to collect responses for
-        // testing.
-        //
-        // The observing code is not likely on the fetcher's callback
-        // queue, so this posts explicitly to the main queue.
-        NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
-        if (data) {
-          userInfo[kGTMSessionFetcherCompletionDataKey] = data;
-        }
-        if (error) {
-          userInfo[kGTMSessionFetcherCompletionErrorKey] = error;
-        }
-        [self postNotificationOnMainThreadWithName:kGTMSessionFetcherCompletionInvokedNotification
-                                          userInfo:userInfo
-                                      requireAsync:NO];
-      }];
-    }
-  }  // @synchronized(self)
+    callbackQueue = _callbackQueue;
+  }
 
   if (shouldReleaseCallbacks) {
     [self releaseCallbacks];
+  }
+
+  if (handler) {
+    [self invokeOnCallbackQueue:callbackQueue afterUserStopped:NO block:^{
+      handler(data, error);
+
+      // Post a notification, primarily to allow code to collect responses for
+      // testing.
+      //
+      // The observing code is not likely on the fetcher's callback
+      // queue, so this posts explicitly to the main queue.
+      NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+      if (data) {
+        userInfo[kGTMSessionFetcherCompletionDataKey] = data;
+      }
+      if (error) {
+        userInfo[kGTMSessionFetcherCompletionErrorKey] = error;
+      }
+      [self postNotificationOnMainThreadWithName:kGTMSessionFetcherCompletionInvokedNotification
+                                        userInfo:userInfo
+                                    requireAsync:NO];
+    }];
   }
 }
 
