@@ -19,11 +19,7 @@
 
 #import <XCTest/XCTest.h>
 
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherFull;
-#else
-#import "GTMReadMonitorInputStream.h"
-#endif
+#import <GTMSessionFetcher/GTMReadMonitorInputStream.h>
 
 @interface GTMReadMonitorInputStreamTest : XCTestCase {
   NSMutableData *_monitoredData;

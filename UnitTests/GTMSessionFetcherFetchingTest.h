@@ -22,14 +22,11 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
+#import <GTMSessionFetcher/GTMSessionFetcher.h>
+#import <GTMSessionFetcher/GTMSessionFetcherLogging.h>
+#import <GTMSessionFetcher/GTMSessionUploadFetcher.h>
+
 #import "GTMSessionFetcherTestServer.h"
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherCore;
-#else
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherLogging.h"
-#import "GTMSessionUploadFetcher.h"
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 

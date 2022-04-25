@@ -37,8 +37,8 @@
 // only be used from the main thread until further work is done to make this subclass
 // thread-safe.
 
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherService.h"
+#import "GTMSessionFetcher/GTMSessionFetcher.h"
+#import "GTMSessionFetcher/GTMSessionFetcherService.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

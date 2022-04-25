@@ -27,30 +27,27 @@ Pod::Spec.new do |s|
   s.tvos.deployment_target = tvos_deployment_target
   s.watchos.deployment_target = watchos_deployment_target
 
+  s.prefix_header_file = false
+
   s.default_subspec = 'Full'
 
   s.subspec 'Core' do |sp|
-    sp.source_files =
-      'Source/GTMSessionFetcher.{h,m}',
-      'Source/GTMSessionFetcherLogging.{h,m}',
-      'Source/GTMSessionFetcherService.{h,m}',
-      'Source/GTMSessionUploadFetcher.{h,m}'
+    sp.source_files = 'Sources/Core/**/*.{h,m}'
+    sp.public_header_files = 'Sources/Core/Public/GTMSessionFetcher/*.h'
     sp.framework = 'Security'
   end
 
   s.subspec 'Full' do |sp|
-    sp.source_files =
-        'Source/GTMGatherInputStream.{h,m}',
-        'Source/GTMMIMEDocument.{h,m}',
-        'Source/GTMReadMonitorInputStream.{h,m}'
-    sp.dependency 'GTMSessionFetcher/Core', "#{s.version}"
+    sp.source_files = 'Sources/Full/**/*.{h,m}'
+    sp.public_header_files = 'Sources/Full/Public/GTMSessionFetcher/*.h'
+    sp.dependency 'GTMSessionFetcher/Core'
   end
 
   s.subspec 'LogView' do |sp|
     # Only relevant for iOS, files compile away on others.
-    sp.source_files =
-      'Source/GTMSessionFetcherLogViewController.{h,m}'
-    sp.dependency 'GTMSessionFetcher/Core', "#{s.version}"
+    sp.source_files = 'Sources/LogView/**/*.{h,m}'
+    sp.public_header_files = 'Sources/LogView/Public/GTMSessionFetcher/*.h'
+    sp.dependency 'GTMSessionFetcher/Core'
   end
 
   s.test_spec 'Tests' do |sp|

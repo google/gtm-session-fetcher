@@ -17,7 +17,7 @@
 #error "This file requires ARC support."
 #endif
 
-#import "GTMMIMEDocument.h"
+#import "GTMSessionFetcher/GTMMIMEDocument.h"
 
 // Avoid a hard dependency on GTMGatherInputStream.
 #ifndef GTM_GATHERINPUTSTREAM_DECLARED

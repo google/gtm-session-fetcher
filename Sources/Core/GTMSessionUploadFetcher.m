@@ -17,7 +17,7 @@
 #error "This file requires ARC support."
 #endif
 
-#import "GTMSessionUploadFetcher.h"
+#import "GTMSessionFetcher/GTMSessionUploadFetcher.h"
 
 #if TARGET_OS_OSX && GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
 // To reconnect background sessions on Mac outside +load requires importing and linking

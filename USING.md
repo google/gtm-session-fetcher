@@ -39,8 +39,8 @@ Because the fetcher is implemented as a wrapper on NSURLSession, it is inherentl
 The fetcher can be used most simply by adding the fetcher and fetcher service class files to your project, and fetching a URL like this:
 
 ```Objective-C
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherService.h"
+#import <GTMSessionFetcher/GTMSessionFetcher.h>
+#import <GTMSessionFetcher/GTMSessionFetcherService.h>
 
 _fetcherService = [[GTMSessionFetcherService alloc] init];
 

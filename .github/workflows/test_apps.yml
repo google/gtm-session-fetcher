@@ -3,24 +3,16 @@ name: TestApps
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-    - '*.md'
-    - 'LICENSE'
-    - '*.podspec'
-    - 'Package*.swift'
-    - 'Source/SwiftPackage/**'
-    - '.github/workflows/cocoapods.yml'
-    - '.github/workflows/swiftpm.yml'
+    paths:
+    - 'Sources/**'
+    - 'TestApps/**'
+    - '.github/workflows/test_apps.yml'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-    - '*.md'
-    - 'LICENSE'
-    - '*.podspec'
-    - 'Package*.swift'
-    - 'Source/SwiftPackage/**'
-    - '.github/workflows/cocoapods.yml'
-    - '.github/workflows/swiftpm.yml'
+    paths:
+    - 'Sources/**'
+    - 'TestApps/**'
+    - '.github/workflows/test_apps.yml'
 
 jobs:
   xcodebuild:

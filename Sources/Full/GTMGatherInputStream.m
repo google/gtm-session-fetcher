@@ -17,7 +17,7 @@
 #error "This file requires ARC support."
 #endif
 
-#import "GTMGatherInputStream.h"
+#import "GTMSessionFetcher/GTMGatherInputStream.h"
 
 @implementation GTMGatherInputStream {
   NSArray *_dataArray;     // NSDatas that should be "gathered" and streamed.
