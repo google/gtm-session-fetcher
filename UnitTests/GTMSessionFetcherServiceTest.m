@@ -26,12 +26,9 @@
 #include <sys/sysctl.h>
 #include <unistd.h>
 
+#import <GTMSessionFetcher/GTMSessionFetcherService.h>
+
 #import "GTMSessionFetcherTestServer.h"
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherCore;
-#else
-#import "GTMSessionFetcherService.h"
-#endif
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init
 // directly to prevent them being waited for by wait helper methods on XCTestCase.

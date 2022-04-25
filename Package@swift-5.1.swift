@@ -31,42 +31,20 @@ let package = Package(
     targets: [
         .target(
             name: "GTMSessionFetcherCore",
-            path: "Source",
-            sources:[
-                "GTMSessionFetcher.h",
-                "GTMSessionFetcher.m",
-                "GTMSessionFetcherLogging.h",
-                "GTMSessionFetcherLogging.m",
-                "GTMSessionFetcherService.h",
-                "GTMSessionFetcherService.m",
-                "GTMSessionUploadFetcher.h",
-                "GTMSessionUploadFetcher.m"
-            ],
-            publicHeadersPath: "SwiftPackage"
+            path: "Sources/Core",
+            publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherFull",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source",
-            sources: [
-                "GTMGatherInputStream.h",
-                "GTMGatherInputStream.m",
-                "GTMMIMEDocument.h",
-                "GTMMIMEDocument.m",
-                "GTMReadMonitorInputStream.h",
-                "GTMReadMonitorInputStream.m",
-            ],
-            publicHeadersPath: "SwiftPackage"
+            path: "Sources/Full",
+            publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherLogView",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source",
-            sources: [
-                "GTMSessionFetcherLogViewController.h",
-                "GTMSessionFetcherLogViewController.m"
-            ],
-            publicHeadersPath: "SwiftPackage"
+            path: "Sources/LogView",
+            publicHeadersPath: "Public"
         ),
         .testTarget(
             name: "GTMSessionFetcherCoreTests",

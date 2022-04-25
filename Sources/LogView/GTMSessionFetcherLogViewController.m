@@ -21,12 +21,12 @@
 #error "This file requires ARC support."
 #endif
 
-#import "GTMSessionFetcherLogViewController.h"
+#import "GTMSessionFetcher/GTMSessionFetcherLogViewController.h"
 
 #include <objc/runtime.h>
 
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherLogging.h"
+#import "GTMSessionFetcher/GTMSessionFetcher.h"
+#import "GTMSessionFetcher/GTMSessionFetcherLogging.h"
 
 #ifndef STRIP_GTM_FETCH_LOGGING
 #error GTMSessionFetcher headers should have defaulted this if it wasn't already defined.

@@ -20,7 +20,7 @@
 //   GTMSessionFetcher* myFirstFetcher = [_fetcherService fetcherWithRequest:request1];
 //   GTMSessionFetcher* mySecondFetcher = [_fetcherService fetcherWithRequest:request2];
 
-#import "GTMSessionFetcher.h"
+#import "GTMSessionFetcher/GTMSessionFetcher.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

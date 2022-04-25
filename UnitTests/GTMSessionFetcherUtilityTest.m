@@ -19,13 +19,8 @@
 
 #import <XCTest/XCTest.h>
 
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherCore;
-@import GTMSessionFetcherFull;
-#else
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherLogging.h"
-#endif
+#import <GTMSessionFetcher/GTMSessionFetcher.h>
+#import <GTMSessionFetcher/GTMSessionFetcherLogging.h>
 
 @interface GTMSessionFetcherUtilityTest : XCTestCase
 @end
