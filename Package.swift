@@ -54,6 +54,24 @@ let package = Package(
             // - https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
             // - https://bugs.swift.org/browse/SR-13560
             exclude: ["Data"]
-        )
+        ),
+        .testTarget(
+            name: "swift-test",
+            dependencies: [
+                "GTMSessionFetcherCore",
+                "GTMSessionFetcherFull",
+                "GTMSessionFetcherLogView",
+            ],
+            path: "SwiftPMTests/SwiftImportTest"
+        ),
+        .testTarget(
+            name: "objc-import-test",
+            dependencies: [
+                "GTMSessionFetcherCore",
+                "GTMSessionFetcherFull",
+                "GTMSessionFetcherLogView",
+            ],
+            path: "SwiftPMTests/ObjCImportTest"
+        ),
     ]
 )
