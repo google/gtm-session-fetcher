@@ -143,11 +143,11 @@ static NSString *const kEtag = @"GoodETag";
 @end
 
 @implementation GTMSessionFetcherTestServer {
-  NSString *_docRoot;
   GTMHTTPServer *_server;
   GTMHTTPServer *_redirectServer;
   GTMHTTPAuthenticationType _httpAuthenticationType;
   GTMHTTPAuthenticationType _lastHTTPAuthenticationType;
+  NSDictionary<NSString*, NSData*> *_resourceMap;
   NSString *_username;
   NSString *_password;
   NSString *_nonce;
@@ -158,22 +158,25 @@ static NSString *const kEtag = @"GoodETag";
 @synthesize defaultContentType = _defaultContentType,
             lastHTTPAuthenticationType = _lastHTTPAuthenticationType;
 
-- (instancetype)initWithDocRoot:(NSString *)docRoot {
+- (instancetype)init {
   self = [super init];
   if (self) {
-    if (docRoot == nil) {
-      NSLog(@"Failed to supply docRoot to GTMSessionFetcherTestServer");
-      return nil;
-    }
     _server = [GTMHTTPServer startedServerWithDelegate:self];
     if (!_server) return nil;
 
     _defaultContentType = @"text/plain";
 
-    _docRoot = [docRoot copy];
+    NSString *gettysburg =
+      @"Four score and seven years ago our fathers brought forth on this continent, a"
+       " new nation, conceived in liberty, and dedicated to the proposition that all men"
+       " are created equal.";
+    _resourceMap = @{
+      @"gettysburgaddress.txt": [gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+    };
+
     _uploadBytesExpected = -1;
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Started GTMSessionFetcherTestServer for docRoot='%@'", _docRoot);
+    NSLog(@"Started GTMSessionFetcherTestServer");
 #endif
   }
   return self;
@@ -195,7 +198,7 @@ static NSString *const kEtag = @"GoodETag";
       _redirectServer = [GTMHTTPServer startedServerWithDelegate:self];
       if (_redirectServer) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-        NSLog(@"Started redirect target server for docRoot='%@'", _docRoot);
+        NSLog(@"Started redirect target server");
 #endif
       }
     }
@@ -217,37 +220,20 @@ static NSString *const kEtag = @"GoodETag";
 }
 
 - (NSURL *)localURLForFile:(NSString *)name {
-  // We need to create http URLs referring to the desired
-  // resource to be found by the http server running locally.
-
-  // Return a localhost:port URL for the test file
   NSString *urlString = [NSString stringWithFormat:@"http://localhost:%d/%@", _server.port, name];
   return [NSURL URLWithString:urlString];
 }
 
-- (NSURL *)localURLForFileUsingAppend:(NSString *)name {
-  // We need to create http URLs referring to the desired
-  // resource to be found by the http server running locally.
-  // Return a localhost:port URL for the test file
-
-  NSString *urlString = [NSString stringWithFormat:@"http://localhost:%d", _server.port];
-  return [[NSURL URLWithString:urlString] URLByAppendingPathComponent:name];
-}
-
 - (NSURL *)localv6URLForFile:(NSString *)name {
-  // Return an IPv6-style localhost URL, useful for testing changes in host.
   NSString *urlString = [NSString stringWithFormat:@"http://[::1]:%d/%@", _server.port, name];
   return [NSURL URLWithString:urlString];
 }
 
-- (NSString *)localPathForFile:(NSString *)name {
-  // we exclude parameters
-  NSRange range = [name rangeOfString:@"?"];
-  if (range.location != NSNotFound) {
-    name = [name substringToIndex:range.location];
+- (NSData *)documentDataAtPath:(NSString *)requestPath {
+  if ([requestPath hasPrefix:@"/"]) {
+    requestPath = [requestPath substringFromIndex:1];
   }
-  NSString *filePath = [_docRoot stringByAppendingPathComponent:name];
-  return filePath;
+  return _resourceMap[requestPath];
 }
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code {
@@ -580,16 +566,6 @@ static NSString *const kEtag = @"GoodETag";
 
 #pragma mark - Private
 
-- (NSData *)documentDataAtPath:(NSString *)requestPath {
-  NSError *readError;
-  NSString *docPath = [self localPathForFile:requestPath];
-  NSData *data = [NSData dataWithContentsOfFile:docPath options:0 error:&readError];
-  if (!data) {
-    NSLog(@"Failed to read %@: %@", requestPath, readError);
-  }
-  return data;
-}
-
 + (NSString *)valueForParameter:(NSString *)paramName query:(NSString *)query {
   if (!query) return nil;
 
@@ -622,18 +598,16 @@ static NSString *const kEtag = @"GoodETag";
 - (void)stopServers {
   if (_server) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Stopped GTMSessionFetcherTestServer on port %d (docRoot='%@')", _server.port, _docRoot);
+    NSLog(@"Stopped GTMSessionFetcherTestServer on port %d", _server.port);
 #endif
     _server = nil;
   }
   if (_redirectServer) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Stopped redirect target server on port %d (docRoot='%@')", _redirectServer.port,
-          _docRoot);
+    NSLog(@"Stopped redirect target server on port %d", _redirectServer.port);
 #endif
     _redirectServer = nil;
   }
-  _docRoot = nil;
 }
 
 - (NSURL *)redirectURLForRequest:(GTMHTTPRequestMessage *)request

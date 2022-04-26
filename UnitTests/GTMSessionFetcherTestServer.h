@@ -32,10 +32,6 @@ typedef enum {
 // Returns the most recent GTMHTTPAuthenticationType checked, whether it passed or not.
 @property(nonatomic, readonly) GTMHTTPAuthenticationType lastHTTPAuthenticationType;
 
-// Any url that isn't a specific server request (login, etc.), will be fetched
-// off |docRoot| (to allow canned repsonses).
-- (instancetype)initWithDocRoot:(NSString *)docRoot;
-
 - (BOOL)isRedirectEnabled;
 - (void)setRedirectEnabled:(BOOL)isRedirectEnabled;
 
@@ -49,9 +45,8 @@ typedef enum {
 
 // Utilities for users.
 - (NSURL *)localURLForFile:(NSString *)name;             // http://localhost:port/filename
-- (NSURL *)localURLForFileUsingAppend:(NSString *)name;  // http://localhost:port/filename
 - (NSURL *)localv6URLForFile:(NSString *)name;           // http://[::1]:port/filename
-- (NSString *)localPathForFile:(NSString *)name;         // docRoot/filename
+- (NSData *)documentDataAtPath:(NSString *)requestPath;
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code;
 + (NSData *)generatedBodyDataWithLength:(NSUInteger)length;

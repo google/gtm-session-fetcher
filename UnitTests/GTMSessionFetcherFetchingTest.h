@@ -40,9 +40,6 @@ extern NSString *const kGTMGettysburgFileName;
   GTMSessionFetcherService *_fetcherService;
 }
 
-// A path to the test folder containing documents to be returned by the http server.
-- (NSString *)docRootPath;
-
 // Return the raw data of our test file.
 - (NSData *)gettysburgAddress;
 

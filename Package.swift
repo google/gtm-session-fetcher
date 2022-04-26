@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 
@@ -49,11 +49,7 @@ let package = Package(
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "UnitTests",
-            // Resources not working as of Swfit 5.3
-            // - https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
-            // - https://bugs.swift.org/browse/SR-13560
-            exclude: ["Data"]
+            path: "UnitTests"
         ),
         .testTarget(
             name: "swift-test",
