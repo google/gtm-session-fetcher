@@ -519,49 +519,6 @@ static NSString *const kEtag = @"GoodETag";
     return sendResponse(200, nil, nil);
   }
 
-  if ([requestPathExtension isEqual:@"rpc"]) {
-    // JSON-RPC tests
-    //
-    // the fetch file name is like Foo.rpc; there should be local files
-    // with the expected JSON request body, and the response body
-    //
-    // replace the .rpc suffix with .request.txt and .response.txt
-    NSString *withoutRpcExtn = [requestPath stringByDeletingPathExtension];
-    NSString *requestName = [withoutRpcExtn stringByAppendingPathExtension:@"request.txt"];
-    NSString *responseName = [withoutRpcExtn stringByAppendingPathExtension:@"response.txt"];
-
-    // read the expected request body from disk
-    NSData *requestData = [self documentDataAtPath:requestName];
-    if (!requestData) {
-      // we need a query request file for rpc tests
-      NSLog(@"Cannot find query request file \"%@\"", requestPath);
-    } else {
-      // verify that the RPC request body is as expected
-      NSDictionary *expectedJSON = [self JSONFromData:requestData];
-      NSDictionary *requestJSON = [self JSONFromData:requestBodyData];
-
-      if (expectedJSON && requestJSON && [requestJSON isEqual:expectedJSON]) {
-        // the request body matches
-        //
-        // for rpc, the response file ought to be here;
-        // 404s shouldn't happen
-        NSString *responsePath = [self localPathForFile:responseName];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:responsePath]) {
-          requestPath = responseName;
-        } else {
-          NSLog(@"Cannot find query response file \"%@\"", responsePath);
-        }
-      } else {
-        // the actual request did not match the expected request
-        //
-        // note that the requests may be dictionaries or arrays
-        NSLog(@"Mismatched request body for \"%@\"", requestPath);
-        NSLog(@"\n--------\nExpected request:\n%@", expectedJSON);
-        NSLog(@"\n--------\nActual request:\n%@", requestJSON);
-      }
-    }
-  }
-
   // Verify that the expected body data was present.
   NSString *bodySequenceLenStr = [[self class] valueForParameter:@"requestBodyLength" query:query];
   if (bodySequenceLenStr) {
