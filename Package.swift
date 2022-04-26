@@ -50,10 +50,7 @@ let package = Package(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
             path: "UnitTests",
-            // Resources not working as of Swfit 5.3
-            // - https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
-            // - https://bugs.swift.org/browse/SR-13560
-            exclude: ["Data"]
+            resources: [.copy("Data/gettysburgaddress.txt")]
         )
     ]
 )

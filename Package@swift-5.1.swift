@@ -45,12 +45,7 @@ let package = Package(
             dependencies: ["GTMSessionFetcherCore"],
             path: "Sources/LogView",
             publicHeadersPath: "Public"
-        ),
-        .testTarget(
-            name: "GTMSessionFetcherCoreTests",
-            dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "UnitTests"
-            // Resources hot wired in the source file themselves.
         )
+        // Need resources support to run the tests, that was Swift 5.4+
     ]
 )
