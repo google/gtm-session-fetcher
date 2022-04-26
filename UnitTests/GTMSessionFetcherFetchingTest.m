@@ -80,13 +80,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // During debugging of the unit tests, we want to avoid timeouts.
   _timeoutInterval = IsCurrentProcessBeingDebugged() ? 3600.0 : 30.0;
 
-  NSString *docRoot = [self docRootPath];
-
   // For tests that create fetchers without a fetcher service, _fetcherService will
   // be set to nil by the test.
   _fetcherService = [[GTMSessionFetcherService alloc] init];
 
-  _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
+  _testServer = [[GTMSessionFetcherTestServer alloc] init];
   _isServerRunning = (_testServer != nil);
   XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping fetcher tests\n");
@@ -108,56 +106,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 #pragma mark -
 
-- (NSString *)docRootPath {
-  // Make a path to the test folder containing documents to be returned by the http server.
-  NSBundle *testBundle = [NSBundle bundleForClass:[self class]];
-  XCTAssertNotNil(testBundle);
-
-#if SWIFT_PACKAGE
-  // Swift Pacage Manager does not support resources distribution currently,
-  // therefore the "gettysburgaddress.txt" file must be copied manually to the test bundle.
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    NSString *gettysburg =
-        @""
-         "Four score and seven years ago our fathers brought forth on this continent, a"
-         "new nation, conceived in liberty, and dedicated to the proposition that all men"
-         "are created equal.";
-
-    NSString *resourcePath = [testBundle resourcePath];
-    XCTAssertNotNil(resourcePath);
-
-    if (![[NSFileManager defaultManager] fileExistsAtPath:resourcePath]) {
-      NSError *createDirectoryError = nil;
-      if (![[NSFileManager defaultManager] createDirectoryAtPath:resourcePath
-                                     withIntermediateDirectories:true
-                                                      attributes:nil
-                                                           error:&createDirectoryError]) {
-        XCTFail("Failed to create the Resources directory, error: %@", createDirectoryError);
-      }
-    }
-
-    NSString *gettysburgPath =
-        [resourcePath stringByAppendingPathComponent:@"gettysburgaddress.txt"];
-    NSError *writeError = nil;
-    if (![gettysburg writeToFile:gettysburgPath
-                      atomically:true
-                        encoding:NSUTF8StringEncoding
-                           error:&writeError]) {
-      XCTFail("Failed to write `gettysburgaddress.txt` bundle Resource, error: %@", writeError);
-    }
-  });
-#endif
-
-  NSString *docFolder = [testBundle resourcePath];
-  return docFolder;
-}
-
 - (NSData *)gettysburgAddress {
-  // Return the raw data of our test file.
-  NSString *gettysburgPath = [_testServer localPathForFile:kGTMGettysburgFileName];
-  NSData *gettysburgAddress = [NSData dataWithContentsOfFile:gettysburgPath];
-  return gettysburgAddress;
+  return [_testServer documentDataAtPath:kGTMGettysburgFileName];
 }
 
 - (NSURL *)temporaryFileURLWithBaseName:(NSString *)baseName {
@@ -177,21 +127,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 - (NSString *)localURLStringToTestFileName:(NSString *)name {
   NSString *localURLString = [[_testServer localURLForFile:name] absoluteString];
-
-  // Just for sanity, let's make sure we see the file locally, so
-  // we can expect the http server to find it too.
-  //
-  // We exclude parameters when looking for the file name locally.
-  NSRange range = [name rangeOfString:@"?"];
-  if (range.location != NSNotFound) {
-    name = [name substringToIndex:range.location];
-  }
-
-  NSString *filePath = [_testServer localPathForFile:name];
-
-  BOOL doesExist = [[NSFileManager defaultManager] fileExistsAtPath:filePath];
-  XCTAssertTrue(doesExist, @"Missing test file %@", filePath);
-
   return localURLString;
 }
 
@@ -1932,9 +1867,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testInsecureRequests {
   if (![GTMSessionFetcher appAllowsInsecureRequests]) return;
 
-  // file:///Users/.../Resources/gettysburgaddress.txt
-  NSString *fileURLString = [[NSURL
-      fileURLWithPath:[_testServer localPathForFile:kGTMGettysburgFileName]] absoluteString];
+  // file:///var/folders/...
+  NSString *fileURLString = [[NSURL fileURLWithPath:NSTemporaryDirectory()] absoluteString];
 
   // http://localhost:59757/gettysburgaddress.txt
   NSString *localhostURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];

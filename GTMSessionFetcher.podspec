@@ -52,7 +52,6 @@ Pod::Spec.new do |s|
 
   s.test_spec 'Tests' do |sp|
     sp.source_files = 'UnitTests/*.{h,m}'
-    sp.resource = 'UnitTests/Data/gettysburgaddress.txt'
 
     sp.platforms = {
       :ios => ios_deployment_target,

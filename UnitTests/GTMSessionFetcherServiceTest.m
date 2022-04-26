@@ -219,20 +219,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
   return result;
 }
 
-- (NSString *)docRootPath {
-  // Find a test file.
-  NSBundle *testBundle = [NSBundle bundleForClass:[self class]];
-  XCTAssertNotNil(testBundle);
-
-  // Use the directory of the test file as the root directory for our server.
-  NSString *docFolder = [testBundle resourcePath];
-  return docFolder;
-}
-
 - (void)setUp {
-  NSString *docRoot = [self docRootPath];
-
-  _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
+  _testServer = [[GTMSessionFetcherTestServer alloc] init];
   _isServerRunning = _testServer != nil;
   _timeoutInterval = IsCurrentProcessBeingDebugged() ? 3600.0 : 30.0;
 
@@ -280,8 +268,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   };
 
   // We'll verify we fetched from the server the same data that is on disk.
-  NSString *gettysburgPath = [_testServer localPathForFile:kValidFileName];
-  NSData *gettysburgAddress = [NSData dataWithContentsOfFile:gettysburgPath];
+  NSData *gettysburgAddress = [_testServer documentDataAtPath:kValidFileName];
 
   // We'll create 10 fetchers.  Only 2 should run simultaneously.
   // 1 should fail; the rest should succeeed.
@@ -957,8 +944,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   service.allowLocalhostRequest = YES;
 
   XCTestExpectation *expectReceiveResponse = [self expectationWithDescription:@"Received response"];
-  NSString *gettysburgPath = [_testServer localPathForFile:kValidFileName];
-  NSURL *gettysburgFileURL = [_testServer localURLForFileUsingAppend:gettysburgPath];
+  NSURL *gettysburgFileURL = [_testServer localURLForFile:kValidFileName];
   NSURLComponents *validFileURLComponents = [[NSURLComponents alloc] initWithURL:gettysburgFileURL
                                                          resolvingAgainstBaseURL:NO];
   validFileURLComponents.query = @"?echo-headers=true";
