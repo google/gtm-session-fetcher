@@ -171,7 +171,7 @@ static NSString *const kEtag = @"GoodETag";
        " new nation, conceived in liberty, and dedicated to the proposition that all men"
        " are created equal.";
     _resourceMap = @{
-      @"gettysburgaddress.txt": [gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"gettysburgaddress.txt": (NSData*)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
     };
 
     _uploadBytesExpected = -1;
