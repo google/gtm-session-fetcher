@@ -35,11 +35,6 @@ You can use CocoaPods or Swift Package Manager.
     everything and run tests.
   * Choose a target platform by selecting the run destination along with the scheme
 
-Note: As of Swift 5.3, testing with SwiftPM has some hacks in the sources to
-compile in required resources, tracking the issues:
-- https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
-- https://bugs.swift.org/browse/SR-13560
-
 ### CocoaPods
 
 Install
