@@ -12,23 +12,35 @@ The Google Toolbox for Mac Session Fetcher is a set of classes to simplify HTTP 
 - When you need to set a credential for the HTTP operation
 - When you want to support a synchronous or asynchronous authorization of requests, such as for OAuth 2
 
-# Using the Fetcher
+## Adding the Library to a Project
 
-## Adding the Fetcher to Your Project
+### Integration via CocoaPods
 
-Only the `GTMSessionFetcher.h/m` source files are strictly required, though using the Service class is highly recommended. If your application will make multiple fetches, the Service class will improve performance and provide added convenience methods and properties. The Logging class file is optional but useful for all applications.
+If you are building from CocoaPods, just use the pod provided: `GTMSessionFetcher`.
 
-| **Source files** | **Purpose** |
-| ---------------- | ----------- |
-| GTMSessionFetcher.h/m | required |
-| GTMSessionFetcherLogging.h/m | HTTP logging (often helpful) |
-| GTMSessionFetcherService.h/m | coordination across fetches, better performance |
-| GTMMIMEDocument.h/m, GTMGatherInputStream.h/m | multipart MIME uploads and downloads |
-| GTMSessionUploadFetcher.h/m | [resumable-uploads](https://developers.google.com/gdata/docs/resumable_upload) |
+The `Core` subspec includes the minimum parts of the library. There is also a `Full` subspec that includes some the multipart MIME uploads and downloads and [resumable-uploads](https://developers.google.com/gdata/docs/resumable_upload). The `LogView` subspec provides an iOS view that can easily be added to applications to allow viewing of the [logging](#http-logging) this library supports.
 
-### ARC Compatibility
+For example, if use the `Full` support, you'd just need to add:
 
-The fetcher source files can be compiled directly into a project that has ARC enabled. If the project doesn't have ARC enabled, it will need to be enabled for these files.
+```
+pod 'GTMSessionFetcher/Full'
+```
+
+To your `Podfile` and run `pod install`.
+
+### Integration via Swift Package Manager (SwiftPM)
+
+Refer to the Xcode docs for how to add SwiftPM based dependences to the Xcode UI or via your `Package.swift` file.
+
+The `GTMSessionFetcherCore` product includes the minimum parts of the library. There is also a `GTMSessionFetcherFull` product that includes some the multipart MIME uploads and downloads and [resumable-uploads](https://developers.google.com/gdata/docs/resumable_upload). The `GTMSessionFetcherLogView` product provides an iOS view that can easily be added to applications to allow viewing of the [logging](#http-logging) this library supports.
+
+For example, if you needed the _Full_ apis, you just need to depend on the `GTMSessionFetcherFull` product.
+
+### `#import`s and `@import`s
+
+Since CocoaPods and SwiftPM use different models for how things are built, the module names for `@import` directives will be specific to each packaging system.
+
+However, if consuming this library via Objective-C, all the packages export their headers as _GTMSessionFetcher/HEADER.h_, so you can always `#import` them as a framework import and that will work with either packaging system, i.e. - `#import <GTMSessionFetcher/GTMSessionFetcherService.h` and `#import <GTMSessionFetcher/GTMGatherInputStream.h`.
 
 ## Usage
 

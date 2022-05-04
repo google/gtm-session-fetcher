@@ -23,30 +23,6 @@ Features include:
 - Automatic rate limiting when created by the `GTMSessionFetcherService` factory class
 - Fully independent of other projects
 
-## Development of this Project
-
-You can use CocoaPods or Swift Package Manager.
-
-### Swift Package Manager
-
-* `open Package.swift` or double click `Package.swift` in Finder.
-* Xcode will open the project
-  * The _GTMSessionFetcher-Package_ scheme seems generally the simplest to build
-    everything and run tests.
-  * Choose a target platform by selecting the run destination along with the scheme
-
-### CocoaPods
-
-Install
-  * CocoaPods 1.10.0 (or later)
-  * [CocoaPods generate](https://github.com/square/cocoapods-generate) - This is
-    not part of the _core_ cocoapods install.
-
-Generate an Xcode project from the podspec:
-
-```
-pod gen GTMSessionFetcher.podspec --local-sources=./ --auto-open --platforms=ios
-```
-
-Note: Set the `--platforms` option to `macos`, `tvos`, or `watchos` to
-develop/test for those platforms.
+**To get started** please read
+[USING.md](https://github.com/google/google-api-objectivec-client-for-rest/blob/main/USING.md)
+for detailed information.
