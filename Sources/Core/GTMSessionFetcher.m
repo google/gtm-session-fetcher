@@ -3814,6 +3814,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
   }  // @synchronized(self)
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
 - (nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -3836,6 +3838,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     }
   }  // @synchronized(self)
 }
+#pragma clang diagnostic pop
 
 - (nullable NSData *)downloadedData {
   @synchronized(self) {

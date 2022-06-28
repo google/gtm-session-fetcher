@@ -2802,8 +2802,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)authorizeRequest:(NSMutableURLRequest *)request
-                delegate:(id)delegate
-       didFinishSelector:(SEL)sel {
+       completionHandler:(void (^)(NSError *_Nullable))handler {
   NSError *error = nil;
   if (self.willFailWithError) {
     error = [NSError errorWithDomain:NSURLErrorDomain
@@ -2814,23 +2813,34 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
+  if (self.async) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      handler(error);
+    });
+  } else {
+    handler(error);
+  }
+}
+
+- (void)authorizeRequest:(NSMutableURLRequest *)request
+                delegate:(id)delegate
+       didFinishSelector:(SEL)sel {
   if (delegate && sel) {
-    id selfParam = self;
-    NSMethodSignature *sig = [delegate methodSignatureForSelector:sel];
-    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
-    [invocation setSelector:sel];
-    [invocation setTarget:delegate];
-    [invocation setArgument:&selfParam atIndex:2];
-    [invocation setArgument:&request atIndex:3];
-    [invocation setArgument:&error atIndex:4];
-    if (self.async) {
-      [invocation retainArguments];
-      dispatch_async(dispatch_get_main_queue(), ^{
-        [invocation invoke];
-      });
-    } else {
-      [invocation invoke];
-    }
+    __weak __typeof__(self) weakSelf = self;
+    [self authorizeRequest:request
+         completionHandler:^(NSError *_Nullable error) {
+           id selfParam = weakSelf;
+           NSMutableURLRequest *requestParam = request;
+           NSMethodSignature *sig = [delegate methodSignatureForSelector:sel];
+           NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
+           [invocation setSelector:sel];
+           [invocation setTarget:delegate];
+           [invocation setArgument:&selfParam atIndex:2];
+           [invocation setArgument:&requestParam atIndex:3];
+           [invocation setArgument:&error atIndex:4];
+           [invocation setArgument:&error atIndex:4];
+           [invocation invoke];
+         }];
   }
 }
 
