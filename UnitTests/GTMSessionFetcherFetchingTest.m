@@ -2838,7 +2838,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
            [invocation setArgument:&selfParam atIndex:2];
            [invocation setArgument:&requestParam atIndex:3];
            [invocation setArgument:&error atIndex:4];
-           [invocation setArgument:&error atIndex:4];
            [invocation invoke];
          }];
   }

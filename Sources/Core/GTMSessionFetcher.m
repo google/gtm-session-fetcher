@@ -1688,11 +1688,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // It's unknown how long an authorizer maintains ownership of the provided block, so
     // avoid potential retain cycles on self and the authorizer.
     __weak __typeof__(self) weakSelf = self;
-    __weak __typeof__(authorizer) weakAuthorizer = authorizer;
     NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
     [authorizer authorizeRequest:mutableRequest
                completionHandler:^(NSError *_Nullable error) {
-                 [weakSelf authorizer:(id _Nonnull)weakAuthorizer
+                 [weakSelf authorizer:nil
                                request:mutableRequest
                      finishedWithError:error];
                }];
@@ -1710,7 +1709,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 }
 
-- (void)authorizer:(id)auth
+// The authorizer parameter is unused, and the block-based callback will never pass
+// non-nil; the field is only for the deprecated selector-based implementation for
+// legacy reasons.
+- (void)authorizer:(nullable id __unused)auth
               request:(nullable NSMutableURLRequest *)authorizedRequest
     finishedWithError:(nullable NSError *)error {
   GTMSessionCheckNotSynchronized(self);
