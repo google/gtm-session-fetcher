@@ -641,15 +641,23 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
-#ifndef GTM_FETCHER_AUTHORIZATION_PROTOCOL
-#define GTM_FETCHER_AUTHORIZATION_PROTOCOL 1
-@protocol GTMFetcherAuthorizationProtocol <NSObject>
+__deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
+    @protocol GTMFetcherAuthorizationProtocol<NSObject>
 @required
 // This protocol allows us to call the authorizer without requiring its sources
-// in this project.
+// in this project. This protocol is deprecated in favor of GTMSessionFetcherAuthorizer,
+// and implementations should move to that protocol in anticipation of
+// GTMFetcherAuthorizationProtocol being deleted in a future release.
+
+// This method is being phased out. While implementing it is necessary to satisfy
+// the protocol's @required restrictions, conforming implementations that implement
+// authorizeRequest:completionHandler: will have that called instead. 
+// be removed in a future version when GTMFetcherAuthorizationProtocol is
+// also removed.
 - (void)authorizeRequest:(nullable NSMutableURLRequest *)request
                 delegate:(id)delegate
-       didFinishSelector:(SEL)sel;
+       didFinishSelector:(SEL)sel
+    __deprecated_msg("implement authorizeRequest:completionHandler: instead");
 
 - (void)stopAuthorization;
 
@@ -663,6 +671,11 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @optional
 
+// This method is prefered over authorizeRequest:delegate:didFinishSelector:, and
+// becomes a required method in the GTMSessionFetcherAuthorizer protocol.
+- (void)authorizeRequest:(nullable NSMutableURLRequest *)request
+       completionHandler:(void (^)(NSError *_Nullable error))handler;
+
 // Indicate if authorization may be attempted. Even if this succeeds,
 // authorization may fail if the user's permissions have been revoked.
 @property(atomic, readonly) BOOL canAuthorize;
@@ -671,15 +684,42 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 // transmission of the bearer token unencrypted.
 @property(atomic, assign) BOOL shouldAuthorizeAllRequests;
 
-- (void)authorizeRequest:(nullable NSMutableURLRequest *)request
-       completionHandler:(void (^)(NSError *_Nullable error))handler;
-
 @property(atomic, weak, nullable) id<GTMSessionFetcherServiceProtocol> fetcherService;
 
 - (BOOL)primeForRefresh;
 
 @end
-#endif  // GTM_FETCHER_AUTHORIZATION_PROTOCOL
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+// This is the preferred, forward-going protocol for fetcher authorization. it
+// currently implements the deprecated GTMFetcherAuthorizationProtocol in order
+// to avoid changing the GTMSessionFetcher API surface while implementations
+// migrate. In a future release, the non-deprecated method declarations will be
+// moved here and the GTMFetcherAuthorizationProtocol and the deprecated methods
+// deleted.
+@protocol GTMSessionFetcherAuthorizer <GTMFetcherAuthorizationProtocol>
+// This protocol allows us to call the authorizer without requiring its sources
+// in this project.
+#pragma clang diagnostic pop
+@required
+
+// Authorizers should implement this method rather than the selector-based
+// callback form from the old protocol.
+- (void)authorizeRequest:(nullable NSMutableURLRequest *)request
+       completionHandler:(void (^)(NSError *_Nullable error))handler;
+
+@optional
+// This method is re-declared here as @optional only to quash deprecation warnings
+// on the @required declaration from GTMFetcherAuthorizationProtocol, which
+// must still be provided by conforming implementations. Once the old protocol has
+// been removed, this method will be marked unavailable to trigger implementations
+// to stop providing it, and it will eventually be removed.
+- (void)authorizeRequest:(nullable NSMutableURLRequest *)request
+                delegate:(id)delegate
+       didFinishSelector:(SEL)sel;
+
+@end
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // A protocol for an alternative target for messages from GTMSessionFetcher to UIApplication.
@@ -899,10 +939,16 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 // Setting a body stream provider forces use of an upload task.
 @property(atomic, copy, nullable) GTMSessionFetcherBodyStreamProvider bodyStreamProvider;
 
+#pragma clang diagnostic push
+// For now retain the existing API surface of accepting a GTMFetcherAuthorizationProtocol
+// for the authorizer, but the intent is that this will change to take the new
+// GTMSessionFetcherAuthorizer protocol instead in a future major version update.
+#pragma clang diagnostic ignored "-Wdeprecated"
 // Object to add authorization to the request, if needed.
 //
 // This may not be changed once beginFetch has been invoked.
 @property(atomic, strong, nullable) id<GTMFetcherAuthorizationProtocol> authorizer;
+#pragma clang diagnostic pop
 
 // The service object that created and monitors this fetcher, if any.
 @property(atomic, strong) id<GTMSessionFetcherServiceProtocol> service;
