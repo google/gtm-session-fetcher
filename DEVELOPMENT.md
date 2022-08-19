@@ -61,8 +61,10 @@ To update the version number and push a release:
     the one you provided to the `update_version.py` script. (GTMSessionFetcher
     has a `v` prefix on its tags.)
 
-    For the description call out any major changes in the release. Usually a
-    reference to the pull request and a short description is sufficient.
+    For the description call out any major changes in the release. Usually the
+    _Generate release notes_ button in the toolbar is a good starting point and
+    just updating as need for more/less detail (dropping comments about CI,
+    updating the version number, etc.).
 
 1.  Publish the CocoaPod.
 
