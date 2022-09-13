@@ -314,7 +314,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
     NSCharacterSet *badKeyChars = [NSCharacterSet characterSetWithCharactersInString:@":\r\n"];
     NSCharacterSet *badValueChars = [NSCharacterSet characterSetWithCharactersInString:@"\r\n"];
 
-    NSRange badRange = [key rangeOfCharacterFromSet:badKeyChars];
+    __unused NSRange badRange = [key rangeOfCharacterFromSet:badKeyChars];
     NSAssert(badRange.location == NSNotFound, @"invalid key: %@", key);
 
     badRange = [value rangeOfCharacterFromSet:badValueChars];
