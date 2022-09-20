@@ -3142,9 +3142,7 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 - (void)uploadLocationObtained:(NSNotification *)note {
   if ([self shouldIgnoreNotification:note]) return;
 
-  GTMSessionUploadFetcher *fetcher = note.object;
-#pragma unused(fetcher)  // Unused when NS_BLOCK_ASSERTIONS
-
+  __unused GTMSessionUploadFetcher *fetcher = note.object;
   NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);
 
   ++_uploadLocationObtained;
