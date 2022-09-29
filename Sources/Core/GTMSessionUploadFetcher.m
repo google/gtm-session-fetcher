@@ -1513,6 +1513,11 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   } else {
     // The chunk has uploaded successfully.
     int64_t newOffset = self.currentOffset + previousContentLength;
+    NSString *uploadSizeReceived = [chunkFetcher.responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadSizeReceived];
+  
+    if(uploadSizeReceived != nil) { // TODO(mtewani): When is this ever nil?
+      newOffset = [uploadSizeReceived longLongValue];
+    }
 #if DEBUG
     // Verify that if we think all of the uploading data has been sent, the server responded with
     // the "final" upload status.
@@ -1755,7 +1760,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSESSION_ASSERT_DEBUG(offset < fullUploadLength || fullUploadLength == 0,
                           @"offset %lld exceeds data length %lld", offset, fullUploadLength);
 
-  if (granularity > 0) {
+  if (granularity > 0 && offset != fullUploadLength) {
     offset = offset - (offset % granularity);
   }
 
