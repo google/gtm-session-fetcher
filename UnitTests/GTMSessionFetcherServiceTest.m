@@ -434,6 +434,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   if (!_isServerRunning) return;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
   [service setConcurrentCallbackQueue:dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0)];
 
   XCTestExpectation *progressExpectation = [self expectationWithDescription:@"progress block"];
@@ -1541,6 +1542,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   __block NSURLSessionTaskMetrics *collectedMetrics = nil;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
   service.metricsCollectionBlock = ^(NSURLSessionTaskMetrics *_Nonnull metrics) {
     collectedMetrics = metrics;
   };
