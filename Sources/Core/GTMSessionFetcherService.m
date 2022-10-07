@@ -290,28 +290,31 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     }
   }
 
-  NSURLSession *session;
+  @try {
+    NSURLSession *session;
+    // Wait if another fetcher is currently creating a session; avoid waiting inside the
+    // @synchronized block as that could deadlock.
+    os_unfair_lock_lock(&_sessionCreationLock);
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
 
-  // Wait if another fetcher is currently creating a session; avoid waiting inside the
-  // @synchronized block as that could deadlock.
-  os_unfair_lock_lock(&_sessionCreationLock);
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
+      // Before getting the NSURLSession for task creation, it is
+      // important to invalidate and nil out the session discard timer; otherwise
+      // the session can be invalidated between when it is returned to the
+      // fetcher, and when the fetcher attempts to create its NSURLSessionTask.
+      [_delegateDispatcher startSessionUsage];
 
-    // Before getting the NSURLSession for task creation, it is
-    // important to invalidate and nil out the session discard timer; otherwise
-    // the session can be invalidated between when it is returned to the
-    // fetcher, and when the fetcher attempts to create its NSURLSessionTask.
-    [_delegateDispatcher startSessionUsage];
-
-    session = _delegateDispatcher.session;
-    if (!session) {
-      session = creationBlock(_delegateDispatcher);
-      _delegateDispatcher.session = session;
+      session = _delegateDispatcher.session;
+      if (!session) {
+        session = creationBlock(_delegateDispatcher);
+        _delegateDispatcher.session = session;
+      }
     }
+    return session;
+  } @finally {
+    // Ensure the lock is always released, even if creationBlock throws.
+    os_unfair_lock_unlock(&_sessionCreationLock);
   }
-  os_unfair_lock_unlock(&_sessionCreationLock);
-  return session;
 }
 
 - (id<NSURLSessionDelegate>)sessionDelegate {
