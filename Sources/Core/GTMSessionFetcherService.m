@@ -180,19 +180,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
     if (!_callbackQueueIsConcurrent) return _callbackQueue;
 
     static const char *kQueueLabel = "com.google.GTMSessionFetcher.serialCallbackQueue";
-    dispatch_queue_t queue;
-#if TARGET_OS_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_10_0)
-    // All targets except iPhone < iOS 10 support dispatch_queue_create_with_target().
-    // iOS builds supporting <iOS 10 will create the queue and set the target separately,
-    // but all other builds have mininum support that includes the one-stop function.
-    queue = dispatch_queue_create(kQueueLabel, DISPATCH_QUEUE_SERIAL);
-    dispatch_set_target_queue(queue, _callbackQueue);
-#else
-    // All other targets support dispatch_queue_create_with_target()
-    queue = dispatch_queue_create_with_target(kQueueLabel, DISPATCH_QUEUE_SERIAL, _callbackQueue);
-#endif
-
-    return queue;
+    return dispatch_queue_create_with_target(kQueueLabel, DISPATCH_QUEUE_SERIAL, _callbackQueue);
   }
 }
 
