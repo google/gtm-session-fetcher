@@ -434,6 +434,7 @@ typedef NS_ENUM(NSInteger, GTMSessionFetcherError) {
   GTMSessionFetcherErrorBackgroundFetchFailed = -4,
   GTMSessionFetcherErrorInsecureRequest = -5,
   GTMSessionFetcherErrorTaskCreationFailed = -6,
+  GTMSessionFetcherErrorCancelled = -7,
 };
 
 typedef NS_ENUM(NSInteger, GTMSessionFetcherStatus) {
@@ -1086,6 +1087,10 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // Cancel the fetch of the request that's currently in progress.  The completion handler
 // will not be called.
 - (void)stopFetching;
+
+// Cancel the fetch of the request that's currently in progress.  The completion handler
+// is called on option.
+- (void)stopFetching:(BOOL)shouldCallCallbacks;
 
 // A block to be called when the fetch completes.
 @property(atomic, copy, nullable) GTMSessionFetcherCompletionHandler completionHandler;

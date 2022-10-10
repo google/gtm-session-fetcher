@@ -142,6 +142,7 @@ NS_ASSUME_NONNULL_END
 
 @property(atomic, strong, readwrite, nullable) NSData *downloadedData;
 @property(atomic, strong, readwrite, nullable) NSData *downloadResumeData;
+@property(atomic, readwrite) BOOL cancelAndCallback;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // Should always be accessed within an @synchronized(self).
@@ -213,6 +214,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   NSString *_sessionIdentifierUUID;
   BOOL _userRequestedBackgroundSession;
   BOOL _usingBackgroundSession;
+  BOOL _cancelAndCallback;
   NSMutableData *_Nullable _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;               // immutable after construction
@@ -1964,14 +1966,26 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 }
 
-// External stop method
+// External stop method and don't call callbacks
 - (void)stopFetching {
+  [self stopFetching:NO];
+}
+
+// External stop method with do call callbacks option
+- (void)stopFetching:(BOOL)shouldCallCallbacks {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     // Prevent enqueued callbacks from executing.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
+  if (shouldCallCallbacks) {
+    NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                   code:GTMSessionFetcherErrorCancelled
+                                     userInfo:@{@"description" : @"Operation cancelled"}];
+    _cancelAndCallback = YES;
+    _completionHandler(nil, error);
+  }
   [self stopFetchReleasingCallbacks:YES];
 }
 
@@ -2600,7 +2614,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                         block:(void (^)(void))block {
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
-      if (!afterStopped) {
+      if (!afterStopped && !self->_cancelAndCallback) {
         NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
         @synchronized(self) {
@@ -3668,7 +3682,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
-            log = _log;
+            log = _log,
+            cancelAndCallback = _cancelAndCallback;
 
 #if !STRIP_GTM_FETCH_LOGGING
 @synthesize redirectedFromURL = _redirectedFromURL,
