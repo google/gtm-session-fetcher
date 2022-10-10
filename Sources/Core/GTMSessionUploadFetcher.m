@@ -135,6 +135,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   NSString *_uploadMIMEType;
   int64_t _chunkSize;
   int64_t _uploadGranularity;
+  int64_t _sleepTime;
   BOOL _isPaused;
   BOOL _isRestartedUpload;
   BOOL _shouldInitiateOffsetQuery;
@@ -1133,6 +1134,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 - (void)sendQueryForUploadOffsetWithFetcherProperties:(NSDictionary *)props {
+  NSLog(@"Create queryFetcher");
   GTMSessionFetcher *queryFetcher = [self uploadFetcherWithProperties:props isQueryFetch:YES];
   queryFetcher.bodyData = [NSData data];
 
@@ -1504,6 +1506,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       self.shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
+      _sleepTime = MAX(_sleepTime * 2, 1);
+
       [self sendQueryForUploadOffsetWithFetcherProperties:chunkFetcher.properties];
     } else {
       // Some unexpected status has occurred; handle it as we would a regular
@@ -1566,8 +1570,18 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       // before we create a new chunk fetcher.
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
-
-      [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
+      if (_sleepTime < self.maxRetryInterval) {
+        NSLog(@"Delaying by %@", @(_sleepTime).stringValue);
+        dispatch_time_t popTime =
+            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(_sleepTime * NSEC_PER_SEC));
+        dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
+          [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
+        });
+      } else {
+        NSError *responseError =
+            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
+        [self invokeFinalCallbackWithData:data error:responseError shouldInvalidateLocation:NO];
+      }
     }
   }
   if (!hasDestroyedOldChunkFetcher) {

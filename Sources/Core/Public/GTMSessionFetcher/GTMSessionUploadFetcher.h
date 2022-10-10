@@ -39,6 +39,9 @@
 
 #import "GTMSessionFetcher/GTMSessionFetcher.h"
 #import "GTMSessionFetcher/GTMSessionFetcherService.h"
+#ifndef MAX
+#import <NSObjCRuntime.h>
+#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
