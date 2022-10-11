@@ -18,6 +18,9 @@
 #endif
 
 #import "GTMSessionFetcher/GTMSessionFetcher.h"
+#import "GTMSessionFetcher/GTMSessionFetcherService.h"
+#import "GTMSessionFetcherService+Internal.h"
+
 #if TARGET_OS_OSX && GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
 // To reconnect background sessions on Mac outside +load requires importing and linking
 // AppKit to access the NSApplicationDidFinishLaunching symbol.
@@ -190,6 +193,10 @@ static NSDictionary *_Nullable GTMErrorUserInfoForData(NSData *_Nullable data,
 
 static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
+@interface GTMSessionFetcher ()
+@property(atomic, strong) GTMSessionFetcherService *service;
+@end
+
 @implementation GTMSessionFetcher {
   NSMutableURLRequest *_request;  // after beginFetch, changed only in delegate callbacks
   BOOL _useUploadTask;            // immutable after beginFetch
@@ -233,8 +240,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 #pragma clang diagnostic pop
 
   // The service object that created and monitors this fetcher, if any.
-  id<GTMSessionFetcherServiceProtocol>
-      _service;  // immutable; set by the fetcher service upon creation
+  GTMSessionFetcherService *_service;  // immutable; set by the fetcher service upon creation
   NSString *_serviceHost;
   NSInteger _servicePriority;  // immutable after beginFetch
   BOOL _hasStoppedFetching;    // counterpart to _initialBeginFetchDate
@@ -1982,7 +1988,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
   [self removePersistedBackgroundSessionFromDefaults];
 
-  id<GTMSessionFetcherServiceProtocol> service;
+  GTMSessionFetcherService *service;
   NSMutableURLRequest *request;
 
   // If the task or the retry timer is all that's retaining the fetcher,

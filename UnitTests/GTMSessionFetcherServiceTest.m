@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #import <GTMSessionFetcher/GTMSessionFetcherService.h>
+#import "GTMSessionFetcherService+Internal.h"
 
 #import "GTMSessionFetcherTestServer.h"
 
