@@ -193,10 +193,6 @@ static NSDictionary *_Nullable GTMErrorUserInfoForData(NSData *_Nullable data,
 
 static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
-@interface GTMSessionFetcher ()
-@property(atomic, strong) GTMSessionFetcherService *service;
-@end
-
 @implementation GTMSessionFetcher {
   NSMutableURLRequest *_request;  // after beginFetch, changed only in delegate callbacks
   BOOL _useUploadTask;            // immutable after beginFetch

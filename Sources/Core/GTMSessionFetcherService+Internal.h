@@ -19,12 +19,6 @@
 
 @interface GTMSessionFetcherService (Internal)
 
-- (BOOL)fetcherShouldBeginFetching:(nonnull GTMSessionFetcher *)fetcher;
-- (void)fetcherDidBeginFetching:(nonnull GTMSessionFetcher *)fetcher;
-- (void)fetcherDidStop:(nonnull GTMSessionFetcher *)fetcher;
-
-- (BOOL)isDelayingFetcher:(nonnull GTMSessionFetcher *)fetcher;
-
 // Methods for use by the fetcher class only.
 - (nullable NSURLSession *)session;
 - (nullable NSURLSession *)sessionWithCreationBlock:

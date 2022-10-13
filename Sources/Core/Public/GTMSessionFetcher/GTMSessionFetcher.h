@@ -562,12 +562,63 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }  // extern "C"
 #endif
 
+// Completion handler passed to -[GTMFetcherDecoratorProtocol fetcherWillStart:completionHandler:].
+typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable,
+                                                                     NSError *_Nullable);
+
+// Allows intercepting a request and optionally modifying it before the request (or a retry)
+// is sent. See `-[GTMSessionFetcherService addDecorator:]` and `-[GTMSessionFetcherService
+// removeDecorator:]`.
+//
+// Decorator methods must be thread-safe, as they might be invoked on any queue.
+@protocol GTMFetcherDecoratorProtocol <NSObject>
+
+// Invoked just before a fetcher's request starts.
+//
+// After the decorator's work is complete, the decorator must invoke `handler(request, error)`
+// either synchronously or asynchronously (on any queue).
+//
+// If no changes are to be made, pass `nil` for both `request` and `error`.
+//
+// Otherwise, if `error` is non-nil, then the fetcher is stopped with the given error, and any
+// further decorators' `-fetcherWillStart:completionHandler:` methods are not invoked.
+//
+// Otherwise, the decorator may use `[fetcher.request mutableCopy]`, make changes to the mutable
+// copy of the request, and pass the result to the handler via the `request` parameter.
+//
+// To distinguish the initial fetch from retries, the decorator can look at `fetcher.retryCount`.
+//
+// This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
+// work or I/O on a different queue, then invoke `handler` with the results after the blocking work
+// completes.
+- (void)fetcherWillStart:(GTMSessionFetcher *)fetcher
+       completionHandler:(GTMFetcherDecoratorFetcherWillStartCompletionHandler)handler;
+
+// Invoked just after a fetcher's request finishes (either on success or on failure).
+//
+// After the decorator's work is complete, the decorator must invoke `handler()` either
+// synchronously or asynchronously (on any queue).
+//
+// To access the result of the fetch, the decorator can look at `fetcher.response`.
+//
+// This method must not block the caller (e.g., performing synchronous I/O). Perform any blocking
+// work or I/O on a different queue, then invoke `handler` with the results after the blocking work
+// completes.
+- (void)fetcherDidFinish:(GTMSessionFetcher *)fetcher
+                withData:(nullable NSData *)data
+                   error:(nullable NSError *)error
+       completionHandler:(void (^)(void))handler;
+
+@end
+
 // This protocol allows abstract references to the fetcher service.
 //
 // Apps should not need to use this protocol.
 @protocol GTMSessionFetcherServiceProtocol <NSObject>
 
 - (GTMSessionFetcher *)fetcherWithRequest:(NSURLRequest *)request;
+
+@property(atomic, strong, null_resettable, readonly) dispatch_queue_t callbackQueue;
 
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
@@ -879,6 +930,9 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // This may not be changed once beginFetch has been invoked.
 @property(atomic, strong, nullable) id<GTMFetcherAuthorizationProtocol> authorizer;
 #pragma clang diagnostic pop
+
+// The service object that created and monitors this fetcher, if any.
+@property(atomic, strong) GTMSessionFetcherService *service;
 
 // The host, if any, used to classify this fetcher in the fetcher service.
 @property(atomic, copy, nullable) NSString *serviceHost;
