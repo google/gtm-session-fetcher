@@ -620,6 +620,11 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @property(atomic, strong, null_resettable, readonly) dispatch_queue_t callbackQueue;
 
+// These properties are being removed from the protocol; clients should not attempt new
+// accesses to them.
+@property(atomic, assign) BOOL reuseSession;
+@property(atomic, readonly, strong, nullable) NSOperationQueue *delegateQueue;
+
 @end  // @protocol GTMSessionFetcherServiceProtocol
 
 __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
