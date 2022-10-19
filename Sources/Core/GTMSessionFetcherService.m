@@ -18,6 +18,7 @@
 #endif
 
 #import "GTMSessionFetcher/GTMSessionFetcherService.h"
+#import "GTMSessionFetcherService+Internal.h"
 
 #include <os/lock.h>
 
