@@ -374,6 +374,8 @@ static NSString *const kEtag = @"GoodETag";
     BOOL isCancelingUpload = [xUploadCommand isEqual:@"cancel"];
     BOOL isUploadingChunk = ([xUploadCommand rangeOfString:@"upload"].location != NSNotFound);
     BOOL isFinalizeRequest = ([xUploadCommand rangeOfString:@"finalize"].location != NSNotFound);
+    NSString *uploadStatus = [[self class] valueForParameter:@"uploadStatus" query:query];
+
 
     if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload && !isFinalizeRequest) {
       // This shouldn't happen.
@@ -420,6 +422,10 @@ static NSString *const kEtag = @"GoodETag";
               _uploadBytesReceived);
         return sendResponse(503, nil, nil);
       }
+        if(uploadStatus != nil) {
+          NSInteger _uploadStatus = [uploadStatus longLongValue];
+            return sendResponse(_uploadStatus, nil, nil);
+        }
 
       long long contentLength = [contentLengthStr longLongValue];
       _uploadBytesReceived += contentLength;

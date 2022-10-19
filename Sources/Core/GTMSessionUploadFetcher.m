@@ -1335,8 +1335,22 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   // Update the last chunk request, including any request headers.
   self.lastChunkRequest = chunkFetcher.request;
 
-  [chunkFetcher beginFetchWithDelegate:self
+    if (_sleepTime < 60) {
+        NSLog(@"Delaying by %@", @(_sleepTime).stringValue);
+        dispatch_time_t popTime =
+            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(_sleepTime * NSEC_PER_SEC));
+        dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
+            if(self.fetcherInFlight) {
+                [chunkFetcher beginFetchWithDelegate:self
                      didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
+            }
+        });
+      } else {
+        NSError *responseError =
+            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
+        [self invokeFinalCallbackWithData:self.uploadData error:responseError shouldInvalidateLocation:NO];
+      }
+    
 }
 
 - (void)attachSendProgressBlockToChunkFetcher:(GTMSessionFetcher *)chunkFetcher {
@@ -1571,18 +1585,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
       [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
-//      if (_sleepTime < self.maxRetryInterval) {
-//        NSLog(@"Delaying by %@", @(_sleepTime).stringValue);
-//        dispatch_time_t popTime =
-//            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(_sleepTime * NSEC_PER_SEC));
-//        dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
-//          [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
-//        });
-//      } else {
-//        NSError *responseError =
-//            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
-//        [self invokeFinalCallbackWithData:data error:responseError shouldInvalidateLocation:NO];
-//      }
+        NSLog(@"HERE");
+    
     }
   }
   if (!hasDestroyedOldChunkFetcher) {
