@@ -1570,18 +1570,19 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       // before we create a new chunk fetcher.
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
-      if (_sleepTime < self.maxRetryInterval) {
-        NSLog(@"Delaying by %@", @(_sleepTime).stringValue);
-        dispatch_time_t popTime =
-            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(_sleepTime * NSEC_PER_SEC));
-        dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
-          [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
-        });
-      } else {
-        NSError *responseError =
-            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
-        [self invokeFinalCallbackWithData:data error:responseError shouldInvalidateLocation:NO];
-      }
+      [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
+//      if (_sleepTime < self.maxRetryInterval) {
+//        NSLog(@"Delaying by %@", @(_sleepTime).stringValue);
+//        dispatch_time_t popTime =
+//            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(_sleepTime * NSEC_PER_SEC));
+//        dispatch_after(popTime, dispatch_get_main_queue(), ^(void) {
+//          [self uploadNextChunkWithOffset:newOffset fetcherProperties:props];
+//        });
+//      } else {
+//        NSError *responseError =
+//            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
+//        [self invokeFinalCallbackWithData:data error:responseError shouldInvalidateLocation:NO];
+//      }
     }
   }
   if (!hasDestroyedOldChunkFetcher) {
@@ -1773,7 +1774,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     }
   }
 
-  GTMSESSION_ASSERT_DEBUG(offset < fullUploadLength || fullUploadLength == 0,
+  GTMSESSION_ASSERT_DEBUG(offset <= fullUploadLength || fullUploadLength == 0,
                           @"offset %lld exceeds data length %lld", offset, fullUploadLength);
 
   if (granularity > 0 && offset < fullUploadLength) {

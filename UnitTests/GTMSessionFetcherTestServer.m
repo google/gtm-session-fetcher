@@ -375,7 +375,7 @@ static NSString *const kEtag = @"GoodETag";
     BOOL isUploadingChunk = ([xUploadCommand rangeOfString:@"upload"].location != NSNotFound);
     BOOL isFinalizeRequest = ([xUploadCommand rangeOfString:@"finalize"].location != NSNotFound);
 
-    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload) {
+    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload && !isFinalizeRequest) {
       // This shouldn't happen.
       NSLog(@"Unexpected command: %@", xUploadCommand);
       return sendResponse(503, nil, nil);
@@ -412,7 +412,7 @@ static NSString *const kEtag = @"GoodETag";
       return sendResponse(200, nil, nil);
     }
 
-    if (isUploadingChunk) {
+    if (isUploadingChunk || isFinalizeRequest) {
       BOOL isProperOffset = (_uploadBytesReceived == [xUploadOffset longLongValue]);
       if (!isProperOffset) {
         // This shouldn't happen; a good offset should always be provided.

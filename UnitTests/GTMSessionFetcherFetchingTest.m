@@ -3085,7 +3085,8 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 
   GTMSessionFetcher *fetcher = note.object;
   BOOL isUploadChunkFetcher = ([fetcher parentUploadFetcher] != nil);
-  BOOL isFetchStartedNotification = [note.name isEqual:kGTMSessionFetcherStartedNotification];
+    NSLog(note.name);
+    BOOL isFetchStartedNotification = [note.name isEqual:kGTMSessionFetcherStartedNotification];
 
   if (isFetchStartedNotification) {
     ++_fetchStarted;
