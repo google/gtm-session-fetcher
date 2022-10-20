@@ -136,6 +136,11 @@ typedef void (^GTMSessionUploadFetcherCancellationHandler)(GTMSessionFetcher *_N
 @property(atomic, copy) NSString *uploadMIMEType;
 @property(atomic, readonly, assign) int64_t chunkSize;
 @property(atomic, readonly, assign) int64_t currentOffset;
+@property(atomic, assign) double uploadRetryFactor;
+@property(atomic, assign)  NSTimeInterval nextUploadRetryInterval;
+@property(atomic, assign)  NSTimeInterval maxUploadRetryInterval;
+@property(atomic, assign)  NSTimeInterval minUploadRetryInterval;
+
 // Reflects the original NSURLRequest's @c allowCellularAccess property.
 @property(atomic, readonly, assign) BOOL allowsCellularAccess;
 
