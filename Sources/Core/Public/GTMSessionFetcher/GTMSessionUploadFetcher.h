@@ -39,9 +39,6 @@
 
 #import "GTMSessionFetcher/GTMSessionFetcher.h"
 #import "GTMSessionFetcher/GTMSessionFetcherService.h"
-#ifndef MAX
-#import <NSObjCRuntime.h>
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -140,6 +137,10 @@ typedef void (^GTMSessionUploadFetcherCancellationHandler)(GTMSessionFetcher *_N
 @property(atomic, assign)  NSTimeInterval nextUploadRetryInterval;
 @property(atomic, assign)  NSTimeInterval maxUploadRetryInterval;
 @property(atomic, assign)  NSTimeInterval minUploadRetryInterval;
+@property(atomic, readonly) NSTimer *uploadRetryTimer;
+typedef void (^GTMSessionFetcherExponentialBackoffBlock)();
+
+@property(atomic, copy, nullable) GTMSessionFetcherExponentialBackoffBlock backoffBlock;
 
 // Reflects the original NSURLRequest's @c allowCellularAccess property.
 @property(atomic, readonly, assign) BOOL allowsCellularAccess;

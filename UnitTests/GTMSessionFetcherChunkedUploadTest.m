@@ -39,7 +39,7 @@
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
 #define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                    timeout:50.0];
+                    timeout:10.0];
 
 @interface GTMSessionFetcherChunkedUploadTest : GTMSessionFetcherBaseTest
 @end
@@ -221,6 +221,7 @@ static NSString *const kOriginalURLKey = @"originalURL";
 static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSent,
                               int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
   NSNumber *pauseAtNum = [fetcher propertyForKey:kPauseAtKey];
+    
   if (pauseAtNum) {
     int pauseAt = [pauseAtNum intValue];
     if (pauseAt < totalBytesSent) {
@@ -1004,6 +1005,90 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+- (void)testBigFileURLSingleChunkedUploadFetchLimitedRetryWithPause {
+    CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
+  // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
+  // with HTTP 503, triggering a retry.
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+    
+    NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+    NSString *filename =
+        [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
+    NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+
+    GTMSessionUploadFetcher *fetcher =
+        [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                            uploadMIMEType:@"text/plain"
+                                                 chunkSize:5000
+                                            fetcherService:_service];
+
+
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+  fetcher.retryEnabled = YES;
+
+#pragma clang diagnostic pop
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+    fetcher.cancellationHandler = ^(GTMSessionFetcher * _Nullable sessionFetcher, NSData * _Nullable data, NSError * _Nullable error) {
+        XCTAssertNil(fetcher.uploadRetryTimer);
+        XCTAssertNotNil(sessionFetcher);
+        [expectation fulfill];
+    };
+#pragma clang diagnostic pop
+    fetcher.backoffBlock = ^(){
+        #pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-retain-cycles"
+        [fetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
+#pragma clang diagnostic pop
+    };
+    
+
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+      XCTFail("Should not attempt to complete task");
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedCommands = @[ @"query",
+                                 @"upload",
+                                 @"query",
+                                 @"cancel"];
+  NSArray *expectedOffsets = @[ @0,
+                                @0,
+                                @0,
+                                @0];
+  NSArray *expectedLengths =  @[  @0,
+                                 @5000,
+                                 @0,
+                                 @0,
+                              ];
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+    XCTAssertEqual(fnctr.fetchStarted, 4);
+  XCTAssertEqual(fnctr.fetchStopped, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 4);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 0);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
 // This appears to be hang/fail when testing macOS with Xcode 8. The
 // waitForExpectationsWithTimeout runs longer than the 4 minutes, before dying.
 // And while it is running, something bad seems to happen as the machine can
@@ -1515,7 +1600,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 }
 
 - (void)testBigDataProviderChunkedUploadEarlyCancel {
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
   NSURLRequest *request = [self validUploadFileRequest];
 
   NSData *bigData = [self bigUploadData];
@@ -1663,6 +1748,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
+
 
 - (void)testBigDataChunkedUploadWithUnknownFileSizeAndPause {
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);

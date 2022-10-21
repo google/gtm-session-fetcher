@@ -45,6 +45,8 @@ static NSString *const kGTMSessionXGoogUploadProtocolResumable = @"resumable";
 static NSString *const kGTMSessionHeaderXGoogUploadSizeReceived = @"X-Goog-Upload-Size-Received";
 static NSString *const kGTMSessionHeaderXGoogUploadStatus = @"X-Goog-Upload-Status";
 static NSString *const kGTMSessionHeaderXGoogUploadURL = @"X-Goog-Upload-URL";
+static const NSTimeInterval kDefaultMaxUploadRetryInterval = 60.0 * 10.;
+static const NSTimeInterval kDefaultMinUploadRetryInterval = 1.0;
 
 // Property of chunk fetchers identifying the parent upload fetcher.  Non-retained NSValue.
 static NSString *const kGTMSessionUploadFetcherChunkParentKey = @"_uploadFetcherChunkParent";
@@ -1395,6 +1397,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+      
+      
 
     NSTimeInterval nextInterval = _nextUploadRetryInterval;
     NSTimeInterval maxInterval = _maxUploadRetryInterval;
@@ -1411,7 +1415,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _uploadRetryTimer.tolerance = newIntervalTolerance;
     [[NSRunLoop mainRunLoop] addTimer:_uploadRetryTimer forMode:NSDefaultRunLoopMode];
   }  // @synchronized(self)
-
+if(_backoffBlock && _nextUploadRetryInterval > 0) {
+            self.backoffBlock();
+        }
     //  TODO(mtewani): Post this notification
     //  [self postNotificationOnMainThreadWithName:kGTMSessionFetcherRetryDelayStartedNotification
 //                                    userInfo:nil
@@ -1447,7 +1453,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 
 
-// TODO(mtewani): Check if you need to do this with the rest of the constants.
 - (NSTimeInterval)maxUploadRetryInterval {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -1462,7 +1467,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     if (secs > 0) {
       _maxUploadRetryInterval = secs;
     } else {
-      _maxUploadRetryInterval = 60;// TODO(mtewani): Change this to a constant.
+      _maxUploadRetryInterval = kDefaultMaxUploadRetryInterval;
     }
   }  // @synchronized(self)
 }
@@ -1473,7 +1478,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     if (secs > 0) {
       _minUploadRetryInterval = secs;
     } else {
-      _minUploadRetryInterval = 60;// TODO(mtewani): Change this to a constant.
+      _minUploadRetryInterval = kDefaultMinUploadRetryInterval;
     }
   }  // @synchronized(self)
 }
@@ -1502,6 +1507,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     NSLog(@"Interval: %f Max: %f", _nextUploadRetryInterval, _maxUploadRetryInterval);
 
     if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
+        
         [self beginRetryTimer];
       } else {
         NSError *responseError =
@@ -1998,6 +2004,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 // clang-format on
 
 // Internal properties.
+@dynamic uploadRetryTimer;
 @dynamic fetcherInFlight;
 @dynamic activeFetcher;
 @dynamic statusCode;
@@ -2139,6 +2146,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _uploadLocationURL = locationURL;
   }
 }
+
 
 - (GTMSessionFetcher *)activeFetcher {
   GTMSessionFetcher *result = self.fetcherInFlight;
