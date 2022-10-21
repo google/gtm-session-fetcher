@@ -1187,7 +1187,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 - (void)sendQueryForUploadOffsetWithFetcherProperties:(NSDictionary *)props {
-  NSLog(@"Create queryFetcher");
   GTMSessionFetcher *queryFetcher = [self uploadFetcherWithProperties:props isQueryFetch:YES];
   queryFetcher.bodyData = [NSData data];
 
@@ -1504,11 +1503,9 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
 
   // Update the last chunk request, including any request headers.
   self.lastChunkRequest = chunkFetcher.request;
-    NSLog(@"Interval: %f Max: %f", _nextUploadRetryInterval, _maxUploadRetryInterval);
 
-    if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
-        
-        [self beginRetryTimer];
+  if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
+    [self beginRetryTimer];
       } else {
         NSError *responseError =
             [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];

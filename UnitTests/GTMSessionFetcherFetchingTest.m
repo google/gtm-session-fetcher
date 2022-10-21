@@ -3089,7 +3089,6 @@ UIBackgroundTaskIdentifier gTaskID = 1000;
 
   if (isFetchStartedNotification) {
     ++_fetchStarted;
-      NSLog(@"%d", _fetchStarted);
     [_fetchersStartedDescriptions addObject:[self descriptionForFetcher:fetcher]];
 
     if (isUploadChunkFetcher) {

@@ -961,7 +961,6 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 #endif
 
   if (!_initialRequestDate) {
-    NSLog(@"Creating a new date");
     _initialRequestDate = [[NSDate alloc] init];
   }
 
