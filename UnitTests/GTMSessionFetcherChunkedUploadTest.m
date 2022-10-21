@@ -810,88 +810,12 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
-- (void)testBigFileURLSingleChunkedUploadFetchRetryWithOffset {
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
-  // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
-  // with HTTP 503, triggering a retry.
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
-
-  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
-
-  NSMutableURLRequest *request = [self validUploadFileRequest];
-
-  NSURL *originalURL = request.URL;
-  NSString *failureURL = [originalURL.absoluteString stringByAppendingString:@"?status=503"];
-  request.URL = [NSURL URLWithString:failureURL];
-
-  GTMSessionUploadFetcher *fetcher =
-      [GTMSessionUploadFetcher uploadFetcherWithRequest:request
-                                         uploadMIMEType:@"text/plain"
-                                              chunkSize:kGTMSessionUploadFetcherStandardChunkSize
-                                         fetcherService:_service];
-  fetcher.uploadFileURL = bigFileURL;
-  fetcher.useBackgroundSession = NO;
-  fetcher.allowLocalhostRequest = YES;
-
-  BOOL (^shouldRetryUpload)(GTMSessionUploadFetcher *, BOOL, NSError *) =
-      ^BOOL(GTMSessionUploadFetcher *blockFetcher, BOOL suggestedWillRetry, NSError *error) {
-        // Change this fetch's request to have the original, non-failure status URL.
-        // This will make the retry succeed.
-        return suggestedWillRetry;  // do the retry fetch; it should succeed now
-      };
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-retain-cycles"
-  fetcher.retryEnabled = YES;
-  fetcher.retryBlock =
-      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
-        BOOL shouldRetry = shouldRetryUpload(fetcher, suggestedWillRetry, error);
-        response(shouldRetry);
-      };
-#pragma clang diagnostic pop
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
-   __block bool testBool = NO;
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    XCTAssertEqualObjects(data, [self gettysburgAddress]);
-    XCTAssertNil(error);
-    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
-    [expectation fulfill];
-    testBool = YES;
-  }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-  [self assertCallbacksReleasedForFetcher:fetcher];
-
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
-
-  // Check that we uploaded the expected chunks.
-  NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
-  NSArray *expectedCommands = @[ @"finalize" ];
-  NSArray *expectedOffsets = @[ @0 ];
-  NSArray *expectedLengths = @[ @(kBigUploadDataLength) ];
-  XCTAssertEqualObjects(fnctr.uploadChunkRequestPaths, expectedURLStrings);
-  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
-  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
-  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
-
-  XCTAssertEqual(fnctr.fetchStarted, 3);
-  XCTAssertEqual(fnctr.fetchStopped, 3);
-  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
-  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
-  XCTAssertEqual(fnctr.retryDelayStarted, 1);
-  XCTAssertEqual(fnctr.retryDelayStopped, 1);
-  XCTAssertEqual(fnctr.uploadLocationObtained, 1);
-
-  [self removeTemporaryFileURL:bigFileURL];
-}
-
 - (void)testBigFileURLSingleChunkedUploadFetchLimitedRetry {
     CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(15, 15);
   // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
   // with HTTP 503, triggering a retry.
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+    FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-    
     NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
     NSString *filename =
         [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
@@ -903,96 +827,53 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
                                                  chunkSize:5000
                                             fetcherService:_service];
 
+    __weak typeof(fetcher) weakFetcher = fetcher;
+    fetcher.uploadFileURL = bigFileURL;
+    fetcher.useBackgroundSession = NO;
+    fetcher.allowLocalhostRequest = YES;
 
-  fetcher.uploadFileURL = bigFileURL;
-  fetcher.useBackgroundSession = NO;
-  fetcher.allowLocalhostRequest = YES;
-  __block NSInteger count = 0;
+    // TODO(mtewani): We should remove this.
+    BOOL (^shouldRetryUpload)(GTMSessionUploadFetcher *, BOOL, NSError *) =
+        ^BOOL(GTMSessionUploadFetcher *blockFetcher, BOOL suggestedWillRetry, NSError *error) {
+          // Change this fetch's request to have the original, non-failure status URL.
+          // This will make the retry succeed.
+          //        NSMutableURLRequest *mutableRequest = [blockFetcher mutableRequestForTesting];
+          //        mutableRequest.URL = originalURL;
+          //        blockFetcher.uploadLocationURL = originalURL;
 
-  BOOL (^shouldRetryUpload)(GTMSessionUploadFetcher *, BOOL, NSError *) =
-      ^BOOL(GTMSessionUploadFetcher *blockFetcher, BOOL suggestedWillRetry, NSError *error) {
-        // Change this fetch's request to have the original, non-failure status URL.
-        // This will make the retry succeed.
-//        NSMutableURLRequest *mutableRequest = [blockFetcher mutableRequestForTesting];
-//        mutableRequest.URL = originalURL;
-//        blockFetcher.uploadLocationURL = originalURL;
-          count++;
+          return suggestedWillRetry;  // do the retry fetch; it should succeed now
+        };
 
-        return suggestedWillRetry;  // do the retry fetch; it should succeed now
-      };
+    fetcher.retryEnabled = YES;
+    fetcher.retryBlock =
+        ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
+          __strong typeof(fetcher) strongFetcher = weakFetcher;
+          BOOL shouldRetry = shouldRetryUpload(strongFetcher, suggestedWillRetry, error);
+          response(shouldRetry);
+        };
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-retain-cycles"
-  fetcher.retryEnabled = YES;
-  fetcher.retryBlock =
-      ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
-        BOOL shouldRetry = shouldRetryUpload(fetcher, suggestedWillRetry, error);
-        response(shouldRetry);
-      };
-#pragma clang diagnostic pop
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTAssertEqualObjects(error.userInfo[@"description"], @"Retry Limit Reached");
-//    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
-    [expectation fulfill];
-  }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-  [self assertCallbacksReleasedForFetcher:fetcher];
+      //    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+      [expectation fulfill];
+    }];
+    [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+    [self assertCallbacksReleasedForFetcher:fetcher];
 
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+    WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-
-  // Check that we uploaded the expected chunks.
-  NSArray *expectedCommands = @[ @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"upload",
-                                 @"query" ];
-  NSArray *expectedOffsets = @[ @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0,
-                                @0 ];
-  NSArray *expectedLengths =  @[  @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0,
-                                 @5000,
-                                 @0
-                              ];
-  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
-  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
-  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+    // Check that we uploaded the expected chunks.
+    NSArray *expectedCommands = @[
+      @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query",
+      @"upload", @"query", @"upload", @"query", @"upload", @"query"
+    ];
+    NSArray *expectedOffsets = @[ @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0 ];
+    NSArray *expectedLengths =
+        @[ @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0 ];
+    XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+    XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+    XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
     XCTAssertEqual(fnctr.fetchStarted, 15);
   XCTAssertEqual(fnctr.fetchStopped, 15);
@@ -1009,9 +890,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
     CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
   // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
   // with HTTP 503, triggering a retry.
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+    FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-    
     NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
     NSString *filename =
         [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
@@ -1023,60 +903,46 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
                                                  chunkSize:5000
                                             fetcherService:_service];
 
+    __weak typeof(fetcher) weakFetcher = fetcher;
+    fetcher.uploadFileURL = bigFileURL;
+    fetcher.useBackgroundSession = NO;
+    fetcher.allowLocalhostRequest = YES;
 
-  fetcher.uploadFileURL = bigFileURL;
-  fetcher.useBackgroundSession = NO;
-  fetcher.allowLocalhostRequest = YES;
+    XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+    fetcher.retryEnabled = YES;
 
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-retain-cycles"
-  fetcher.retryEnabled = YES;
-
-#pragma clang diagnostic pop
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-retain-cycles"
-    fetcher.cancellationHandler = ^(GTMSessionFetcher * _Nullable sessionFetcher, NSData * _Nullable data, NSError * _Nullable error) {
-        XCTAssertNil(fetcher.uploadRetryTimer);
-        XCTAssertNotNil(sessionFetcher);
-        [expectation fulfill];
+    fetcher.cancellationHandler = ^(GTMSessionFetcher *_Nullable sessionFetcher,
+                                    NSData *_Nullable data, NSError *_Nullable error) {
+      __strong typeof(fetcher) strongFetcher = weakFetcher;
+      XCTAssertNil(strongFetcher.uploadRetryTimer);
+      XCTAssertNotNil(sessionFetcher);
+      [expectation fulfill];
     };
-#pragma clang diagnostic pop
-    fetcher.backoffBlock = ^(){
-        #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-retain-cycles"
-        [fetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
-#pragma clang diagnostic pop
+    fetcher.backoffBlock = ^() {
+      __strong typeof(fetcher) strongFetcher = weakFetcher;
+      [strongFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
     };
-    
 
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
       XCTFail("Should not attempt to complete task");
-  }];
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-  [self assertCallbacksReleasedForFetcher:fetcher];
+    }];
+    [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+    [self assertCallbacksReleasedForFetcher:fetcher];
 
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+    WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-
-  // Check that we uploaded the expected chunks.
-  NSArray *expectedCommands = @[ @"query",
-                                 @"upload",
-                                 @"query",
-                                 @"cancel"];
-  NSArray *expectedOffsets = @[ @0,
-                                @0,
-                                @0,
-                                @0];
-  NSArray *expectedLengths =  @[  @0,
-                                 @5000,
-                                 @0,
-                                 @0,
-                              ];
-  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
-  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
-  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+    // Check that we uploaded the expected chunks.
+    NSArray *expectedCommands = @[ @"query", @"upload", @"query", @"cancel" ];
+    NSArray *expectedOffsets = @[ @0, @0, @0, @0 ];
+    NSArray *expectedLengths = @[
+      @0,
+      @5000,
+      @0,
+      @0,
+    ];
+    XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+    XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+    XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
     XCTAssertEqual(fnctr.fetchStarted, 4);
   XCTAssertEqual(fnctr.fetchStopped, 4);

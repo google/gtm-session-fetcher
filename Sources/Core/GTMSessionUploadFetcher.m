@@ -928,7 +928,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   [super beginFetchForRetry];
 }
 
-- (void)destroyRetryTimer {
+- (void)destroyUploadRetryTimer {
   BOOL shouldNotify = NO;
 
   @synchronized(self) {
@@ -1161,7 +1161,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
   GTMSessionCheckNotSynchronized(self);
-  [self destroyRetryTimer];
+  [self destroyUploadRetryTimer];
 
   // Clear _fetcherInFlight when stopped. Moved from stopFetching, since that's a public method,
   // where this method does the work. Fixes issue clearing value when retryBlock included.
@@ -1374,16 +1374,17 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }
 }
 
-- (void)beginRetryTimer {
-    if (![NSThread isMainThread]) {
-      // Defer creating and starting the timer until we're on the main thread to ensure it has
-      // a run loop.
-      dispatch_async(dispatch_get_main_queue(), ^{
-        [self beginRetryTimer];
-      });
-      return;
-    }
-  [self destroyRetryTimer];
+- (void)beginUploadRetryTimer {
+  if (![NSThread isMainThread]) {
+    // Defer creating and starting the timer until we're on the main thread to ensure it has
+    // a run loop.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self beginUploadRetryTimer];
+    });
+    return;
+  }
+
+  [self destroyUploadRetryTimer];
 
 #if GTM_BACKGROUND_TASK_FETCHING
     // Don't keep a background task active while awaiting retry, which can lead to the
@@ -1393,11 +1394,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     // I don't think we need to do this here.
 //  [super endBackgroundTask];
 #endif  // GTM_BACKGROUND_TASK_FETCHING
-
+  if (_nextUploadRetryInterval == 0) {
+    [self.chunkFetcher beginFetchWithDelegate:self
+                            didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
+    return;
+  }
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-      
-      
 
     NSTimeInterval nextInterval = _nextUploadRetryInterval;
     NSTimeInterval maxInterval = _maxUploadRetryInterval;
@@ -1407,10 +1410,10 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _nextUploadRetryInterval = newInterval;
 
     _uploadRetryTimer = [NSTimer timerWithTimeInterval:newInterval
-                                          target:self
-                                        selector:@selector(retryTimerFired:)
-                                        userInfo:nil
-                                         repeats:NO];
+                                                target:self
+                                              selector:@selector(uploadRetryTimerFired:)
+                                              userInfo:nil
+                                               repeats:NO];
     _uploadRetryTimer.tolerance = newIntervalTolerance;
     [[NSRunLoop mainRunLoop] addTimer:_uploadRetryTimer forMode:NSDefaultRunLoopMode];
   }  // @synchronized(self)
@@ -1423,8 +1426,8 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
 //                                requireAsync:NO];
 }
 
-- (void)retryTimerFired:(NSTimer *)timer {
-  [self destroyRetryTimer];
+- (void)uploadRetryTimerFired:(NSTimer *)timer {
+  [self destroyUploadRetryTimer];
 
   NSOperationQueue *queue = self.sessionDelegateQueue;
   [queue addOperationWithBlock:^{
@@ -1504,8 +1507,10 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
   // Update the last chunk request, including any request headers.
   self.lastChunkRequest = chunkFetcher.request;
 
+  NSLog(@"%f", _nextUploadRetryInterval);
   if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
-    [self beginRetryTimer];
+    [self beginUploadRetryTimer];
+
       } else {
         NSError *responseError =
             [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
