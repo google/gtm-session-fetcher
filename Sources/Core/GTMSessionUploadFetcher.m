@@ -1376,14 +1376,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   [self destroyUploadRetryTimer];
 
-#if GTM_BACKGROUND_TASK_FETCHING
-    // Don't keep a background task active while awaiting retry, which can lead to the
-  // app exceeding the allotted time for keeping the background task open, causing the
-  // system to terminate the app. When the retry starts, a new background task will
-  // be created.
-    // I don't think we need to do this here.
-//  [super endBackgroundTask];
-#endif  // GTM_BACKGROUND_TASK_FETCHING
   if (_nextUploadRetryInterval == 0) {
     [self.chunkFetcher beginFetchWithDelegate:self
                             didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
@@ -1493,7 +1485,6 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
   // Update the last chunk request, including any request headers.
   self.lastChunkRequest = chunkFetcher.request;
 
-  NSLog(@"%f", _nextUploadRetryInterval);
   if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
     [self beginUploadRetryTimer];
 
