@@ -929,23 +929,13 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 }
 
 - (void)destroyUploadRetryTimer {
-  BOOL shouldNotify = NO;
-
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     if (_uploadRetryTimer) {
       [_uploadRetryTimer invalidate];
       _uploadRetryTimer = nil;
-      shouldNotify = YES;
     }
-  }
-
-  if (shouldNotify) { // TODO(mtewani): Post notification
-      // TODO(mtewani): synchronize timer sets
-//    [super postNotificationOnMainThreadWithName:kGTMSessionFetcherRetryDelayStoppedNotification
-//                                      userInfo:nil
-//                                  requireAsync:NO];
   }
 }
 
@@ -1419,11 +1409,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   }  // @synchronized(self)
 if(_backoffBlock && _nextUploadRetryInterval > 0) {
             self.backoffBlock();
-        }
-    //  TODO(mtewani): Post this notification
-    //  [self postNotificationOnMainThreadWithName:kGTMSessionFetcherRetryDelayStartedNotification
-//                                    userInfo:nil
-//                                requireAsync:NO];
+}
 }
 
 - (void)uploadRetryTimerFired:(NSTimer *)timer {
