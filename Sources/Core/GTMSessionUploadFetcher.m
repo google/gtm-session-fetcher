@@ -165,7 +165,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSessionUploadFetcherCancellationHandler _cancellationHandler;
 }
 
-// Check synchronization here.
 - (NSTimeInterval)nextRetryIntervalUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
@@ -1491,7 +1490,7 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
       } else {
         NSError *responseError =
             [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
-        [self invokeFinalCallbackWithData:self.uploadData error:responseError shouldInvalidateLocation:NO];
+        [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:NO];
       }
     
 }
@@ -2125,7 +2124,6 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
     _uploadLocationURL = locationURL;
   }
 }
-
 
 - (GTMSessionFetcher *)activeFetcher {
   GTMSessionFetcher *result = self.fetcherInFlight;

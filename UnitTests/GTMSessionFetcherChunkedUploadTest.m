@@ -221,7 +221,6 @@ static NSString *const kOriginalURLKey = @"originalURL";
 static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSent,
                               int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
   NSNumber *pauseAtNum = [fetcher propertyForKey:kPauseAtKey];
-    
   if (pauseAtNum) {
     int pauseAt = [pauseAtNum intValue];
     if (pauseAt < totalBytesSent) {
@@ -810,60 +809,52 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+// Forces the server to return a 503 every time there is an upload, causing UploadFetcher to retry
+// until it has reached the maximum retry limit
 - (void)testBigFileURLSingleChunkedUploadFetchLimitedRetry {
-    CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(15, 15);
-  // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
-  // with HTTP 503, triggering a retry.
-    FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(15, 15);
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-    NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
-    NSString *filename =
-        [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
-    NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  NSString *filename = [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
+  NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
 
-    GTMSessionUploadFetcher *fetcher =
-        [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
-                                            uploadMIMEType:@"text/plain"
-                                                 chunkSize:5000
-                                            fetcherService:_service];
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
 
-    __weak typeof(fetcher) weakFetcher = fetcher;
-    fetcher.uploadFileURL = bigFileURL;
-    fetcher.useBackgroundSession = NO;
-    fetcher.allowLocalhostRequest = YES;
+  __weak typeof(fetcher) weakFetcher = fetcher;
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
 
-    fetcher.retryEnabled = YES;
-    fetcher.retryBlock =
-        ^(BOOL suggestedWillRetry, NSError *error, GTMSessionFetcherRetryResponse response) {
-          __strong typeof(fetcher) strongFetcher = weakFetcher;
-          BOOL shouldRetry = shouldRetryUpload(strongFetcher, suggestedWillRetry, error);
-          response(shouldRetry);
-        };
+  fetcher.retryEnabled = YES;
 
-    XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
-    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTAssertEqualObjects(error.userInfo[@"description"], @"Retry Limit Reached");
-      //    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
-      [expectation fulfill];
-    }];
-    [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-    [self assertCallbacksReleasedForFetcher:fetcher];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(error.userInfo[@"description"], @"Retry Limit Reached");
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
 
-    WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-    // Check that we uploaded the expected chunks.
-    NSArray *expectedCommands = @[
-      @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query",
-      @"upload", @"query", @"upload", @"query", @"upload", @"query"
-    ];
-    NSArray *expectedOffsets = @[ @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0 ];
-    NSArray *expectedLengths =
-        @[ @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0 ];
-    XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
-    XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
-    XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedCommands = @[
+    @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query",
+    @"upload", @"query", @"upload", @"query", @"upload", @"query"
+  ];
+  NSArray *expectedOffsets = @[ @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0 ];
+  NSArray *expectedLengths =
+      @[ @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0 ];
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
-    XCTAssertEqual(fnctr.fetchStarted, 15);
+  XCTAssertEqual(fnctr.fetchStarted, 15);
   XCTAssertEqual(fnctr.fetchStopped, 15);
   XCTAssertEqual(fnctr.uploadChunkFetchStarted, 15);
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 15);
@@ -874,65 +865,64 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
-- (void)testBigFileURLSingleChunkedUploadFetchLimitedRetryWithPause {
-    CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
-  // Like testBigFileURLSingleChunkedUploadFetch, but the initial request will fail
-  // with HTTP 503, triggering a retry.
-    FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+// Forces the server to return a 503 every time there is an upload, cancels the upload in the middle
+// of a backoff, and makes sure that the timer has been killed.
+- (void)testBigFileURLSingleChunkedUploadFetchLimitedRetryWithCancel {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-    NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
-    NSString *filename =
-        [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
-    NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  NSString *filename = [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
+  NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
 
-    GTMSessionUploadFetcher *fetcher =
-        [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
-                                            uploadMIMEType:@"text/plain"
-                                                 chunkSize:5000
-                                            fetcherService:_service];
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
 
-    __weak typeof(fetcher) weakFetcher = fetcher;
-    fetcher.uploadFileURL = bigFileURL;
-    fetcher.useBackgroundSession = NO;
-    fetcher.allowLocalhostRequest = YES;
+  __weak typeof(fetcher) weakFetcher = fetcher;
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
 
-    XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
-    fetcher.retryEnabled = YES;
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  fetcher.retryEnabled = YES;
 
-    fetcher.cancellationHandler = ^(GTMSessionFetcher *_Nullable sessionFetcher,
-                                    NSData *_Nullable data, NSError *_Nullable error) {
-      __strong typeof(fetcher) strongFetcher = weakFetcher;
-      XCTAssertNil(strongFetcher.uploadRetryTimer);
-      XCTAssertNotNil(sessionFetcher);
-      [expectation fulfill];
-    };
-    fetcher.backoffBlock = ^() {
-      __strong typeof(fetcher) strongFetcher = weakFetcher;
-      [strongFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
-    };
+  fetcher.cancellationHandler = ^(GTMSessionFetcher *_Nullable sessionFetcher,
+                                  NSData *_Nullable data, NSError *_Nullable error) {
+    __strong typeof(fetcher) strongFetcher = weakFetcher;
+    XCTAssertNil(strongFetcher.uploadRetryTimer);
+    XCTAssertNotNil(sessionFetcher);
+    [expectation fulfill];
+  };
+  fetcher.backoffBlock = ^() {
+    __strong typeof(fetcher) strongFetcher = weakFetcher;
+    [strongFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
+  };
 
-    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      XCTFail("Should not attempt to complete task");
-    }];
-    [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-    [self assertCallbacksReleasedForFetcher:fetcher];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTFail("Should not attempt to complete task");
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
 
-    WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-    // Check that we uploaded the expected chunks.
-    NSArray *expectedCommands = @[ @"query", @"upload", @"query", @"cancel" ];
-    NSArray *expectedOffsets = @[ @0, @0, @0, @0 ];
-    NSArray *expectedLengths = @[
-      @0,
-      @5000,
-      @0,
-      @0,
-    ];
-    XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
-    XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
-    XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+  // Check that we uploaded the expected chunks.
+  NSArray *expectedCommands = @[ @"query", @"upload", @"query", @"cancel" ];
+  NSArray *expectedOffsets = @[ @0, @0, @0, @0 ];
+  NSArray *expectedLengths = @[
+    @0,
+    @5000,
+    @0,
+    @0,
+  ];
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
-    XCTAssertEqual(fnctr.fetchStarted, 4);
+  XCTAssertEqual(fnctr.fetchStarted, 4);
   XCTAssertEqual(fnctr.fetchStopped, 4);
   XCTAssertEqual(fnctr.uploadChunkFetchStarted, 4);
   XCTAssertEqual(fnctr.uploadChunkFetchStopped, 4);
@@ -1091,6 +1081,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 
   [self removeTemporaryFileURL:bigFileURL];
 }
+
+// Tests that currentOffset is set to the offset returned by query
 - (void)testBigFileURLQueryFinalUploadFetchWithOffset {
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(2, 2);
   // Force a query that indicates the upload was done (status final.)
@@ -1602,7 +1594,6 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
-
 
 - (void)testBigDataChunkedUploadWithUnknownFileSizeAndPause {
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);
