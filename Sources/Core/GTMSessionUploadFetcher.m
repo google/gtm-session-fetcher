@@ -165,7 +165,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSessionUploadFetcherCancellationHandler _cancellationHandler;
 }
 
-- (NSTimeInterval)nextRetryIntervalUnsynchronized {
+- (NSTimeInterval)nextUploadRetryIntervalUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
   // The next wait interval is the factor (2.0) times the last interval,
@@ -1383,7 +1383,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    NSTimeInterval nextInterval = _nextUploadRetryInterval;
+    NSTimeInterval nextInterval = [self nextUploadRetryInterval];
     NSTimeInterval maxInterval = _maxUploadRetryInterval;
     NSTimeInterval newInterval = MIN(nextInterval, (maxInterval > 0 ? maxInterval : DBL_MAX));
     NSTimeInterval newIntervalTolerance = (newInterval / 10) > 1.0 ?: 1.0;
@@ -1398,9 +1398,9 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _uploadRetryTimer.tolerance = newIntervalTolerance;
     [[NSRunLoop mainRunLoop] addTimer:_uploadRetryTimer forMode:NSDefaultRunLoopMode];
   }  // @synchronized(self)
-if(_backoffBlock && _nextUploadRetryInterval > 0) {
-            self.backoffBlock();
-}
+  if (_backoffBlock) {
+    self.backoffBlock();
+  }
 }
 
 - (void)uploadRetryTimerFired:(NSTimer *)timer {
@@ -1411,15 +1411,6 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
       [self.chunkFetcher beginFetchWithDelegate:self
                      didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
   }];
-}
-
-- (NSTimeInterval)nextRetryInterval {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    NSTimeInterval interval = [self nextRetryIntervalUnsynchronized];
-    return interval;
-  }  // @synchronized(self)
 }
 
 - (NSTimer *)uploadRetryTimer {
@@ -1487,12 +1478,11 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
   if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
     [self beginUploadRetryTimer];
 
-      } else {
-        NSError *responseError =
-            [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
-        [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:NO];
-      }
-    
+  } else {
+    NSError *responseError =
+        [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
+    [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:NO];
+  }
 }
 
 - (void)attachSendProgressBlockToChunkFetcher:(GTMSessionFetcher *)chunkFetcher {
@@ -1662,10 +1652,11 @@ if(_backoffBlock && _nextUploadRetryInterval > 0) {
       self.shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
-        @synchronized (self) {
-            GTMSessionMonitorSynchronized(self);
-            _nextUploadRetryInterval = self.nextRetryIntervalUnsynchronized;
-        }
+      // Here we need to tell the timer that we need to start exponential backoff from the next one.
+      @synchronized(self) {
+        GTMSessionMonitorSynchronized(self);
+        _nextUploadRetryInterval = self.nextUploadRetryIntervalUnsynchronized;
+      }
 
       [self sendQueryForUploadOffsetWithFetcherProperties:chunkFetcher.properties];
     } else {

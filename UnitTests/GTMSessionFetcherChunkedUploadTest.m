@@ -897,8 +897,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
     [expectation fulfill];
   };
   fetcher.backoffBlock = ^() {
-    __strong typeof(fetcher) strongFetcher = weakFetcher;
-    [strongFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
+    [weakFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
   };
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
