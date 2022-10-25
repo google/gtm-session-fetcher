@@ -1652,7 +1652,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
       self.shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
-      // Here we need to tell the timer that we need to start exponential backoff from the next one.
       @synchronized(self) {
         GTMSessionMonitorSynchronized(self);
         _nextUploadRetryInterval = self.nextUploadRetryIntervalUnsynchronized;
