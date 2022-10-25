@@ -1470,6 +1470,79 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testRetryFetches];
 }
 
+- (void)testCancelFetchWithoutCallback {
+  if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  __block GTMSessionFetcher *fetcher;
+
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"10"}];
+  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCallbacks = NO; // default
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTFail("Callback should not be called after stopFetching");
+  }];
+  sleep(1);
+  [fetcher stopFetching];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  // Check the notifications.
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
+}
+
+- (void)testCancelFetchWithCallback {
+  if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  __block GTMSessionFetcher *fetcher;
+
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"10"}];
+  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCallbacks = YES;
+  fetcher.stopFetchingTriggersCallbacks = YES;
+  XCTestExpectation *expectation =  [self expectationWithDescription:@"Expect to call callback"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data, @"error data unexpected");
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorCancelled);
+    [expectation fulfill];
+  }];
+
+  sleep(1);
+  [fetcher stopFetching];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  // Check the notifications.
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+}
+
 - (void)testFetchToFile {
   if (!_isServerRunning) return;
 
@@ -1708,40 +1781,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
-  XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@",
-                 fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@",
-                 fnctr.fetchersStoppedDescriptions);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
-#if GTM_BACKGROUND_TASK_FETCHING
-  [self waitForBackgroundTaskEndedNotifications:fnctr];
-  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1000);
-  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
-#endif
-}
-
-- (void)testQuickBeginDontStopFetching {
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
-
-  // This test exercises the workaround for Radar 18471901. See comments in GTMSessionFetcher.m
-  int const kFetcherCreationCount = 1000;
-
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(kFetcherCreationCount, kFetcherCreationCount);
-  __block int completionCount = 0;
-
-  for (int i = 0; i < kFetcherCreationCount; ++i) {
-    GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"http://example.com/tst"];
-    fetcher.useBackgroundSession = NO;
-    fetcher.allowedInsecureSchemes = @[ @"http" ];
-    [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-      completionCount++;
-    }];
-    [fetcher stopFetching:YES];
-  }
-
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
-
-  XCTAssertEqual(completionCount, kFetcherCreationCount);
   XCTAssertEqual(fnctr.fetchStarted, kFetcherCreationCount, @"%@",
                  fnctr.fetchersStartedDescriptions);
   XCTAssertEqual(fnctr.fetchStopped, kFetcherCreationCount, @"%@",

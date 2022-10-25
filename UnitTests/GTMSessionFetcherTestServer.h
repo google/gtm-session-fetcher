@@ -25,7 +25,7 @@ typedef enum {
   kGTMHTTPAuthenticationTypeDigest
 } GTMHTTPAuthenticationType;
 
-// This is a HTTP Server that responsd to requests by returning the requested file.
+// This is a HTTP Server that responds to requests by returning the requested file.
 // It takes extra url arguments to tell it what to return for testing the code using it.
 @interface GTMSessionFetcherTestServer : NSObject
 

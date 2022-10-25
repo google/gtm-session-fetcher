@@ -142,7 +142,6 @@ NS_ASSUME_NONNULL_END
 
 @property(atomic, strong, readwrite, nullable) NSData *downloadedData;
 @property(atomic, strong, readwrite, nullable) NSData *downloadResumeData;
-@property(atomic, readwrite) BOOL cancelAndCallback;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // Should always be accessed within an @synchronized(self).
@@ -214,7 +213,6 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   NSString *_sessionIdentifierUUID;
   BOOL _userRequestedBackgroundSession;
   BOOL _usingBackgroundSession;
-  BOOL _cancelAndCallback;
   NSMutableData *_Nullable _downloadedData;
   NSError *_downloadFinishedError;
   NSData *_downloadResumeData;               // immutable after construction
@@ -1966,27 +1964,27 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 }
 
-// External stop method and don't call callbacks
+// External stop method
 - (void)stopFetching {
-  [self stopFetching:NO];
-}
-
-// External stop method with do call callbacks option
-- (void)stopFetching:(BOOL)shouldCallCallbacks {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     // Prevent enqueued callbacks from executing.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
-  if (shouldCallCallbacks) {
+
+  if (self.stopFetchingTriggersCallbacks) {
     NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                   code:GTMSessionFetcherErrorCancelled
+                                         code:GTMSessionFetcherErrorCancelled
                                      userInfo:@{@"description" : @"Operation cancelled"}];
-    _cancelAndCallback = YES;
-    _completionHandler(nil, error);
+    [self invokeFetchCallbacksOnCallbackQueueWithData:nil
+                                                error:error
+                                          mayDecorate:YES
+                               shouldReleaseCallbacks:YES];
+    [self sendStopNotificationIfNeeded];
+  } else {
+    [self stopFetchReleasingCallbacks:YES];
   }
-  [self stopFetchReleasingCallbacks:YES];
 }
 
 // Cancel the fetch of the URL that's currently in progress.
@@ -2614,7 +2612,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                         block:(void (^)(void))block {
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
-      if (!afterStopped && !self->_cancelAndCallback) {
+      if (!afterStopped && !self->_stopFetchingTriggersCallbacks) {
         NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
         @synchronized(self) {
@@ -3683,7 +3681,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
             log = _log,
-            cancelAndCallback = _cancelAndCallback;
+            stopFetchingTriggersCallbacks = _stopFetchingTriggersCallbacks;
 
 #if !STRIP_GTM_FETCH_LOGGING
 @synthesize redirectedFromURL = _redirectedFromURL,
@@ -4007,6 +4005,22 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     GTMSessionMonitorSynchronized(self);
 
     _usingBackgroundSession = flag;
+  }  // @synchronized(self)
+}
+
+- (BOOL)stopFetchingTriggersCallbacks {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _stopFetchingTriggersCallbacks;
+  }  // @synchronized(self)
+}
+
+- (void)setStopFetchingTriggersCallbacks:(BOOL)flag {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _stopFetchingTriggersCallbacks = flag;
   }  // @synchronized(self)
 }
 

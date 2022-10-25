@@ -1085,12 +1085,11 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 @property(atomic, readonly, getter=isFetching) BOOL fetching;
 
 // Cancel the fetch of the request that's currently in progress.  The completion handler
-// will not be called.
+// will be called if the property `stopFetchingTriggersCallbacks` is `YES`.
 - (void)stopFetching;
 
-// Cancel the fetch of the request that's currently in progress.  The completion handler
-// is called on option.
-- (void)stopFetching:(BOOL)shouldCallCallbacks;
+// Call callbacks in `stopFetching`.
+@property(atomic, assign) BOOL stopFetchingTriggersCallbacks;
 
 // A block to be called when the fetch completes.
 @property(atomic, copy, nullable) GTMSessionFetcherCompletionHandler completionHandler;
