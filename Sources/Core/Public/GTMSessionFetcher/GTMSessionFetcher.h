@@ -1060,7 +1060,7 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 @property(atomic, readonly) NSUInteger retryCount;
 
 // Interval delay to precede next retry.
-@property(atomic, readonly) NSTimeInterval nextUploadRetryInterval;
+@property(atomic, readonly) NSTimeInterval nextRetryInterval;
 
 #if GTM_BACKGROUND_TASK_FETCHING
 // Skip use of a UIBackgroundTask, thus requiring fetches to complete when the app is in the
