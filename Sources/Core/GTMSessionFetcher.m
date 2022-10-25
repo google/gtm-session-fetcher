@@ -3458,7 +3458,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }  // @synchronized(self)
 }
 
-- (NSTimeInterval)nextUploadRetryInterval {
+- (NSTimeInterval)nextRetryInterval {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
