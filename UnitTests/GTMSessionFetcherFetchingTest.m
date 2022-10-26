@@ -1494,14 +1494,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
 #if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
 #endif
-  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
 }
 
 - (void)testCancelFetchWithCallback {
@@ -1532,15 +1532,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
   // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
 #if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
   XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
 #endif
-  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
 }
 
 - (void)testFetchToFile {

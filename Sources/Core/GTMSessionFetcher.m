@@ -1972,7 +1972,6 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // Prevent enqueued callbacks from executing.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
-
   if (self.stopFetchingTriggersCallbacks) {
     NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                          code:GTMSessionFetcherErrorCancelled
@@ -1982,9 +1981,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                                           mayDecorate:YES
                                shouldReleaseCallbacks:YES];
     [self sendStopNotificationIfNeeded];
-  } else {
-    [self stopFetchReleasingCallbacks:YES];
   }
+  [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCallbacks];
+
 }
 
 // Cancel the fetch of the URL that's currently in progress.
