@@ -1383,7 +1383,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    NSTimeInterval nextInterval = [self nextUploadRetryInterval];
+    NSTimeInterval nextInterval = _nextUploadRetryInterval;
     NSTimeInterval maxInterval = _maxUploadRetryInterval;
     NSTimeInterval newInterval = MIN(nextInterval, (maxInterval > 0 ? maxInterval : DBL_MAX));
     NSTimeInterval newIntervalTolerance = (newInterval / 10) > 1.0 ?: 1.0;
@@ -1967,8 +1967,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
             subdataGenerating = _subdataGenerating,
             shouldInitiateOffsetQuery = _shouldInitiateOffsetQuery,
             uploadGranularity = _uploadGranularity,
-            uploadRetryFactor = _uploadRetryFactor,
-            nextUploadRetryInterval = _nextUploadRetryInterval;
+            uploadRetryFactor = _uploadRetryFactor;
 // clang-format on
 
 // Internal properties.

@@ -183,6 +183,14 @@ static const NSUInteger kBigUploadDataLength = 199000;
   return [GTMSessionFetcherTestServer generatedBodyDataWithLength:kBigUploadDataLength];
 }
 
+- (NSMutableURLRequest *)validUploadFileRequestWithFileName:(NSString *)fileName {
+  NSString *validURLString = [self localURLStringToTestFileName:fileName];
+  validURLString = [validURLString stringByAppendingString:@".location"];
+  NSMutableURLRequest *request = [self requestWithURLString:validURLString];
+  [request setValue:@"UploadTest" forHTTPHeaderField:@"User-Agent"];
+  return request;
+}
+
 - (NSMutableURLRequest *)validUploadFileRequest {
   NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
   validURLString = [validURLString stringByAppendingString:@".location"];
@@ -812,7 +820,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 // Forces the server to return a 503 every time there is an upload, causing UploadFetcher to retry
 // until it has reached the maximum retry limit
 - (void)testBigFileURLSingleChunkedUploadFetchLimitedRetry {
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(15, 15);
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(11, 11);
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
@@ -824,6 +832,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
                                           uploadMIMEType:@"text/plain"
                                                chunkSize:5000
                                           fetcherService:_service];
+  fetcher.maxUploadRetryInterval = 15;
 
   __weak typeof(fetcher) weakFetcher = fetcher;
   fetcher.uploadFileURL = bigFileURL;
@@ -845,19 +854,18 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   // Check that we uploaded the expected chunks.
   NSArray *expectedCommands = @[
     @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query", @"upload", @"query",
-    @"upload", @"query", @"upload", @"query", @"upload", @"query"
+    @"upload", @"query"
   ];
-  NSArray *expectedOffsets = @[ @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0 ];
-  NSArray *expectedLengths =
-      @[ @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0 ];
+  NSArray *expectedOffsets = @[ @0, @0, @0, @0, @0, @0, @0, @0, @0, @0, @0 ];
+  NSArray *expectedLengths = @[ @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0, @5000, @0 ];
   XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
   XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
   XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
 
-  XCTAssertEqual(fnctr.fetchStarted, 15);
-  XCTAssertEqual(fnctr.fetchStopped, 15);
-  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 15);
-  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 15);
+  XCTAssertEqual(fnctr.fetchStarted, 11);
+  XCTAssertEqual(fnctr.fetchStopped, 11);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 11);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 11);
   XCTAssertEqual(fnctr.retryDelayStarted, 0);
   XCTAssertEqual(fnctr.retryDelayStopped, 0);
   XCTAssertEqual(fnctr.uploadLocationObtained, 0);
@@ -1218,7 +1226,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   NSURL *emptyFileURL = [self fileToUploadURLWithData:[NSData data]
                                              baseName:NSStringFromSelector(_cmd)];
 
-  NSURLRequest *request = [self validUploadFileRequest];
+  NSURLRequest *request = [self validUploadFileRequestWithFileName:@"empty.txt"];
   GTMSessionUploadFetcher *fetcher =
       [GTMSessionUploadFetcher uploadFetcherWithRequest:request
                                          uploadMIMEType:@"text/plain"
@@ -1232,8 +1240,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     // Test that server result is returned (success or failure).
     // The current test server don't accept POST requests with empty body.
-    XCTAssertNil(data);
-    XCTAssertEqual(error.code, 503);
+    XCTAssertEqual(data.length, 0);
+    XCTAssertNil(error);
     [expectation fulfill];
   }];
 
@@ -1243,7 +1251,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   // Check that we uploaded the expected chunks.
-  NSArray *expectedURLStrings = @[ @"/gettysburgaddress.txt.upload" ];
+  NSArray *expectedURLStrings = @[ @"/empty.txt.upload" ];
   NSArray *expectedCommands = @[ @"finalize" ];
   NSArray *expectedOffsets = @[ @0 ];
   NSArray *expectedLengths = @[ @0 ];

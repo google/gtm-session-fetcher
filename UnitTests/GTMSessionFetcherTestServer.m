@@ -170,8 +170,10 @@ static NSString *const kEtag = @"GoodETag";
       @"Four score and seven years ago our fathers brought forth on this continent, a"
        " new nation, conceived in liberty, and dedicated to the proposition that all men"
        " are created equal.";
+    NSString *empty = [[NSString alloc] init];
     _resourceMap = @{
-      @"gettysburgaddress.txt": (NSData*)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"gettysburgaddress.txt" : (NSData *)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"empty.txt" : (NSData *)[empty dataUsingEncoding:NSUTF8StringEncoding]
     };
 
     _uploadBytesExpected = -1;
