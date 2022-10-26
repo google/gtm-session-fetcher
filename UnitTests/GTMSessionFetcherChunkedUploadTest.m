@@ -192,11 +192,7 @@ static const NSUInteger kBigUploadDataLength = 199000;
 }
 
 - (NSMutableURLRequest *)validUploadFileRequest {
-  NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
-  validURLString = [validURLString stringByAppendingString:@".location"];
-  NSMutableURLRequest *request = [self requestWithURLString:validURLString];
-  [request setValue:@"UploadTest" forHTTPHeaderField:@"User-Agent"];
-  return request;
+  return [self validUploadFileRequestWithFileName:kGTMGettysburgFileName];
 }
 
 - (NSMutableURLRequest *)validUploadFileRequestWithParameters:(NSDictionary *)params {
