@@ -1482,7 +1482,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                            parameters:@{@"sleep" : @"10"}];
   fetcher = [self fetcherWithURLString:timeoutFileURLString];
-  fetcher.stopFetchingTriggersCallbacks = NO; // default
+  fetcher.stopFetchingTriggersCompletionHandler = NO;  // default
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTFail("Callback should not be called after stopFetching");
   }];
@@ -1516,12 +1516,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                            parameters:@{@"sleep" : @"10"}];
   fetcher = [self fetcherWithURLString:timeoutFileURLString];
-  fetcher.stopFetchingTriggersCallbacks = YES;
-  fetcher.stopFetchingTriggersCallbacks = YES;
-  XCTestExpectation *expectation =  [self expectationWithDescription:@"Expect to call callback"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data, @"error data unexpected");
-    XCTAssertEqual(error.code, GTMSessionFetcherErrorCancelled);
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherErrorDomain);
     [expectation fulfill];
   }];
 

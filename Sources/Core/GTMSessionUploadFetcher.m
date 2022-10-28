@@ -1119,7 +1119,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     handler = _delegateCompletionHandler;
   }  // @synchronized(self)
 
-  [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching shouldReleaseCompletion:YES];
+  [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching];
 
   if (queue && handler) {
     [self invokeOnCallbackQueue:queue
@@ -1130,15 +1130,12 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   }
 }
 
-- (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation
-              shouldReleaseCompletion:(BOOL)shouldReleaseCompletion {
+- (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    if (shouldReleaseCompletion) {
-      _delegateCallbackQueue = nil;
-      _delegateCompletionHandler = nil;
-    }
+    _delegateCallbackQueue = nil;
+    _delegateCompletionHandler = nil;
     _uploadDataProvider = nil;
     if (shouldReleaseCancellation) {
       _cancellationHandler = nil;
@@ -1163,7 +1160,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
 
   if (shouldReleaseCallbacks) {
-    [self releaseUploadAndBaseCallbacks:NO shouldReleaseCompletion:!self.stopFetchingTriggersCallbacks];
+    [self releaseUploadAndBaseCallbacks:NO];
   }
 }
 
@@ -1559,7 +1556,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   chunkFetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
   chunkFetcher.allowLocalhostRequest = self.allowLocalhostRequest;
   chunkFetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
-  chunkFetcher.stopFetchingTriggersCallbacks = self.stopFetchingTriggersCallbacks;
+  chunkFetcher.stopFetchingTriggersCompletionHandler = self.stopFetchingTriggersCompletionHandler;
   chunkFetcher.useUploadTask = !isQueryFetch;
 
   if (self.uploadFileURL && !isQueryFetch && self.useBackgroundSession) {

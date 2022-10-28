@@ -1513,7 +1513,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
                       }];
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
-  fetcher.stopFetchingTriggersCallbacks = YES;
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
   XCTestExpectation *expectation = [self expectationWithDescription:@"cancelled"];
   fetcher.cancellationHandler =
       ^(GTMSessionFetcher *cancellationFetcher, NSData *data, NSError *error) {
@@ -1788,7 +1788,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   fetcher.uploadData = bigData;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
-  fetcher.stopFetchingTriggersCallbacks = YES;
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
 
   // Add a property to the fetcher that our progress callback will look for to
   // know when to cancel the upload
