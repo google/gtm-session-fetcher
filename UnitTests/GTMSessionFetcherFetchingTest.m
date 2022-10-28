@@ -1528,11 +1528,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   sleep(1);
   [fetcher stopFetching];
 
-  [self assertCallbacksReleasedForFetcher:fetcher];
-
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
   XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);

@@ -1119,7 +1119,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     handler = _delegateCompletionHandler;
   }  // @synchronized(self)
 
-  [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching];
+  [self releaseUploadAndBaseCallbacks:!self.userStoppedFetching shouldReleaseCompletion:YES];
 
   if (queue && handler) {
     [self invokeOnCallbackQueue:queue
@@ -1130,12 +1130,15 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   }
 }
 
-- (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation {
+- (void)releaseUploadAndBaseCallbacks:(BOOL)shouldReleaseCancellation
+              shouldReleaseCompletion:(BOOL)shouldReleaseCompletion {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    _delegateCallbackQueue = nil;
-    _delegateCompletionHandler = nil;
+    if (shouldReleaseCompletion) {
+      _delegateCallbackQueue = nil;
+      _delegateCompletionHandler = nil;
+    }
     _uploadDataProvider = nil;
     if (shouldReleaseCancellation) {
       _cancellationHandler = nil;
@@ -1160,7 +1163,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   [super stopFetchReleasingCallbacks:shouldReleaseCallbacks];
 
   if (shouldReleaseCallbacks) {
-    [self releaseUploadAndBaseCallbacks:NO];
+    [self releaseUploadAndBaseCallbacks:NO shouldReleaseCompletion:!self.stopFetchingTriggersCallbacks];
   }
 }
 
@@ -1556,6 +1559,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   chunkFetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
   chunkFetcher.allowLocalhostRequest = self.allowLocalhostRequest;
   chunkFetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
+  chunkFetcher.stopFetchingTriggersCallbacks = self.stopFetchingTriggersCallbacks;
   chunkFetcher.useUploadTask = !isQueryFetch;
 
   if (self.uploadFileURL && !isQueryFetch && self.useBackgroundSession) {

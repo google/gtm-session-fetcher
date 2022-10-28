@@ -1923,8 +1923,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     holdCallbackQueue = _callbackQueue;
     holdCompletionHandler = _completionHandler;
 
-    _callbackQueue = nil;
-    _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
+    if (!_stopFetchingTriggersCallbacks) {
+      _callbackQueue = nil;
+      _completionHandler = nil;  // Setter overridden in upload. Setter assumed to be used externally.
+    }
   }
 
   // Set local callback pointers to nil here rather than let them release at the end of the scope
@@ -1972,18 +1974,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // Prevent enqueued callbacks from executing.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
-  if (self.stopFetchingTriggersCallbacks) {
-    NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                         code:GTMSessionFetcherErrorCancelled
-                                     userInfo:@{@"description" : @"Operation cancelled"}];
-    [self invokeFetchCallbacksOnCallbackQueueWithData:nil
-                                                error:error
-                                          mayDecorate:YES
-                               shouldReleaseCallbacks:YES];
-    [self sendStopNotificationIfNeeded];
-  }
-  [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCallbacks];
 
+  [self stopFetchReleasingCallbacks:YES];
 }
 
 // Cancel the fetch of the URL that's currently in progress.
@@ -2026,6 +2018,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         _response = _sessionTask.response;
       }
       _sessionTask = nil;
+
+      if (_stopFetchingTriggersCallbacks && _userStoppedFetching) {
+        _sessionTask = nil;
+      }
 
       if ([oldTask state] != NSURLSessionTaskStateCompleted) {
         // For download tasks, when the fetch is stopped, we may provide resume data that can
@@ -2094,7 +2090,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     self.authorizer = nil;
   }
 
-  [service fetcherDidStop:self];
+  if (!self.stopFetchingTriggersCallbacks) {
+    [service fetcherDidStop:self];
+  }
 
 #if GTM_BACKGROUND_TASK_FETCHING
   [self endBackgroundTask];
@@ -3004,6 +3002,14 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
       _bodyLength = task.countOfBytesSent;
     }
   }  // @synchronized(self)
+
+  if (self.stopFetchingTriggersCallbacks && self.userStoppedFetching) {
+    NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                         code:GTMSessionFetcherErrorCancelled
+                                     userInfo:@{@"description" : @"Operation cancelled"}];
+    [self finishWithError:error shouldRetry:NO];
+    return;
+  }
 
   if (succeeded) {
     [self finishWithError:nil shouldRetry:NO];
