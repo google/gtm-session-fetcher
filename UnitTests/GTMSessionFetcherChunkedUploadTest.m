@@ -830,7 +830,6 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
                                           fetcherService:_service];
   fetcher.maxUploadRetryInterval = 15;
 
-  __weak typeof(fetcher) weakFetcher = fetcher;
   fetcher.uploadFileURL = bigFileURL;
   fetcher.useBackgroundSession = NO;
   fetcher.allowLocalhostRequest = YES;
