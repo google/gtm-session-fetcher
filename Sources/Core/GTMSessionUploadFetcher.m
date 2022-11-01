@@ -930,11 +930,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 - (void)destroyUploadRetryTimer {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-
-    if (_uploadRetryTimer) {
-      [_uploadRetryTimer invalidate];
-      _uploadRetryTimer = nil;
-    }
+    [_uploadRetryTimer invalidate];
+    _uploadRetryTimer = nil;
   }
 }
 
@@ -943,10 +940,10 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   [self setInitialBodyLength:[self bodyLength]];
   if(_minUploadRetryInterval <= 0) {
-    _minUploadRetryInterval = 1;
+    _minUploadRetryInterval = kDefaultMinUploadRetryInterval;
   }
   if(_maxUploadRetryInterval <= 0) {
-    _maxUploadRetryInterval = 60;
+    _maxUploadRetryInterval = kDefaultMaxUploadRetryInterval;
   }
   if(_uploadRetryFactor <= 0) {
     _uploadRetryFactor = 2;
@@ -1971,7 +1968,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 // clang-format on
 
 // Internal properties.
-@dynamic uploadRetryTimer;
 @dynamic fetcherInFlight;
 @dynamic activeFetcher;
 @dynamic statusCode;
