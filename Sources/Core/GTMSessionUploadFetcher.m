@@ -144,9 +144,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   BOOL _isPaused;
   BOOL _isRestartedUpload;
   BOOL _shouldInitiateOffsetQuery;
-    
-  NSTimer *_uploadRetryTimer;
 
+  NSTimer *_uploadRetryTimer;
   // Tied to useBackgroundSession property, since this property is applicable to chunk fetchers.
   BOOL _useBackgroundSessionOnChunkFetchers;
 
@@ -939,16 +938,16 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSessionCheckNotSynchronized(self);
 
   [self setInitialBodyLength:[self bodyLength]];
-  if(_minUploadRetryInterval <= 0) {
+  if (_minUploadRetryInterval <= 0) {
     _minUploadRetryInterval = kDefaultMinUploadRetryInterval;
   }
-  if(_maxUploadRetryInterval <= 0) {
+  if (_maxUploadRetryInterval <= 0) {
     _maxUploadRetryInterval = kDefaultMaxUploadRetryInterval;
   }
-  if(_uploadRetryFactor <= 0) {
+  if (_uploadRetryFactor <= 0) {
     _uploadRetryFactor = 2;
   }
-    
+
   // We'll hold onto the superclass's callback queue so we can invoke the handler
   // even after the superclass has released the queue and its callback handler, as
   // happens during auth failure.
@@ -1405,8 +1404,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   NSOperationQueue *queue = self.sessionDelegateQueue;
   [queue addOperationWithBlock:^{
-      [self.chunkFetcher beginFetchWithDelegate:self
-                     didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
+    [self.chunkFetcher beginFetchWithDelegate:self
+                            didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
   }];
 }
 
@@ -1417,8 +1416,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     return _uploadRetryTimer;
   }  // @synchronized(self)
 }
-
-
 
 - (NSTimeInterval)maxUploadRetryInterval {
   @synchronized(self) {
@@ -1449,7 +1446,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     }
   }  // @synchronized(self)
 }
-
 
 - (NSTimeInterval)minUploadRetryInterval {
   @synchronized(self) {
@@ -1663,7 +1659,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   } else {
     int64_t newOffset;
     // The chunk has uploaded successfully.
-    NSString *uploadSizeReceived = [chunkFetcher.responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadSizeReceived];
+    NSString *uploadSizeReceived =
+        [chunkFetcher.responseHeaders objectForKey:kGTMSessionHeaderXGoogUploadSizeReceived];
 
     if (uploadSizeReceived) {
       newOffset = [uploadSizeReceived longLongValue];

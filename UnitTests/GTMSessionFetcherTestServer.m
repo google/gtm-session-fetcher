@@ -147,7 +147,7 @@ static NSString *const kEtag = @"GoodETag";
   GTMHTTPServer *_redirectServer;
   GTMHTTPAuthenticationType _httpAuthenticationType;
   GTMHTTPAuthenticationType _lastHTTPAuthenticationType;
-  NSDictionary<NSString*, NSData*> *_resourceMap;
+  NSDictionary<NSString *, NSData *> *_resourceMap;
   NSString *_username;
   NSString *_password;
   NSString *_nonce;
@@ -167,9 +167,9 @@ static NSString *const kEtag = @"GoodETag";
     _defaultContentType = @"text/plain";
 
     NSString *gettysburg =
-      @"Four score and seven years ago our fathers brought forth on this continent, a"
-       " new nation, conceived in liberty, and dedicated to the proposition that all men"
-       " are created equal.";
+        @"Four score and seven years ago our fathers brought forth on this continent, a"
+         " new nation, conceived in liberty, and dedicated to the proposition that all men"
+         " are created equal.";
     NSString *empty = [[NSString alloc] init];
     _resourceMap = @{
       @"gettysburgaddress.txt" : (NSData *)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
@@ -378,7 +378,6 @@ static NSString *const kEtag = @"GoodETag";
     BOOL isFinalizeRequest = ([xUploadCommand rangeOfString:@"finalize"].location != NSNotFound);
     NSString *uploadStatus = [[self class] valueForParameter:@"uploadStatus" query:query];
 
-
     if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload && !isFinalizeRequest) {
       // This shouldn't happen.
       NSLog(@"Unexpected command: %@", xUploadCommand);
@@ -424,10 +423,10 @@ static NSString *const kEtag = @"GoodETag";
               _uploadBytesReceived);
         return sendResponse(503, nil, nil);
       }
-        if(uploadStatus != nil) {
-          long _uploadStatus = [uploadStatus longLongValue];
-          return sendResponse(_uploadStatus, nil, nil);
-        }
+      if (uploadStatus != nil) {
+        long _uploadStatus = [uploadStatus longLongValue];
+        return sendResponse(_uploadStatus, nil, nil);
+      }
 
       long long contentLength = [contentLengthStr longLongValue];
       _uploadBytesReceived += contentLength;

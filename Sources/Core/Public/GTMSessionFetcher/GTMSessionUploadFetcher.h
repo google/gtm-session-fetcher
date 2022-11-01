@@ -134,8 +134,8 @@ typedef void (^GTMSessionUploadFetcherCancellationHandler)(GTMSessionFetcher *_N
 @property(atomic, readonly, assign) int64_t chunkSize;
 @property(atomic, readonly, assign) int64_t currentOffset;
 @property(atomic, assign) double uploadRetryFactor;
-@property(atomic, assign)  NSTimeInterval maxUploadRetryInterval;
-@property(atomic, assign)  NSTimeInterval minUploadRetryInterval;
+@property(atomic, assign) NSTimeInterval maxUploadRetryInterval;
+@property(atomic, assign) NSTimeInterval minUploadRetryInterval;
 typedef void (^GTMSessionFetcherExponentialBackoffBlock)(void);
 
 @property(atomic, copy, nullable) GTMSessionFetcherExponentialBackoffBlock backoffBlock;

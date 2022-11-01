@@ -637,7 +637,7 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 
 // This method is being phased out. While implementing it is necessary to satisfy
 // the protocol's @required restrictions, conforming implementations that implement
-// authorizeRequest:completionHandler: will have that called instead. 
+// authorizeRequest:completionHandler: will have that called instead.
 // be removed in a future version when GTMFetcherAuthorizationProtocol is
 // also removed.
 - (void)authorizeRequest:(nullable NSMutableURLRequest *)request

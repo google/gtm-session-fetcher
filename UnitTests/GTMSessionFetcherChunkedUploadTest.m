@@ -41,6 +41,10 @@
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
                     timeout:10.0];
 
+@interface GTMSessionUploadFetcher (Private)
+@property(atomic, readonly) NSTimer *uploadRetryTimer;
+@end
+
 @interface GTMSessionFetcherChunkedUploadTest : GTMSessionFetcherBaseTest
 @end
 
@@ -1114,7 +1118,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
-    NSArray *expectedCommands = @[ @"query", @"finalize" ];
+  NSArray *expectedCommands = @[ @"query", @"finalize" ];
   NSArray *expectedOffsets = @[ @0, @199000 ];
   NSArray *expectedLengths = @[ @0, @0 ];
   XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
