@@ -24,6 +24,7 @@
 #import "GTMSessionFetcher/GTMSessionFetcherLogViewController.h"
 
 #include <objc/runtime.h>
+#import <WebKit/WebKit.h>
 
 #import "GTMSessionFetcher/GTMSessionFetcher.h"
 #import "GTMSessionFetcher/GTMSessionFetcherLogging.h"
@@ -34,18 +35,6 @@
 
 #if !STRIP_GTM_FETCH_LOGGING && !STRIP_GTM_SESSIONLOGVIEWCONTROLLER
 
-#if ((TARGET_OS_IOS && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0) || \
-     (TARGET_OS_OSX && __MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_12))
-// For apps targetting recent only versions of iOS/Mac, use WKWebView rather
-// than UIWebView/NSWebView.
-#define GTM_USE_WKWEBVIEW 1
-#import <WebKit/WebKit.h>
-typedef WKWebView GTMWebView;
-#else
-#define GTM_USE_WKWEBVIEW 0
-typedef UIWebView GTMWebView;
-#endif
-
 static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 // A minimal controller will be used to wrap a web view for displaying the
@@ -54,13 +43,8 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 - (id)initWithURL:(NSURL *)htmlURL title:(NSString *)title opensScrolledToEnd:(BOOL)opensScrolled;
 @end
 
-#if GTM_USE_WKWEBVIEW
 @interface GTMSessionFetcherLoggingWebViewController () <WKNavigationDelegate>
 @end
-#else
-@interface GTMSessionFetcherLoggingWebViewController () <UIWebViewDelegate>
-@end
-#endif
 
 #pragma mark - Table View Controller
 
@@ -251,13 +235,9 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 }
 
 - (void)loadView {
-  GTMWebView *webView = [[GTMWebView alloc] init];
+  WKWebView *webView = [[WKWebView alloc] init];
   webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
-#if GTM_USE_WKWEBVIEW
   webView.navigationDelegate = self;
-#else
-  webView.delegate = self;
-#endif
   self.view = webView;
 }
 
@@ -271,8 +251,8 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
   [[self webView] goBack];
 }
 
-- (GTMWebView *)webView {
-  return (GTMWebView *)self.view;
+- (WKWebView *)webView {
+  return (WKWebView *)self.view;
 }
 
 - (void)didFinishLoadingHTML {
@@ -280,11 +260,7 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
     // Scroll to the bottom, because the most recent entry is at the end.
     NSString *javascript =
         [NSString stringWithFormat:@"window.scrollBy(0, %ld);", (long)NSIntegerMax];
-#if GTM_USE_WKWEBVIEW
     [[self webView] evaluateJavaScript:javascript completionHandler:nil];
-#else
-    [[self webView] stringByEvaluatingJavaScriptFromString:javascript];
-#endif
     opensScrolledToEnd_ = NO;
   }
 
@@ -304,15 +280,9 @@ static NSString *const kHTTPLogsCell = @"kGTMHTTPLogsCell";
 
 #pragma mark - WebView delegate
 
-#if GTM_USE_WKWEBVIEW
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
   [self didFinishLoadingHTML];
 }
-#else
-- (void)webViewDidFinishLoad:(UIWebView *)webView {
-  [self didFinishLoadingHTML];
-}
-#endif  // GTM_USE_WKWEBVIEW
 
 @end
 

@@ -1903,7 +1903,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         testResponse(nil, [NSData data], nil);
       };
 
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(10, 10);
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(6, 6);
 
   for (int i = 0; records[i].urlString; i++) {
     NSString *urlString = records[i].urlString;

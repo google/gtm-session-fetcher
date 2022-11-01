@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "GTMSessionFetcher",
     platforms: [
-        .iOS(.v9),
+        .iOS(.v10),
         .macOS(.v10_12),
         .tvOS(.v10),
         .watchOS(.v6)
@@ -49,7 +49,10 @@ let package = Package(
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "UnitTests"
+            path: "UnitTests",
+            cSettings: [
+                .headerSearchPath("../Sources/Core")
+            ]
         ),
         .testTarget(
             name: "swift-test",
