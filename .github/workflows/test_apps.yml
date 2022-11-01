@@ -13,12 +13,15 @@ on:
     - 'Sources/**'
     - 'TestApps/**'
     - '.github/workflows/test_apps.yml'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
 
 jobs:
   xcodebuild:
     # TODO: back to `macos-latest` once that is updated to point to the newer
     # images for more current Xcode versions.
     #  https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#choosing-github-hosted-runners
+    #  https://github.com/actions/runner-images/issues/6384
     runs-on: macos-12
     strategy:
       fail-fast: false

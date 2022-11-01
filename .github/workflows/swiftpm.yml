@@ -20,6 +20,8 @@ on:
   schedule:
     # Run the first and fifteenth of every month at 5:12 UTC
     - cron:  '12 5 1,15 * *'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
 
 jobs:
   swift:
@@ -28,6 +30,7 @@ jobs:
     # TODO: back to `macos-latest` once that is updated to point to the newer
     # images for more current Xcode versions.
     #  https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#choosing-github-hosted-runners
+    #  https://github.com/actions/runner-images/issues/6384
     runs-on: macos-12
     strategy:
       fail-fast: false
