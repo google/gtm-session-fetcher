@@ -938,14 +938,14 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
   GTMSessionCheckNotSynchronized(self);
 
   [self setInitialBodyLength:[self bodyLength]];
-  if (_minUploadRetryInterval <= 0) {
+  if (_minUploadRetryInterval <= 0.0) {
     _minUploadRetryInterval = kDefaultMinUploadRetryInterval;
   }
-  if (_maxUploadRetryInterval <= 0) {
+  if (_maxUploadRetryInterval <= 0.0) {
     _maxUploadRetryInterval = kDefaultMaxUploadRetryInterval;
   }
-  if (_uploadRetryFactor <= 0) {
-    _uploadRetryFactor = 2;
+  if (_uploadRetryFactor <= 0.0) {
+    _uploadRetryFactor = 2.0;
   }
 
   // We'll hold onto the superclass's callback queue so we can invoke the handler
@@ -1371,7 +1371,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
 
   [self destroyUploadRetryTimer];
 
-  if (_nextUploadRetryInterval == 0) {
+  if (_nextUploadRetryInterval == 0.0) {
     [self.chunkFetcher beginFetchWithDelegate:self
                             didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
     return;
