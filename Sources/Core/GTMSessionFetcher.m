@@ -2602,9 +2602,11 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)invokeOnCallbackQueue:(dispatch_queue_t)callbackQueue
              afterUserStopped:(BOOL)afterStopped
                         block:(void (^)(void))block {
+
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
-      if (!afterStopped && !self->_stopFetchingTriggersCompletionHandler) {
+      if (!afterStopped &&
+          (!self->_stopFetchingTriggersCompletionHandler || !self->_userStoppedFetching)) {
         NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
         @synchronized(self) {
