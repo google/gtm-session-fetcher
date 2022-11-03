@@ -424,7 +424,7 @@ static NSString *const kEtag = @"GoodETag";
         return sendResponse(503, nil, nil);
       }
       if (uploadStatus != nil) {
-        long _uploadStatus = [uploadStatus longLongValue];
+        int _uploadStatus = [uploadStatus intValue];
         return sendResponse(_uploadStatus, nil, nil);
       }
 
