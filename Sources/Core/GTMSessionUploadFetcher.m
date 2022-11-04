@@ -1961,6 +1961,7 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
             subdataGenerating = _subdataGenerating,
             shouldInitiateOffsetQuery = _shouldInitiateOffsetQuery,
             uploadGranularity = _uploadGranularity,
+            backoffBlock = _backoffBlock,
             uploadRetryFactor = _uploadRetryFactor;
 // clang-format on
 
