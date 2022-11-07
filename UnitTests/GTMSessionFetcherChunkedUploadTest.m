@@ -875,9 +875,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 // Forces the server to return a 503 every time there is an upload, cancels the upload in the middle
 // of a backoff, and makes sure that the timer has been killed.
 - (void)testBigFileURLSingleChunkedUploadFetchLimitedRetryWithCancel {
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
   NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
   NSString *filename = [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
   NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
@@ -903,13 +903,18 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
     XCTAssertNotNil(sessionFetcher);
     [expectation fulfill];
   };
-  fetcher.backoffBlock = ^() {
-    [weakFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
-  };
+  XCTestExpectation *fetcherBackoffStartedExpectation__ = [[XCTNSNotificationExpectation alloc]
+      initWithName:kGTMSessionFetcherUploadInitialBackoffStartedNotification];
+  fetcherBackoffStartedExpectation__.expectedFulfillmentCount = 1;
 
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTFail("Should not attempt to complete task");
   }];
+  [self waitForExpectations:@[ fetcherBackoffStartedExpectation__ ] timeout:10.0];
+
+  XCTAssertNotNil(weakFetcher.uploadRetryTimer);
+  [weakFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
+
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
 

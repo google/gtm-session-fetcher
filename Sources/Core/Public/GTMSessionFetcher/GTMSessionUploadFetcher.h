@@ -57,6 +57,8 @@ extern int64_t const kGTMSessionUploadFetcherMaximumDemandBufferSize;
 
 // Notification that the upload location URL was provided by the server.
 extern NSString *const kGTMSessionFetcherUploadLocationObtainedNotification;
+// Notification that the exponential backoff for upload has started.
+extern NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification;
 
 // Block to provide data during uploads.
 //
@@ -136,9 +138,6 @@ typedef void (^GTMSessionUploadFetcherCancellationHandler)(GTMSessionFetcher *_N
 @property(atomic, assign) double uploadRetryFactor;
 @property(atomic, assign) NSTimeInterval maxUploadRetryInterval;
 @property(atomic, assign) NSTimeInterval minUploadRetryInterval;
-typedef void (^GTMSessionFetcherExponentialBackoffBlock)(void);
-
-@property(atomic, copy, nullable) GTMSessionFetcherExponentialBackoffBlock backoffBlock;
 
 // Reflects the original NSURLRequest's @c allowCellularAccess property.
 @property(atomic, readonly, assign) BOOL allowsCellularAccess;

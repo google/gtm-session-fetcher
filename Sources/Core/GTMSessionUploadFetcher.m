@@ -72,6 +72,8 @@ typedef NS_ENUM(NSUInteger, GTMSessionUploadFetcherStatus) {
 
 NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     @"kGTMSessionFetcherUploadLocationObtainedNotification";
+NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
+    @"kGTMSessionFetcherUploadInitialBackoffStartedNotification";
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ProtectedMethods)
@@ -1394,9 +1396,8 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
     _uploadRetryTimer.tolerance = newIntervalTolerance;
     [[NSRunLoop mainRunLoop] addTimer:_uploadRetryTimer forMode:NSDefaultRunLoopMode];
   }  // @synchronized(self)
-  if (_backoffBlock) {
-    self.backoffBlock();
-  }
+  NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+  [nc postNotificationName:kGTMSessionFetcherUploadInitialBackoffStartedNotification object:self];
 }
 
 - (void)uploadRetryTimerFired:(NSTimer *)timer {
@@ -1961,7 +1962,6 @@ NSString *const kGTMSessionFetcherUploadLocationObtainedNotification =
             subdataGenerating = _subdataGenerating,
             shouldInitiateOffsetQuery = _shouldInitiateOffsetQuery,
             uploadGranularity = _uploadGranularity,
-            backoffBlock = _backoffBlock,
             uploadRetryFactor = _uploadRetryFactor;
 // clang-format on
 
