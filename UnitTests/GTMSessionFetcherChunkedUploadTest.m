@@ -875,9 +875,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 // Forces the server to return a 503 every time there is an upload, cancels the upload in the middle
 // of a backoff, and makes sure that the timer has been killed.
 - (void)testBigFileURLSingleChunkedUploadFetchLimitedRetryWithCancel {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
   NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
   NSString *filename = [NSString stringWithFormat:@"gettysburgaddress.txt.upload?uploadStatus=503"];
   NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
