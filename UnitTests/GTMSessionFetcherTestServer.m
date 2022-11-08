@@ -147,7 +147,7 @@ static NSString *const kEtag = @"GoodETag";
   GTMHTTPServer *_redirectServer;
   GTMHTTPAuthenticationType _httpAuthenticationType;
   GTMHTTPAuthenticationType _lastHTTPAuthenticationType;
-  NSDictionary<NSString*, NSData*> *_resourceMap;
+  NSDictionary<NSString *, NSData *> *_resourceMap;
   NSString *_username;
   NSString *_password;
   NSString *_nonce;
@@ -167,11 +167,13 @@ static NSString *const kEtag = @"GoodETag";
     _defaultContentType = @"text/plain";
 
     NSString *gettysburg =
-      @"Four score and seven years ago our fathers brought forth on this continent, a"
-       " new nation, conceived in liberty, and dedicated to the proposition that all men"
-       " are created equal.";
+        @"Four score and seven years ago our fathers brought forth on this continent, a"
+         " new nation, conceived in liberty, and dedicated to the proposition that all men"
+         " are created equal.";
+    NSString *empty = [[NSString alloc] init];
     _resourceMap = @{
-      @"gettysburgaddress.txt": (NSData*)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"gettysburgaddress.txt" : (NSData *)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"empty.txt" : (NSData *)[empty dataUsingEncoding:NSUTF8StringEncoding]
     };
 
     _uploadBytesExpected = -1;
@@ -374,8 +376,9 @@ static NSString *const kEtag = @"GoodETag";
     BOOL isCancelingUpload = [xUploadCommand isEqual:@"cancel"];
     BOOL isUploadingChunk = ([xUploadCommand rangeOfString:@"upload"].location != NSNotFound);
     BOOL isFinalizeRequest = ([xUploadCommand rangeOfString:@"finalize"].location != NSNotFound);
+    NSString *uploadStatus = [[self class] valueForParameter:@"uploadStatus" query:query];
 
-    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload) {
+    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload && !isFinalizeRequest) {
       // This shouldn't happen.
       NSLog(@"Unexpected command: %@", xUploadCommand);
       return sendResponse(503, nil, nil);
@@ -412,13 +415,17 @@ static NSString *const kEtag = @"GoodETag";
       return sendResponse(200, nil, nil);
     }
 
-    if (isUploadingChunk) {
+    if (isUploadingChunk || isFinalizeRequest) {
       BOOL isProperOffset = (_uploadBytesReceived == [xUploadOffset longLongValue]);
       if (!isProperOffset) {
         // This shouldn't happen; a good offset should always be provided.
         NSLog(@"Unexpected offset (specified %@, expected %lld)", xUploadOffset,
               _uploadBytesReceived);
         return sendResponse(503, nil, nil);
+      }
+      if (uploadStatus != nil) {
+        int _uploadStatus = [uploadStatus intValue];
+        return sendResponse(_uploadStatus, nil, nil);
       }
 
       long long contentLength = [contentLengthStr longLongValue];
