@@ -168,8 +168,7 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 
 // Methods for use by the fetcher class only.
 - (nullable NSURLSession *)session;
-- (nullable NSURLSession *)sessionWithCreationBlock:
-    (nonnull NS_NOESCAPE GTMSessionFetcherSessionCreationBlock)creationBlock;
+- (nullable NSURLSession *)sessionForFetcherCreation;
 - (nullable id<NSURLSessionDelegate>)sessionDelegate;
 - (nullable NSDate *)stoppedAllFetchersDate;
 
