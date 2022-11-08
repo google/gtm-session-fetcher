@@ -102,7 +102,7 @@ NS_ASSUME_NONNULL_END
      (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                  \
       __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0) ||                                       \
      (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                                \
-      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
+      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                        \
      (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MIN_REQUIRED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
 #define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
@@ -110,7 +110,7 @@ NS_ASSUME_NONNULL_END
        (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                 \
         __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0) ||                                       \
        (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                               \
-        __WATCH_OS_VERSION_MAX_ALLOWED >= __WATCHOS_6_0) ||                                         \
+        __WATCH_OS_VERSION_MAX_ALLOWED >= __WATCHOS_6_0) ||                                        \
        (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MAX_ALLOWED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
 #define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
@@ -124,7 +124,7 @@ NS_ASSUME_NONNULL_END
      (TARGET_OS_IOS && defined(__IPHONE_13_0) &&                                                  \
       __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0) ||                                       \
      (TARGET_OS_WATCH && defined(__WATCHOS_6_0) &&                                                \
-      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                         \
+      __WATCH_OS_VERSION_MIN_REQUIRED >= __WATCHOS_6_0) ||                                        \
      (TARGET_OS_TV && defined(__TVOS_13_0) && __TVOS_VERSION_MIN_REQUIRED >= __TVOS_13_0))
 #define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
 #else
@@ -1701,9 +1701,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
     [authorizer authorizeRequest:mutableRequest
                completionHandler:^(NSError *_Nullable error) {
-                 [weakSelf authorizer:nil
-                               request:mutableRequest
-                     finishedWithError:error];
+                 [weakSelf authorizer:nil request:mutableRequest finishedWithError:error];
                }];
   } else if ([authorizer respondsToSelector:@selector(authorizeRequest:
                                                               delegate:didFinishSelector:)]) {
@@ -2669,25 +2667,28 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }
 
   if (handler) {
-    [self invokeOnCallbackQueue:callbackQueue afterUserStopped:NO block:^{
-      handler(data, error);
+    [self invokeOnCallbackQueue:callbackQueue
+               afterUserStopped:NO
+                          block:^{
+                            handler(data, error);
 
-      // Post a notification, primarily to allow code to collect responses for
-      // testing.
-      //
-      // The observing code is not likely on the fetcher's callback
-      // queue, so this posts explicitly to the main queue.
-      NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
-      if (data) {
-        userInfo[kGTMSessionFetcherCompletionDataKey] = data;
-      }
-      if (error) {
-        userInfo[kGTMSessionFetcherCompletionErrorKey] = error;
-      }
-      [self postNotificationOnMainThreadWithName:kGTMSessionFetcherCompletionInvokedNotification
-                                        userInfo:userInfo
-                                    requireAsync:NO];
-    }];
+                            // Post a notification, primarily to allow code to collect responses for
+                            // testing.
+                            //
+                            // The observing code is not likely on the fetcher's callback
+                            // queue, so this posts explicitly to the main queue.
+                            NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+                            if (data) {
+                              userInfo[kGTMSessionFetcherCompletionDataKey] = data;
+                            }
+                            if (error) {
+                              userInfo[kGTMSessionFetcherCompletionErrorKey] = error;
+                            }
+                            [self postNotificationOnMainThreadWithName:
+                                      kGTMSessionFetcherCompletionInvokedNotification
+                                                              userInfo:userInfo
+                                                          requireAsync:NO];
+                          }];
   }
 }
 
@@ -3051,7 +3052,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 #if TARGET_OS_IPHONE
 - (void)URLSessionDidFinishEventsForBackgroundURLSession:(NSURLSession *)session {
   GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSessionDidFinishEventsForBackgroundURLSession:%@",
-                           [self class], self, session);
+                               [self class], self, session);
   [self removePersistedBackgroundSessionFromDefaults];
 
   GTMSessionFetcherSystemCompletionHandler handler;
