@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   and uses operating-system settings.
   DESC
 
-  ios_deployment_target = '10.0'
+  ios_deployment_target = '9.0'
   osx_deployment_target = '10.12'
   tvos_deployment_target = '10.0'
   watchos_deployment_target = '6.0'
