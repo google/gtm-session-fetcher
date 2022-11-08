@@ -2,13 +2,13 @@ name: TestApps
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 2_2_branch ]
     paths:
     - 'Sources/**'
     - 'TestApps/**'
     - '.github/workflows/test_apps.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, 2_2_branch ]
     paths:
     - 'Sources/**'
     - 'TestApps/**'
