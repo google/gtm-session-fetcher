@@ -459,8 +459,6 @@ typedef void (^GTMSessionFetcherConfigurationBlock)(GTMSessionFetcher *fetcher,
 typedef void (^GTMSessionFetcherSystemCompletionHandler)(void);
 typedef void (^GTMSessionFetcherCompletionHandler)(NSData *_Nullable data,
                                                    NSError *_Nullable error);
-typedef NSURLSession *_Nullable (^GTMSessionFetcherSessionCreationBlock)(
-    id<NSURLSessionDelegate> _Nullable sessionDelegate);
 typedef void (^GTMSessionFetcherBodyStreamProviderResponse)(NSInputStream *bodyStream);
 typedef void (^GTMSessionFetcherBodyStreamProvider)(
     GTMSessionFetcherBodyStreamProviderResponse response);
@@ -621,6 +619,7 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 @property(atomic, strong) dispatch_queue_t callbackQueue;
 
 - (BOOL)fetcherShouldBeginFetching:(GTMSessionFetcher *)fetcher;
+- (void)fetcherDidCreateSession:(GTMSessionFetcher *)fetcher;
 - (void)fetcherDidBeginFetching:(GTMSessionFetcher *)fetcher;
 - (void)fetcherDidStop:(GTMSessionFetcher *)fetcher;
 
@@ -629,8 +628,7 @@ typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLReques
 
 @property(atomic, assign) BOOL reuseSession;
 - (nullable NSURLSession *)session;
-- (nullable NSURLSession *)sessionWithCreationBlock:
-    (nonnull NS_NOESCAPE GTMSessionFetcherSessionCreationBlock)creationBlock;
+- (nullable NSURLSession *)sessionForFetcherCreation;
 - (nullable id<NSURLSessionDelegate>)sessionDelegate;
 - (nullable NSDate *)stoppedAllFetchersDate;
 
