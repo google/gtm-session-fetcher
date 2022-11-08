@@ -2,7 +2,7 @@ name: SwiftPM
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 2_2_branch ]
     paths:
     - 'Sources/**'
     - 'SwiftPMTests/**'
@@ -10,16 +10,13 @@ on:
     - 'Package*.swift'
     - '.github/workflows/swiftpm.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, 2_2_branch ]
     paths:
     - 'Sources/**'
     - 'SwiftPMTests/**'
     - 'UnitTests/**'
     - 'Package*.swift'
     - '.github/workflows/swiftpm.yml'
-  schedule:
-    # Run the first and fifteenth of every month at 5:12 UTC
-    - cron:  '12 5 1,15 * *'
   # Also allow manual triggering from the github UX to revalidate things.
   workflow_dispatch:
 
