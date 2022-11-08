@@ -49,10 +49,7 @@ let package = Package(
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
-            path: "UnitTests",
-            cSettings: [
-                .headerSearchPath("../Sources/Core")
-            ]
+            path: "UnitTests"
         ),
         .testTarget(
             name: "swift-test",
