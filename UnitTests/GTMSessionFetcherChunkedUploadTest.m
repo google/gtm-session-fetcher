@@ -912,8 +912,9 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   }];
   [self waitForExpectations:@[ fetcherBackoffStartedExpectation__ ] timeout:10.0];
 
-  XCTAssertNotNil(weakFetcher.uploadRetryTimer);
-  [weakFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
+  __strong typeof(fetcher) strongFetcher = weakFetcher;
+  XCTAssertNotNil(strongFetcher.uploadRetryTimer);
+  [strongFetcher performSelector:@selector(stopFetching) withObject:nil afterDelay:0.0];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
   [self assertCallbacksReleasedForFetcher:fetcher];
