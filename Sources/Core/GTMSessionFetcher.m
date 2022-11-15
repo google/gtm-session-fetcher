@@ -1969,7 +1969,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    // Prevent enqueued callbacks from executing.
+    // Prevent enqueued callbacks from executing. The completion handler will still execute if
+    // the property `stopFetchingTriggersCompletionHandler` is `YES`.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
   [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
@@ -2605,8 +2606,11 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
-      if (!afterStopped &&
-          (!self->_stopFetchingTriggersCompletionHandler || !self->_userStoppedFetching)) {
+      BOOL skipEarlyExit = NO;
+      @synchronized(self) {
+        skipEarlyExit = !self->_stopFetchingTriggersCompletionHandler;
+      }
+      if (!afterStopped && skipEarlyExit) {
         NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
         @synchronized(self) {
@@ -3007,7 +3011,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                                                code:GTMSessionFetcherErrorUserCancelled
                                            userInfo:@{
                                              NSLocalizedDescriptionKey : @"Operation cancelled",
-                                             NSUnderlyingErrorKey : error.localizedDescription
+                                             NSUnderlyingErrorKey : error
                                            }];
     [self finishWithError:cancelError shouldRetry:NO];
     return;
