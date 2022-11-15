@@ -4020,16 +4020,15 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (BOOL)stopFetchingTriggersCompletionHandler {
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    return _stopFetchingTriggersCompletionHandler;
-  }  // @synchronized(self)
+  return _stopFetchingTriggersCompletionHandler;
 }
 
 - (void)setStopFetchingTriggersCompletionHandler:(BOOL)flag {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+    GTMSESSION_ASSERT_DEBUG(
+        _initialBeginFetchDate == nil,
+        @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
 
     _stopFetchingTriggersCompletionHandler = flag;
   }  // @synchronized(self)
