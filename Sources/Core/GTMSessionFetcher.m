@@ -4020,11 +4020,13 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 }
 
 - (void)setStopFetchingTriggersCompletionHandler:(BOOL)flag {
-  GTMSESSION_ASSERT_DEBUG(
-      _initialBeginFetchDate == nil,
-      @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
-
-  _stopFetchingTriggersCompletionHandler = flag;
+  if (_initialBeginFetchDate == nil) {
+    _stopFetchingTriggersCompletionHandler = flag;
+  } else {
+    GTMSESSION_ASSERT_DEBUG(
+        0,
+        @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
+  }
 }
 
 - (nullable NSURLSession *)sessionNeedingInvalidation {
