@@ -1088,7 +1088,7 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // will be called if the property `stopFetchingTriggersCompletionHandler` is `YES`.
 - (void)stopFetching;
 
-// Call callbacks in `stopFetching`.
+// Call callbacks in `stopFetching`. It cannot be changed once the fetcher starts.
 @property(atomic, assign) BOOL stopFetchingTriggersCompletionHandler;
 
 // A block to be called when the fetch completes.
