@@ -1089,6 +1089,8 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 - (void)stopFetching;
 
 // Call callbacks in `stopFetching`. It cannot be changed once the fetcher starts.
+// This should be set to `true` from Swift clients before `beginFetch` with `async/await` since the Swift
+// runtime requires the completion handler to be called.
 @property(atomic, assign) BOOL stopFetchingTriggersCompletionHandler;
 
 // A block to be called when the fetch completes.
