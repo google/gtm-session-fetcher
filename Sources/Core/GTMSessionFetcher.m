@@ -2990,25 +2990,27 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     // shouldRetryNowForStatus: and finishWithError:shouldRetry:
     if (_isUsingTestBlock) return;
 #endif
+    userStoppedTriggerCompletion = _userStoppedFetching && _stopFetchingTriggersCompletionHandler;
 
     if (error == nil) {
       error = _downloadFinishedError;
     }
     succeeded = (error == nil && status >= 0 && status < 300);
-    if (succeeded) {
+    if (succeeded && !userStoppedTriggerCompletion) {
       // Succeeded.
       _bodyLength = task.countOfBytesSent;
     }
-    userStoppedTriggerCompletion = _userStoppedFetching && _stopFetchingTriggersCompletionHandler;
   }  // @synchronized(self)
 
   if (userStoppedTriggerCompletion) {
+    NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
+    [userInfo setObject:@"Operation cancelled" forKey:NSLocalizedDescriptionKey];
+    if (error) {
+      [userInfo setObject:error forKey:NSUnderlyingErrorKey];
+    }
     NSError *cancelError = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                                code:GTMSessionFetcherErrorUserCancelled
-                                           userInfo:@{
-                                             NSLocalizedDescriptionKey : @"Operation cancelled",
-                                             NSUnderlyingErrorKey : error
-                                           }];
+                                           userInfo:userInfo];
     [self finishWithError:cancelError shouldRetry:NO];
     return;
   }
