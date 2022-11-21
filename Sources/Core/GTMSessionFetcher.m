@@ -1969,16 +1969,17 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    // Prevent enqueued callbacks from executing.
+    // Prevent enqueued callbacks from executing. The completion handler will still execute if
+    // the property `stopFetchingTriggersCompletionHandler` is `YES`.
     _userStoppedFetching = YES;
   }  // @synchronized(self)
-  [self stopFetchReleasingCallbacks:YES];
+  [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
 }
 
 // Cancel the fetch of the URL that's currently in progress.
 //
-// If shouldReleaseCallbacks is NO then the fetch will be retried so the callbacks
-// need to still be retained.
+// If shouldReleaseCallbacks is NO then the fetch will be retried so the callbacks need
+// still be retained or `stopFetching` was called and `stopFetchingTriggersCompletionHandler` is `YES`.
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
   [self removePersistedBackgroundSessionFromDefaults];
 
@@ -1995,6 +1996,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [holdSelf destroyRetryTimer];
 
   BOOL sendStopNotification = YES;
+  BOOL cancelStopFetcher = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2066,6 +2068,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         }
       }
     }
+    cancelStopFetcher = _stopFetchingTriggersCompletionHandler && _userStoppedFetching;
   }  // @synchronized(self)
 
   // If the NSURLSession needs to be invalidated, but needs to wait until the delegate method
@@ -2083,7 +2086,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     self.authorizer = nil;
   }
 
-  [service fetcherDidStop:self];
+  if (!cancelStopFetcher) {
+    [service fetcherDidStop:self];
+  }
 
 #if GTM_BACKGROUND_TASK_FETCHING
   [self endBackgroundTask];
@@ -2598,9 +2603,10 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)invokeOnCallbackQueue:(dispatch_queue_t)callbackQueue
              afterUserStopped:(BOOL)afterStopped
                         block:(void (^)(void))block {
+
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
-      if (!afterStopped) {
+      if (!afterStopped && !self->_stopFetchingTriggersCompletionHandler) {
         NSDate *serviceStoppedAllDate = [self->_service stoppedAllFetchersDate];
 
         @synchronized(self) {
@@ -2974,6 +2980,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   NSInteger status = self.statusCode;
   BOOL forceAssumeRetry = NO;
   BOOL succeeded = NO;
+  BOOL userStoppedTriggerCompletion = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2992,7 +2999,19 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
       // Succeeded.
       _bodyLength = task.countOfBytesSent;
     }
+    userStoppedTriggerCompletion = _userStoppedFetching && _stopFetchingTriggersCompletionHandler;
   }  // @synchronized(self)
+
+  if (userStoppedTriggerCompletion) {
+    NSError *cancelError = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                               code:GTMSessionFetcherErrorUserCancelled
+                                           userInfo:@{
+                                             NSLocalizedDescriptionKey : @"Operation cancelled",
+                                             NSUnderlyingErrorKey : error
+                                           }];
+    [self finishWithError:cancelError shouldRetry:NO];
+    return;
+  }
 
   if (succeeded) {
     [self finishWithError:nil shouldRetry:NO];
@@ -3668,7 +3687,8 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
             testBlock = _testBlock,
             testBlockAccumulateDataChunkCount = _testBlockAccumulateDataChunkCount,
             comment = _comment,
-            log = _log;
+            log = _log,
+            stopFetchingTriggersCompletionHandler = _stopFetchingTriggersCompletionHandler;
 
 #if !STRIP_GTM_FETCH_LOGGING
 @synthesize redirectedFromURL = _redirectedFromURL,
@@ -3993,6 +4013,20 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 
     _usingBackgroundSession = flag;
   }  // @synchronized(self)
+}
+
+- (BOOL)stopFetchingTriggersCompletionHandler {
+  return _stopFetchingTriggersCompletionHandler;
+}
+
+- (void)setStopFetchingTriggersCompletionHandler:(BOOL)flag {
+  if (_initialBeginFetchDate == nil) {
+    _stopFetchingTriggersCompletionHandler = flag;
+  } else {
+    GTMSESSION_ASSERT_DEBUG(
+        0,
+        @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
+  }
 }
 
 - (nullable NSURLSession *)sessionNeedingInvalidation {

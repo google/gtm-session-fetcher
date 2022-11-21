@@ -1470,6 +1470,81 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testRetryFetches];
 }
 
+- (void)testCancelFetchWithoutCallback {
+  if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  __block GTMSessionFetcher *fetcher;
+
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"10"}];
+  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCompletionHandler = NO;  // default
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTFail("Callback should not be called after stopFetching");
+  }];
+  sleep(1);
+  [fetcher stopFetching];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
+- (void)testCancelFetchWithCallback {
+  if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  __block GTMSessionFetcher *fetcher;
+
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"10"}];
+  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data, @"error data unexpected");
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherErrorDomain);
+    [expectation fulfill];
+  }];
+
+  sleep(1);
+  [fetcher stopFetching];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
 - (void)testFetchToFile {
   if (!_isServerRunning) return;
 

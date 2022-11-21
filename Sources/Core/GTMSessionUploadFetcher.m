@@ -1556,6 +1556,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   chunkFetcher.allowedInsecureSchemes = self.allowedInsecureSchemes;
   chunkFetcher.allowLocalhostRequest = self.allowLocalhostRequest;
   chunkFetcher.allowInvalidServerCertificates = self.allowInvalidServerCertificates;
+  chunkFetcher.stopFetchingTriggersCompletionHandler = self.stopFetchingTriggersCompletionHandler;
   chunkFetcher.useUploadTask = !isQueryFetch;
 
   if (self.uploadFileURL && !isQueryFetch && self.useBackgroundSession) {
