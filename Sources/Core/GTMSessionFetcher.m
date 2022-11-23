@@ -1979,7 +1979,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // Cancel the fetch of the URL that's currently in progress.
 //
 // If shouldReleaseCallbacks is NO then the fetch will be retried so the callbacks need
-// still be retained or `stopFetching` was called and `stopFetchingTriggersCompletionHandler` is `YES`.
+// still be retained or `stopFetching` was called and `stopFetchingTriggersCompletionHandler` is
+// `YES`.
 - (void)stopFetchReleasingCallbacks:(BOOL)shouldReleaseCallbacks {
   [self removePersistedBackgroundSessionFromDefaults];
 
@@ -2603,7 +2604,6 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 - (void)invokeOnCallbackQueue:(dispatch_queue_t)callbackQueue
              afterUserStopped:(BOOL)afterStopped
                         block:(void (^)(void))block {
-
   if (callbackQueue) {
     dispatch_group_async(_callbackGroup, callbackQueue, ^{
       if (!afterStopped && !self->_stopFetchingTriggersCompletionHandler) {
@@ -4026,8 +4026,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     _stopFetchingTriggersCompletionHandler = flag;
   } else {
     GTMSESSION_ASSERT_DEBUG(
-        0,
-        @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
+        0, @"stopFetchingTriggersCompletionHandler should not change after fetcher starts");
   }
 }
 
