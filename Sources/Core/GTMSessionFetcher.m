@@ -1740,22 +1740,24 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                           startingAtIndex:(NSUInteger)index {
   GTMSessionCheckNotSynchronized(self);
   if (index >= decorators.count) {
-    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators complete",
-                         decorators.count);
+    GTMSESSION_LOG_DEBUG_VERBOSE(
+        @"GTMSessionFetcher decorate requestWillStart %zu decorators complete", decorators.count);
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
     return;
   }
 
   __weak __typeof__(self) weakSelf = self;
   id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
-  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, "
-                       @"retry count %zu, decorator %@",
-                       decorators.count, index, self.retryCount, decorator);
+  GTMSESSION_LOG_DEBUG_VERBOSE(
+      @"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, "
+      @"retry count %zu, decorator %@",
+      decorators.count, index, self.retryCount, decorator);
   [decorator fetcherWillStart:self
             completionHandler:^(NSURLRequest *_Nullable newRequest, NSError *_Nullable error) {
-              GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorator requestWillStart index %zu "
-                                   @"complete, newRequest %@, error %@",
-                                   index, newRequest, error);
+              GTMSESSION_LOG_DEBUG_VERBOSE(
+                  @"GTMSessionFetcher decorator requestWillStart index %zu "
+                  @"complete, newRequest %@, error %@",
+                  index, newRequest, error);
               __strong __typeof__(self) strongSelf = weakSelf;
               if (!strongSelf) {
                 GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestWillStart "
@@ -1783,8 +1785,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                    shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
   GTMSessionCheckNotSynchronized(self);
   if (index >= decorators.count) {
-    GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators complete",
-                         decorators.count);
+    GTMSESSION_LOG_DEBUG_VERBOSE(
+        @"GTMSessionFetcher decorate requestDidFinish %zu decorators complete", decorators.count);
     [self invokeFetchCallbacksOnCallbackQueueWithData:data
                                                 error:error
                                           mayDecorate:NO
@@ -1794,14 +1796,15 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
   __weak __typeof__(self) weakSelf = self;
   id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
-  GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher decorate requestDidFinish %zu decorators, index %zu, "
-                       @"retry count %zu, decorator %@",
-                       decorators.count, index, self.retryCount, decorator);
+  GTMSESSION_LOG_DEBUG_VERBOSE(
+      @"GTMSessionFetcher decorate requestDidFinish %zu decorators, index %zu, "
+      @"retry count %zu, decorator %@",
+      decorators.count, index, self.retryCount, decorator);
   [decorator fetcherDidFinish:self
                      withData:data
                         error:error
             completionHandler:^{
-              GTMSESSION_LOG_DEBUG(
+              GTMSESSION_LOG_DEBUG_VERBOSE(
                   @"GTMSessionFetcher decorator requestDidFinish index %zu complete", index);
               __strong __typeof__(self) strongSelf = weakSelf;
               if (!strongSelf) {
