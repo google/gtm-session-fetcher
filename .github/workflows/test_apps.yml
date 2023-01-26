@@ -18,11 +18,7 @@ on:
 
 jobs:
   xcodebuild:
-    # TODO: back to `macos-latest` once that is updated to point to the newer
-    # images for more current Xcode versions.
-    #  https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#choosing-github-hosted-runners
-    #  https://github.com/actions/runner-images/issues/6384
-    runs-on: macos-12
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
