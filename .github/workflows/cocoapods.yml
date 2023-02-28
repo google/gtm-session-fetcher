@@ -23,16 +23,19 @@ on:
 
 jobs:
   pod-lib-lint:
-    # TODO: back to `macos-latest` once that is updated to point to the newer
     runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
-        # Add back watchOS. See CocoaPods/CocoaPods#11558
-        PLATFORM: ["ios", "macos", "tvos"]
+        # watchOS fails linting when there are test, wedge in --skip-tests for
+        # those runs.
+        PLATFORM: ["ios", "macos", "tvos", "watchos --skip-tests"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v3
+    # Need cocoapods 1.12+ for watchOS to work again.
+    - name: Update Cocoapods
+      run: gem update cocoapods
     # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
       run:  |
