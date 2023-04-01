@@ -474,6 +474,10 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 }
 
 - (void)fetcherDidStop:(GTMSessionFetcher *)fetcher {
+  [self fetcherDidStop:fetcher callbacksPending:false];
+}
+
+- (void)fetcherDidStop:(GTMSessionFetcher *)fetcher callbacksPending:(BOOL) callbacksPending {
   // Entry point from the fetcher
   NSString *host = fetcher.serviceHost;
   if (!host) {
@@ -483,9 +487,11 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
   // This removeFetcher: invocation is a fallback; typically, fetchers are removed from the task
   // map when the task completes.
-  GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
-      [self delegateDispatcherForFetcher:fetcher];
-  [delegateDispatcher removeFetcher:fetcher];
+  if (!callbacksPending) {
+    GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
+    [self delegateDispatcherForFetcher:fetcher];
+    [delegateDispatcher removeFetcher:fetcher];
+  }
 
   NSMutableArray *fetchersToStart;
 
