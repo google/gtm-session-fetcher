@@ -2000,7 +2000,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [holdSelf destroyRetryTimer];
 
   BOOL sendStopNotification = YES;
-  BOOL cancelStopFetcher = NO;
+  BOOL callbacksPending = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2072,7 +2072,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         }
       }
     }
-    cancelStopFetcher = _stopFetchingTriggersCompletionHandler && _userStoppedFetching;
+    callbacksPending = _stopFetchingTriggersCompletionHandler && _userStoppedFetching;
   }  // @synchronized(self)
 
   // If the NSURLSession needs to be invalidated, but needs to wait until the delegate method
@@ -2090,9 +2090,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     self.authorizer = nil;
   }
 
-  if (!cancelStopFetcher) {
-    [service fetcherDidStop:self];
-  }
+  [service fetcherDidStop:self callbacksPending:callbacksPending];
 
 #if GTM_BACKGROUND_TASK_FETCHING
   [self endBackgroundTask];

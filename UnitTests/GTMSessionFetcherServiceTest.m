@@ -466,6 +466,19 @@ static bool IsCurrentProcessBeingDebugged(void) {
 }
 
 - (void)testStopAllFetchers {
+  [self stopAllFetchersHelperUseStopAllAPI:YES callbacksAfterStop:NO];
+}
+
+- (void)testStopAllFetchersSeparately {
+  [self stopAllFetchersHelperUseStopAllAPI:NO callbacksAfterStop:NO];
+}
+
+- (void)testStopAllFetchersSeparatelyWithCallbacks {
+  [self stopAllFetchersHelperUseStopAllAPI:NO callbacksAfterStop:YES];
+}
+
+- (void)stopAllFetchersHelperUseStopAllAPI:(BOOL)useStopAllAPI
+                        callbacksAfterStop:(BOOL)doStopCallbacks {
   if (!_isServerRunning) return;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
@@ -484,12 +497,26 @@ static bool IsCurrentProcessBeingDebugged(void) {
   // Expect two started/stopped fetchers for each host, for 4 total.
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(4, 4);
 
+  XCTestExpectation *fetcherCallbackExpectation =
+      [[XCTNSNotificationExpectation alloc] initWithName:@"callback"];
+  if (doStopCallbacks) {
+    fetcherCallbackExpectation.expectedFulfillmentCount = 4;
+    fetcherCallbackExpectation.assertForOverFulfill = YES;
+  } else {
+    [fetcherCallbackExpectation fulfill];
+  }
+
   // Create and start all the fetchers.
   for (NSURL *fileURL in urlArray) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fileURL];
+    fetcher.stopFetchingTriggersCompletionHandler = doStopCallbacks;
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-      // We shouldn't reach any of the callbacks.
-      XCTFail(@"Fetcher completed but should have been stopped");
+      if (doStopCallbacks) {
+        [fetcherCallbackExpectation fulfill];
+      } else {
+        // We shouldn't reach any of the callbacks.
+        XCTFail(@"Fetcher completed but should have been stopped");
+      }
     }];
   }
 
@@ -506,13 +533,42 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   XCTAssertNil(service.stoppedAllFetchersDate);
 
-  [service stopAllFetchers];
+  NSArray *delayedFetchersByHost;
+  NSArray *runningFetchersByHost;
 
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    delayedFetchersByHost = service.delayedFetchersByHost.allValues;
+    runningFetchersByHost = service.runningFetchersByHost.allValues;
+  }
+
+  if (useStopAllAPI) {
+    [service stopAllFetchers];
+  } else {
+    for (NSArray *delayedForHost in delayedFetchersByHost) {
+      NSArray *delayed = [delayedForHost copy];
+      for (GTMSessionFetcher *fetcher in delayed) {
+        [fetcher stopFetching];
+      }
+    }
+    for (NSArray *runningForHost in runningFetchersByHost) {
+      NSArray *running = [runningForHost copy];
+      for (GTMSessionFetcher *fetcher in running) {
+        [fetcher stopFetching];
+      }
+    }
+  }
+
+  [self waitForExpectations:@[ fetcherCallbackExpectation, fetcherStartedExpectation__,
+                               fetcherStoppedExpectation__ ] timeout:10.0];
 
   XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)0, @"hosts running");
   XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)0, @"hosts delayed");
-  XCTAssertNotNil(service.stoppedAllFetchersDate);
+
+  if (useStopAllAPI) {
+    XCTAssertNotNil(service.stoppedAllFetchersDate);
+  }
 }
 
 - (void)testSessionReuse {
