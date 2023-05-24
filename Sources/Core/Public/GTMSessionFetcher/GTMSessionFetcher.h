@@ -511,6 +511,44 @@ typedef void (^GTMSessionFetcherTestResponse)(NSHTTPURLResponse *_Nullable respo
 typedef void (^GTMSessionFetcherTestBlock)(GTMSessionFetcher *fetcherToTest,
                                            GTMSessionFetcherTestResponse testResponse);
 
+// Provides access to a user-agent string calculated on demand.
+//
+// Methods and properties on this protocol must be thread-safe. In addition,
+// |userAgentCache| must not block the calling thread to perform I/O.
+@protocol GTMUserAgentProvider <NSObject>
+
+// Non-nil user-agent string if |userAgent| has already been cached and is safe
+// to read without blocking the calling thread, |nil| otherwise.
+@property(atomic, readonly, nullable, copy) NSString *cachedUserAgent;
+
+// The user-agent string, calculated on demand. This might block the calling thread if
+// |userAgentCached| is NO.
+@property(atomic, readonly, copy) NSString *userAgent;
+
+@end
+
+/// Provides a User-Agent string that is known at the time the fetcher is created.
+__attribute__((objc_subclassing_restricted))
+@interface GTMUserAgentStringProvider : NSObject<GTMUserAgentProvider>
+
++ (instancetype)new NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
+
+- (instancetype)initWithUserAgentString:(NSString *)userAgentString NS_DESIGNATED_INITIALIZER;
+
+@end
+
+// Calculates the User-Agent string on demand using |GTMFetcherStandardUserAgentString()| given an
+// optional bundle.
+__attribute__((objc_subclassing_restricted))
+@interface GTMStandardUserAgentProvider : NSObject<GTMUserAgentProvider>
+
++ (instancetype)new NS_UNAVAILABLE;
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithBundle:(nullable NSBundle *)bundle NS_DESIGNATED_INITIALIZER;
+
+@end
+
 void GTMSessionFetcherAssertValidSelector(id _Nullable obj, SEL _Nullable sel, ...);
 
 // Utility functions for applications self-identifying to servers via a
@@ -820,6 +858,11 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // The priority assigned to the task, if any.  Use NSURLSessionTaskPriorityLow,
 // NSURLSessionTaskPriorityDefault, or NSURLSessionTaskPriorityHigh.
 @property(atomic, assign) float taskPriority;
+
+// An optional provider to calculate the User-Agent string on demand. If non-nil and
+// an HTTP header field for User-Agent is not set, this is queried before sending out
+// the network request for the User-Agent string.
+@property(atomic, strong, nullable) id<GTMUserAgentProvider> userAgentProvider;
 
 // The fetcher encodes information used to resume a session in the session identifier.
 // This method, intended for internal use returns the encoded information.  The sessionUserInfo

@@ -151,8 +151,42 @@ typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
 
 @end
 
+typedef NSString * (^GTMUserAgentBlock)(void);
+
+@interface GTMUserAgentBlockProvider : NSObject <GTMUserAgentProvider>
+
+@property(atomic, copy) NSString *cachedUserAgent;
+@property(atomic) GTMUserAgentBlock userAgentBlock;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithUserAgentBlock:(GTMUserAgentBlock)userAgentBlock NS_DESIGNATED_INITIALIZER;
+
+@end
+
+@implementation GTMUserAgentBlockProvider
+
+@synthesize cachedUserAgent = _cachedUserAgent;
+
+- (instancetype)initWithUserAgentBlock:(GTMUserAgentBlock)userAgentBlock {
+  self = [super init];
+  if (self) {
+    _userAgentBlock = userAgentBlock;
+  }
+  return self;
+}
+
+- (NSString *)userAgent {
+  return _userAgentBlock();
+}
+
+@end
+
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
+
+@property(class, atomic, assign) BOOL useStandardUserAgentProvider;
+
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
+
 @end
 
 @interface GTMSessionFetcherServiceTestObjectProxy : NSProxy
@@ -1029,6 +1063,126 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+}
+
+- (void)testFetcherShouldUseStandardUserAgent {
+  BOOL oldValue = GTMSessionFetcherService.useStandardUserAgentProvider;
+  GTMSessionFetcherService.useStandardUserAgentProvider = YES;
+  [self addTeardownBlock:^{
+    GTMSessionFetcherService.useStandardUserAgentProvider = oldValue;
+  }];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTAssertNil([fetcher.request valueForHTTPHeaderField:@"User-Agent"]);
+
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        [fetchCompleteExpectation fulfill];
+      }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  NSString *userAgent = [fetcher.request valueForHTTPHeaderField:@"User-Agent"];
+  NSError *error;
+  // Example: com.apple.dt.xctest.tool/14.2 MacOSX/13.3.1
+  // Another example: com.apple.dt.xctest.tool/14.2 Apple_TV/16.1 hw/sim
+  NSRegularExpression *standardUserAgentRegularExpression =
+      [NSRegularExpression regularExpressionWithPattern:@"^.+?/[0-9.]+ .+?/[0-9.]+( .+?/.+?)?$"
+                                                options:0
+                                                  error:&error];
+  XCTAssertNotNil(standardUserAgentRegularExpression, @"Couldn't parse regex: %@", error);
+  NSUInteger numMatches =
+      [standardUserAgentRegularExpression numberOfMatchesInString:userAgent
+                                                          options:0
+                                                            range:NSMakeRange(0, userAgent.length)];
+  XCTAssertEqual(numMatches, 1UL,
+                 @"Standard User-Agent should match expected pattern [Foo/1.2 Bar/1.2]: [%@]",
+                 userAgent);
+}
+
+- (void)testUserAgentFromProviderShouldFetchFromProviderOffMainQueueWhenNotCached {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+    dispatch_assert_queue_not(dispatch_get_main_queue());
+    return @"NotMainQueue";
+  }];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData,
+                                             __unused NSError *fetchError) {
+    XCTAssertEqualObjects([fetcher.request valueForHTTPHeaderField:@"User-Agent"], @"NotMainQueue");
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+}
+
+- (void)testUserAgentFromProviderShouldFetchFromProviderOnMainQueueWhenCached {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  GTMUserAgentBlockProvider *userAgentProvider =
+      [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+        dispatch_assert_queue(dispatch_get_main_queue());
+        return @"MainQueue";
+      }];
+  userAgentProvider.cachedUserAgent = @"MainQueue";
+  service.userAgentProvider = userAgentProvider;
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData,
+                                             __unused NSError *fetchError) {
+    XCTAssertEqualObjects([fetcher.request valueForHTTPHeaderField:@"User-Agent"], @"MainQueue");
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+}
+
+- (void)testStoppingFetchWhileUserAgentProviderInProgressShouldNotInvokeCompletionHandler {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
+  XCTestExpectation *userAgentProvidedExpectation =
+      [self expectationWithDescription:@"User agent provided"];
+  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+    intptr_t wait_result = dispatch_semaphore_wait(
+        fetcherStoppedSemaphore, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC));
+    XCTAssertEqual(0, wait_result);
+    [userAgentProvidedExpectation fulfill];
+    return @"NotUsed";
+  }];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        XCTFail(@"Completion handler should not be invoked");
+      }];
+  [fetcher stopFetching];
+  dispatch_semaphore_signal(fetcherStoppedSemaphore);
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+}
+
+- (void)
+    testStoppingFetchWhileUserAgentProviderInProgressShouldInvokeCompletionHandlerIfPropertySet {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
+  XCTestExpectation *userAgentProvidedExpectation =
+      [self expectationWithDescription:@"User agent provided"];
+  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+    dispatch_semaphore_wait(fetcherStoppedSemaphore, DISPATCH_TIME_FOREVER);
+    [userAgentProvidedExpectation fulfill];
+    return @"NotUsed";
+  }];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher
+      beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
+        [fetchCompleteExpectation fulfill];
+      }];
+  [fetcher stopFetching];
+  dispatch_semaphore_signal(fetcherStoppedSemaphore);
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 - (void)testSingleDecoratorSynchronous {

@@ -73,6 +73,11 @@ extern NSString *const kGTMSessionFetcherServiceSessionKey;
 @property(atomic, assign) BOOL skipBackgroundTask;
 #endif
 
+// An optional provider to calculate the User-Agent string on demand. If non-nil and
+// an HTTP header field for User-Agent is not set, this is queried before sending out
+// the network request for the User-Agent string.
+@property(atomic, strong, nullable) id<GTMUserAgentProvider> userAgentProvider;
+
 // A default useragent of GTMFetcherStandardUserAgentString(nil) will be given to each fetcher
 // created by this service unless the request already has a user-agent header set.
 // This default will be added starting with builds with the SDKs for OS X 10.11 and iOS 9.
