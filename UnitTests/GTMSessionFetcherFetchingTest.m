@@ -83,6 +83,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // For tests that create fetchers without a fetcher service, _fetcherService will
   // be set to nil by the test.
   _fetcherService = [[GTMSessionFetcherService alloc] init];
+  _fetcherService.userAgentProvider =
+      [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"GTMSessionFetcher"];
 
   _testServer = [[GTMSessionFetcherTestServer alloc] init];
   _isServerRunning = (_testServer != nil);

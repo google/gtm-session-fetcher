@@ -26,6 +26,17 @@ NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification =
     @"kGTMSessionFetcherServiceSessionBecameInvalidNotification";
 NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServiceSessionKey";
 
+static id<GTMUserAgentProvider> SharedStandardUserAgentProvider() {
+  static dispatch_once_t onceToken;
+  static id<GTMUserAgentProvider> standardUserAgentProvider;
+  dispatch_once(&onceToken, ^{
+    standardUserAgentProvider = [[GTMStandardUserAgentProvider alloc] initWithBundle:nil];
+  });
+  return standardUserAgentProvider;
+}
+
+static BOOL gUseStandardUserAgentProvider = NO;
+
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
 - (BOOL)beginFetchMayDelay:(BOOL)mayDelay
@@ -35,6 +46,21 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
 @interface GTMSessionFetcherService ()
+
+// If YES, |userAgentProvider| will default to |GTMStandardUserAgentProvider| for new instances of
+// this class. The User-Agent string will be calculated asynchronously off the calling thread and
+// cached.
+//
+// Otherwise, |userAgentProvider| will default to a |GTMUserAgentStringProvider| containing
+// |GTMFetcherStandardUserAgentString()| fetched on the calling thread (which can block).
+//
+// This is intentionally not exposed publicly so that the default behavior of this class can be
+// controlled in tests as well as in experiments to validate the performance of
+// |GTMStandardUserAgentProvider|. Once the default behavior of this class is changed, this property
+// will be removed.
+//
+// Defaults to NO.
+@property(class, atomic, assign) BOOL useStandardUserAgentProvider;
 
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
@@ -90,7 +116,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   dispatch_queue_t _callbackQueue;
   NSOperationQueue *_delegateQueue;
   NSHTTPCookieStorage *_cookieStorage;
-  NSString *_userAgent;
+  id<GTMUserAgentProvider> _userAgentProvider;
   NSTimeInterval _timeout;
 
   NSURLCredential *_credential;       // Username & password.
@@ -117,7 +143,6 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             configuration = _configuration,
             configurationBlock = _configurationBlock,
             cookieStorage = _cookieStorage,
-            userAgent = _userAgent,
             challengeBlock = _challengeBlock,
             credential = _credential,
             proxyCredential = _proxyCredential,
@@ -131,6 +156,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
             metricsCollectionBlock = _metricsCollectionBlock,
             properties = _properties,
             unusedSessionTimeout = _unusedSessionTimeout,
+            userAgentProvider = _userAgentProvider,
             decoratorsPointerArray = _decoratorsPointerArray,
             testBlock = _testBlock;
 // clang-format on
@@ -159,8 +185,16 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
     // Starting with the SDKs for OS X 10.11/iOS 9, the service has a default useragent.
     // Apps can remove this and get the default system "CFNetwork" useragent by setting the
-    // fetcher service's userAgent property to nil.
-    _userAgent = GTMFetcherStandardUserAgentString(nil);
+    // fetcher service's userAgent or userAgentProvider properties to nil.
+    if (self.class.useStandardUserAgentProvider) {
+      // Formatting the User-Agent string can be expensive, so create a shared cache
+      // which asynchronously calculates and caches the standard User-Agent.
+      _userAgentProvider = SharedStandardUserAgentProvider();
+    } else {
+      // This can be very expensive and can block the calling thread.
+      _userAgentProvider = [[GTMUserAgentStringProvider alloc]
+          initWithUserAgentString:GTMFetcherStandardUserAgentString(nil)];
+    }
   }
   return self;
 }
@@ -216,10 +250,7 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
   fetcher.skipBackgroundTask = self.skipBackgroundTask;
 #endif
 
-  NSString *userAgent = self.userAgent;
-  if (userAgent.length > 0 && [request valueForHTTPHeaderField:@"User-Agent"] == nil) {
-    [fetcher setRequestValue:userAgent forHTTPHeaderField:@"User-Agent"];
-  }
+  fetcher.userAgentProvider = self.userAgentProvider;
   fetcher.testBlock = self.testBlock;
 
   return fetcher;
@@ -896,6 +927,48 @@ NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServic
 
     _delegateQueue = queue ?: [NSOperationQueue mainQueue];
   }  // @synchronized(self)
+}
+
+- (nullable NSString *)userAgent {
+  @synchronized(self) {
+    return _userAgentProvider.userAgent;
+  }
+}
+
+- (void)setUserAgent:(nullable NSString *)userAgent {
+  @synchronized(self) {
+    if (userAgent) {
+      _userAgentProvider = [[GTMUserAgentStringProvider alloc]
+          initWithUserAgentString:(NSString *_Nonnull)userAgent];
+    } else {
+      // Support setUserAgent:nil to disable `GTMStandardUserAgentProvider`.
+      _userAgentProvider = nil;
+    }
+  }
+}
+
++ (BOOL)useStandardUserAgentProvider {
+  @synchronized(self) {
+    return gUseStandardUserAgentProvider;
+  }
+}
+
++ (void)setUseStandardUserAgentProvider:(BOOL)useStandardUserAgentProvider {
+  @synchronized(self) {
+    gUseStandardUserAgentProvider = useStandardUserAgentProvider;
+  }
+}
+
+- (nullable id<GTMUserAgentProvider>)userAgentProvider {
+  @synchronized(self) {
+    return _userAgentProvider;
+  }
+}
+
+- (void)setUserAgentProvider:(nullable id<GTMUserAgentProvider>)userAgentProvider {
+  @synchronized(self) {
+    _userAgentProvider = userAgentProvider;
+  }
 }
 
 - (NSOperationQueue *)delegateQueue {
