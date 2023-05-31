@@ -4739,9 +4739,6 @@ NSString *GTMFetcherSystemVersionString(void) {
   return sSavedSystemString;
 }
 
-@interface GTMUserAgentStringProvider ()
-@end
-
 @implementation GTMUserAgentStringProvider
 
 @synthesize userAgent = _userAgent;
