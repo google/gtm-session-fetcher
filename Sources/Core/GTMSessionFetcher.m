@@ -2884,13 +2884,15 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
       if (_receivedProgressBlock) {
         [self invokeOnCallbackQueueUnlessStopped:^{
           GTMSessionFetcherReceivedProgressBlock progressBlock;
+          int64_t downloadedLength;
           @synchronized(self) {
             GTMSessionMonitorSynchronized(self);
 
             progressBlock = self->_receivedProgressBlock;
+            downloadedLength = self->_downloadedLength;
           }
           if (progressBlock) {
-            progressBlock((int64_t)bufferLength, self->_downloadedLength);
+            progressBlock((int64_t)bufferLength, downloadedLength);
           }
         }];
       }
