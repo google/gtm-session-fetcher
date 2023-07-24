@@ -183,8 +183,6 @@ typedef NSString * (^GTMUserAgentBlock)(void);
 
 @interface GTMSessionFetcherService (GTMSessionFetcherServiceInternal)
 
-@property(class, atomic, assign) BOOL useStandardUserAgentProvider;
-
 - (id)delegateDispatcherForFetcher:(GTMSessionFetcher *)fetcher;
 
 @end
@@ -1066,11 +1064,6 @@ static bool IsCurrentProcessBeingDebugged(void) {
 }
 
 - (void)testFetcherShouldUseStandardUserAgent {
-  BOOL oldValue = GTMSessionFetcherService.useStandardUserAgentProvider;
-  GTMSessionFetcherService.useStandardUserAgentProvider = YES;
-  [self addTeardownBlock:^{
-    GTMSessionFetcherService.useStandardUserAgentProvider = oldValue;
-  }];
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
