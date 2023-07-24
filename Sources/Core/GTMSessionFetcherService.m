@@ -35,8 +35,6 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider() {
   return standardUserAgentProvider;
 }
 
-static BOOL gUseStandardUserAgentProvider = NO;
-
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
 - (BOOL)beginFetchMayDelay:(BOOL)mayDelay
@@ -46,21 +44,6 @@ static BOOL gUseStandardUserAgentProvider = NO;
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
 @interface GTMSessionFetcherService ()
-
-// If YES, |userAgentProvider| will default to |GTMStandardUserAgentProvider| for new instances of
-// this class. The User-Agent string will be calculated asynchronously off the calling thread and
-// cached.
-//
-// Otherwise, |userAgentProvider| will default to a |GTMUserAgentStringProvider| containing
-// |GTMFetcherStandardUserAgentString()| fetched on the calling thread (which can block).
-//
-// This is intentionally not exposed publicly so that the default behavior of this class can be
-// controlled in tests as well as in experiments to validate the performance of
-// |GTMStandardUserAgentProvider|. Once the default behavior of this class is changed, this property
-// will be removed.
-//
-// Defaults to NO.
-@property(class, atomic, assign) BOOL useStandardUserAgentProvider;
 
 @property(atomic, strong, readwrite) NSDictionary *delayedFetchersByHost;
 @property(atomic, strong, readwrite) NSDictionary *runningFetchersByHost;
@@ -186,15 +169,10 @@ static BOOL gUseStandardUserAgentProvider = NO;
     // Starting with the SDKs for OS X 10.11/iOS 9, the service has a default useragent.
     // Apps can remove this and get the default system "CFNetwork" useragent by setting the
     // fetcher service's userAgent or userAgentProvider properties to nil.
-    if (self.class.useStandardUserAgentProvider) {
-      // Formatting the User-Agent string can be expensive, so create a shared cache
-      // which asynchronously calculates and caches the standard User-Agent.
-      _userAgentProvider = SharedStandardUserAgentProvider();
-    } else {
-      // This can be very expensive and can block the calling thread.
-      _userAgentProvider = [[GTMUserAgentStringProvider alloc]
-          initWithUserAgentString:GTMFetcherStandardUserAgentString(nil)];
-    }
+    //
+    // Formatting the User-Agent string can be expensive, so create a shared cache
+    // which asynchronously calculates and caches the standard User-Agent.
+    _userAgentProvider = SharedStandardUserAgentProvider();
   }
   return self;
 }
@@ -944,18 +922,6 @@ static BOOL gUseStandardUserAgentProvider = NO;
       // Support setUserAgent:nil to disable `GTMStandardUserAgentProvider`.
       _userAgentProvider = nil;
     }
-  }
-}
-
-+ (BOOL)useStandardUserAgentProvider {
-  @synchronized(self) {
-    return gUseStandardUserAgentProvider;
-  }
-}
-
-+ (void)setUseStandardUserAgentProvider:(BOOL)useStandardUserAgentProvider {
-  @synchronized(self) {
-    gUseStandardUserAgentProvider = useStandardUserAgentProvider;
   }
 }
 
