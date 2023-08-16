@@ -50,6 +50,17 @@ let package = Package(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
             path: "UnitTests",
+	    exclude: ["GTMSessionFetcherUserAgentTest.m"],
+            cSettings: [
+                .headerSearchPath("../Sources/Core")
+            ]
+        ),
+        // This runs in its own target since it exercises global variable initialization.
+	.testTarget(
+	    name: "GTMSessionFetcherUserAgentTests",
+	    dependencies: ["GTMSessionFetcherCore"],
+            path: "UnitTests",
+	    sources: ["GTMSessionFetcherUserAgentTest.m"],
             cSettings: [
                 .headerSearchPath("../Sources/Core")
             ]
