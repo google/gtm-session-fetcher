@@ -4639,7 +4639,8 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str) {
 
   // Delete http token separators and remaining whitespace
   static NSCharacterSet *charsToDelete = nil;
-  if (charsToDelete == nil) {
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
     // Make a set of unwanted characters
     NSString *const kSeparators = @"()<>@;:\\\"/[]?={}";
 
@@ -4647,7 +4648,7 @@ NSString *GTMFetcherCleanedUserAgentString(NSString *str) {
         [[NSCharacterSet whitespaceAndNewlineCharacterSet] mutableCopy];
     [mutableChars addCharactersInString:kSeparators];
     charsToDelete = [mutableChars copy];  // hang on to an immutable copy
-  }
+  });
 
   while (1) {
     NSRange separatorRange = [result rangeOfCharacterFromSet:charsToDelete];
