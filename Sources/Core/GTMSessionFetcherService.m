@@ -26,7 +26,7 @@ NSString *const kGTMSessionFetcherServiceSessionBecameInvalidNotification =
     @"kGTMSessionFetcherServiceSessionBecameInvalidNotification";
 NSString *const kGTMSessionFetcherServiceSessionKey = @"kGTMSessionFetcherServiceSessionKey";
 
-static id<GTMUserAgentProvider> SharedStandardUserAgentProvider() {
+static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
   static dispatch_once_t onceToken;
   static id<GTMUserAgentProvider> standardUserAgentProvider;
   dispatch_once(&onceToken, ^{
