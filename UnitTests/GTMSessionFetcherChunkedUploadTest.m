@@ -1882,8 +1882,6 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   // know when to retry the upload.
   [fetcher setProperty:@40000 forKey:kRetryAtKey];
 
-  fnctr = [[FetcherNotificationsCounter alloc] init];
-
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(data, [self gettysburgAddress]);
