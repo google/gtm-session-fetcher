@@ -1185,6 +1185,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addDecorator:decorator];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  // Ensure this test always runs the decorators synchronously -- if it's the first
+  // test to run, then the `GTMStandardUserAgentProvider` will asynchronously add
+  // the User-Agent.
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
@@ -1244,6 +1248,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   fetcher.retryEnabled = YES;
   fetcher.minRetryInterval = 0.01;
   fetcher.maxRetryInterval = 0.05;
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
@@ -1267,6 +1272,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addDecorator:decorator];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
     XCTAssertEqualObjects(fetchError, error);
@@ -1298,6 +1304,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [service addDecorator:decoratorA];
   [service addDecorator:decoratorB];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
     XCTAssertEqualObjects(fetchError, error);
@@ -1323,6 +1330,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [service addDecorator:decoratorB];
   [service addDecorator:decoratorC];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
@@ -1349,6 +1357,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [service addDecorator:decoratorA];
   [service addDecorator:decoratorB];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
   [fetcher
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
@@ -1376,6 +1385,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   [service addDecorator:decorator];
   GTMSessionFetcher *fetcherA = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcherA.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
+
   XCTestExpectation *fetchCompleteExpectationA =
       [self expectationWithDescription:@"Fetch complete"];
   [fetcherA
@@ -1383,6 +1394,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
         [fetchCompleteExpectationA fulfill];
       }];
   GTMSessionFetcher *fetcherB = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcherB.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectationB =
       [self expectationWithDescription:@"Fetch complete"];
   [fetcherB
@@ -1390,6 +1402,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
         [fetchCompleteExpectationB fulfill];
       }];
   GTMSessionFetcher *fetcherC = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcherC.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
   XCTestExpectation *fetchCompleteExpectationC =
       [self expectationWithDescription:@"Fetch complete"];
   [fetcherC
