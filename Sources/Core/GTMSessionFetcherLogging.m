@@ -17,7 +17,6 @@
 #error "This file requires ARC support."
 #endif
 
-#include <sys/stat.h>
 #include <unistd.h>
 
 #import "GTMSessionFetcher/GTMSessionFetcherLogging.h"
