@@ -1,4 +1,4 @@
-// swift-tools-version:5.1
+// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 
@@ -32,35 +32,44 @@ let package = Package(
         .target(
             name: "GTMSessionFetcherCore",
             path: "Sources/Core",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
+            ],
             publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherFull",
             dependencies: ["GTMSessionFetcherCore"],
             path: "Sources/Full",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
+            ],
             publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherLogView",
             dependencies: ["GTMSessionFetcherCore"],
             path: "Sources/LogView",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
+            ],
             publicHeadersPath: "Public"
         ),
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
             path: "UnitTests",
-	    exclude: ["GTMSessionFetcherUserAgentTest.m"],
+            exclude: ["GTMSessionFetcherUserAgentTest.m"],
             cSettings: [
                 .headerSearchPath("../Sources/Core")
             ]
         ),
         // This runs in its own target since it exercises global variable initialization.
-	.testTarget(
-	    name: "GTMSessionFetcherUserAgentTests",
-	    dependencies: ["GTMSessionFetcherCore"],
+        .testTarget(
+            name: "GTMSessionFetcherUserAgentTests",
+            dependencies: ["GTMSessionFetcherCore"],
             path: "UnitTests",
-	    sources: ["GTMSessionFetcherUserAgentTest.m"],
+            sources: ["GTMSessionFetcherUserAgentTest.m"],
             cSettings: [
                 .headerSearchPath("../Sources/Core")
             ]
