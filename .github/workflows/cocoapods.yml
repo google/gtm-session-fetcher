@@ -32,7 +32,7 @@ jobs:
         PLATFORM: ["ios", "macos", "tvos", "watchos --skip-tests"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     # Need cocoapods 1.12+ for watchOS to work again.
     - name: Update Cocoapods
       run: gem update cocoapods
