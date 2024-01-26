@@ -33,9 +33,6 @@ jobs:
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v4
-    # Need cocoapods 1.12+ for watchOS to work again.
-    - name: Update Cocoapods
-      run: gem update cocoapods
     # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
       run:  |
