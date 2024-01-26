@@ -35,12 +35,18 @@ Pod::Spec.new do |s|
     sp.source_files = 'Sources/Core/**/*.{h,m}'
     sp.public_header_files = 'Sources/Core/Public/GTMSessionFetcher/*.h'
     sp.framework = 'Security'
+    sp.resource_bundle = {
+      "GTMSessionFetcher_Core_Privacy" => "Sources/Core/Resources/PrivacyInfo.xcprivacy"
+    }
   end
 
   s.subspec 'Full' do |sp|
     sp.source_files = 'Sources/Full/**/*.{h,m}'
     sp.public_header_files = 'Sources/Full/Public/GTMSessionFetcher/*.h'
     sp.dependency 'GTMSessionFetcher/Core'
+    sp.resource_bundle = {
+      "GTMSessionFetcher_Full_Privacy" => "Sources/Full/Resources/PrivacyInfo.xcprivacy"
+    }
   end
 
   s.subspec 'LogView' do |sp|
@@ -48,6 +54,9 @@ Pod::Spec.new do |s|
     sp.source_files = 'Sources/LogView/**/*.{h,m}'
     sp.public_header_files = 'Sources/LogView/Public/GTMSessionFetcher/*.h'
     sp.dependency 'GTMSessionFetcher/Core'
+    sp.resource_bundle = {
+      "GTMSessionFetcher_LogView_Privacy" => "Sources/LogView/Resources/PrivacyInfo.xcprivacy"
+    }
   end
 
   s.test_spec 'Tests' do |sp|
