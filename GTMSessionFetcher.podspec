@@ -2,7 +2,7 @@
 # to import GTMSessionFetcher via the CocoaPods dependency Manager.
 Pod::Spec.new do |s|
   s.name        = 'GTMSessionFetcher'
-  s.version     = '3.3.0'
+  s.version     = '3.3.1'
   s.authors     = 'Google Inc.'
   s.license     = { :type => 'Apache', :file => 'LICENSE' }
   s.homepage    = 'https://github.com/google/gtm-session-fetcher'
@@ -16,6 +16,10 @@ Pod::Spec.new do |s|
   as a wrapper on NSURLSession, so its behavior is asynchronous
   and uses operating-system settings.
   DESC
+
+  # Ensure developers won't hit CocoaPods/CocoaPods#11402 with the resource
+  # bundle for the privacy manifest.
+  s.cocoapods_version = '>= 1.12.0'
 
   ios_deployment_target = '10.0'
   osx_deployment_target = '10.12'
