@@ -2769,20 +2769,28 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     @[ @"http://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
     // Secure to insecure = disallowed.
     @[ @"https://original_host/", @"http://redirect_host/", @"https://redirect_host/" ],
-    // Arbitrary change = disallowed.
+    // Arbitrary change = disallowed. This really shouldn't happen since there
+    // would be a redirect from a server to a different protocol.
     @[ @"http://original_host/", @"fake://redirect_host/", @"http://redirect_host/" ],
     // Validate the behavior of nil URLs in the redirect. This should not happen under
-    // real conditions, but if one of the redirect URLs are nil, the other one should
-    // always be returned. For these tests, use a string that will not parse to a URL
-    // due to invalid characters (the backslash \).
-    @[ @"invalid:\\url", @"https://redirect_host/", @"https://redirect_host/" ],
-    @[ @"http://original_host/", @"invalid:\\url", @"http://original_host/" ],
+    // real conditions, but iOS 17 (and the related OSes) changes their behavior for
+    // +[NSURL URLWithString:] for invalid characters, and what used to be a otherwise
+    // malformed URL now gets the characters encoded. This maintains the testing of
+    // the internal helper for these cases, but since the helper is only calls from
+    // an NSURLSession redirect handing, that path should never really see these
+    // sort of cases.
+    @[ @"[nil]", @"https://redirect_host/", @"https://redirect_host/" ],
+    @[ @"http://original_host/", @"[nil]", @"http://original_host/" ],
   ];
+
+  NSURL *(^toNSURL)(NSString*) = ^NSURL*(NSString *s) {
+    return [s isEqual:@"[nil]"] ? nil : [NSURL URLWithString:s];
+  };
 
   for (NSArray<NSString *> *testCase in testCases) {
     NSURL *redirectURL =
-        [GTMSessionFetcher redirectURLWithOriginalRequestURL:[NSURL URLWithString:testCase[0]]
-                                          redirectRequestURL:[NSURL URLWithString:testCase[1]]];
+        [GTMSessionFetcher redirectURLWithOriginalRequestURL:toNSURL(testCase[0])
+                                          redirectRequestURL:toNSURL(testCase[1])];
     XCTAssertEqualObjects(redirectURL, [NSURL URLWithString:testCase[2]]);
   }
 }
