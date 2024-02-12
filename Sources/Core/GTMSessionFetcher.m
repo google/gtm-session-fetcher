@@ -2546,6 +2546,14 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
   NSString *originalScheme = originalRequestURL.scheme;
   NSString *redirectScheme = redirectRequestURL.scheme;
+
+  // If no change in scheme with redirect, just return the redirect.
+  if (originalScheme != nil &&
+      redirectScheme != nil &&
+      [originalScheme caseInsensitiveCompare:redirectScheme] == NSOrderedSame) {
+    return redirectRequestURL;
+  }
+
   BOOL insecureToSecureRedirect =
       (originalScheme != nil && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame &&
        redirectScheme != nil && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
