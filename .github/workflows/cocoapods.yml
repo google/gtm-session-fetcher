@@ -23,7 +23,7 @@ on:
 
 jobs:
   pod-lib-lint:
-    runs-on: macos-latest
+    runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +32,9 @@ jobs:
         PLATFORM: ["ios", "macos", "tvos", "watchos --skip-tests"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
+    # The "macos-14" image defaults to 15.0.1, select the newer Xcode.
+    - name: Xcode version
+      run: sudo xcode-select -switch /Applications/Xcode_15.2.app
     - uses: actions/checkout@v4
     # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
