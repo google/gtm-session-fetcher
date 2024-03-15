@@ -29,12 +29,16 @@ jobs:
       matrix:
         # watchOS fails linting when there are test, wedge in --skip-tests for
         # those runs.
-        PLATFORM: ["ios", "macos", "tvos", "watchos --skip-tests"]
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos --skip-tests"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     # The "macos-14" image defaults to 15.0.1, select the newer Xcode.
     - name: Xcode version
       run: sudo xcode-select -switch /Applications/Xcode_15.2.app
+    # The "macos-14" image has CocoaPods 1.14.x, and 1.15 is needed for visionOS
+    - name: Update CocoaPods
+      if: ${{ matrix.PLATFORM == 'visionos' }}
+      run: gem install cocoapods
     - uses: actions/checkout@v4
     # Manually expanding out static frameworks to avoid making to many jobs.
     - name: Pod lib lint
