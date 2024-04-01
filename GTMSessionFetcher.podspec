@@ -37,6 +37,10 @@ Pod::Spec.new do |s|
 
   s.default_subspec = 'Full'
 
+  s.xcconfig = {
+    'DEFINES_MODULE' => 'YES',
+  }
+
   s.subspec 'Core' do |sp|
     sp.source_files = 'Sources/Core/**/*.{h,m}'
     sp.public_header_files = 'Sources/Core/Public/GTMSessionFetcher/*.h'
