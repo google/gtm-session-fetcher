@@ -1781,6 +1781,36 @@ static bool IsCurrentProcessBeingDebugged(void) {
   XCTAssertNotNil(collectedMetrics);
 }
 
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherService {
+  if (!_isServerRunning) return;
+
+  // GIVEN
+  GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
+  service.allowLocalhostRequest = YES;
+  service.stopFetchingTriggersCompletionHandler = YES;
+
+  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
+  GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
+
+  // EXPECT
+  XCTestExpectation *expectation =
+      [self expectationWithDescription:(id _Nonnull)fetchURL.absoluteString];
+  __block NSError *fetchError = nil;
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *_fetchError) {
+    fetchError = _fetchError;
+    [expectation fulfill];
+  }];
+
+  // WHEN
+  [fetcher stopFetching];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  // THEN
+  XCTAssertNotNil(fetchError);
+  XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
+  XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+}
+
 @end
 
 #endif  // !TARGET_OS_WATCH
