@@ -37,7 +37,7 @@ Pod::Spec.new do |s|
 
   s.default_subspec = 'Full'
 
-  s.xcconfig = {
+  s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
   }
 
