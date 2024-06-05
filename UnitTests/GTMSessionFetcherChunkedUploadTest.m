@@ -21,6 +21,7 @@
 #error "This file requires ARC support."
 #endif
 
+#import "FetcherNotificationsCounter.h"
 #import "GTMSessionFetcherFetchingTest.h"
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init

@@ -21,7 +21,9 @@
 #error "This file requires ARC support."
 #endif
 
+#import "FetcherNotificationsCounter.h"
 #import "GTMSessionFetcherFetchingTest.h"
+#import "SubstituteUIApplication.h"
 
 static bool IsCurrentProcessBeingDebugged(void);
 
@@ -198,6 +200,68 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).delegateCompletionHandler);
     XCTAssertNil(((GTMSessionUploadFetcher *)fetcher).uploadDataProvider);
   }
+}
+
+- (NSString *)currentTestName {
+  NSInvocation *currentTestInvocation = self.invocation;
+  NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
+  return testCaseName;
+}
+
+- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
+  NSURLRequest *request = [self requestWithURLString:urlString];
+  GTMSessionFetcher *fetcher;
+  if (_fetcherService) {
+    fetcher = [_fetcherService fetcherWithRequest:request];
+  } else {
+    fetcher = [GTMSessionFetcher fetcherWithRequest:request];
+  }
+  XCTAssertNotNil(fetcher);
+  fetcher.allowLocalhostRequest = YES;
+  fetcher.allowedInsecureSchemes = @[ @"http" ];
+  fetcher.comment = [self currentTestName];
+  return fetcher;
+}
+
+- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url {
+  return [self fetcherWithURLString:url.absoluteString];
+}
+
+// Utility method for making a fetcher to test for retries.
+- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
+                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
+                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
+                                           userData:(id)userData {
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:urlString];
+
+  fetcher.retryEnabled = YES;
+  fetcher.retryBlock = retryBlock;
+  fetcher.maxRetryInterval = maxRetryInterval;
+  fetcher.userData = userData;
+
+  // We force a minimum retry interval for unit testing; otherwise,
+  // we'd have no idea how many retries will occur before the max
+  // retry interval occurs, since the minimum would be random
+  [fetcher setMinRetryInterval:1.0];
+  return fetcher;
+}
+
+- (void)waitForBackgroundTaskEndedNotifications:(FetcherNotificationsCounter *)fnctr {
+#if GTM_BACKGROUND_TASK_FETCHING
+  // The callback group does not include the main thread dispatch of notifications, so
+  // we need to explicitly wait for those.
+  NSMutableArray *remainingNotificationObjects = [fnctr.backgroundTasksStarted mutableCopy];
+  [remainingNotificationObjects removeObjectsInArray:fnctr.backgroundTasksEnded];
+  if (remainingNotificationObjects.count == 0) return;
+
+  NSMutableArray *expectations NS_VALID_UNTIL_END_OF_SCOPE = [NSMutableArray array];
+  for (id obj in remainingNotificationObjects) {
+    [expectations addObject:[self expectationForNotification:kSubUIAppBackgroundTaskEnded
+                                                      object:obj
+                                                     handler:nil]];
+  }
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+#endif
 }
 
 @end
@@ -2795,70 +2859,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
 }
 
-#pragma mark - Utilities
-
-- (NSString *)currentTestName {
-  NSInvocation *currentTestInvocation = self.invocation;
-  NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
-  return testCaseName;
-}
-
-- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
-  NSURLRequest *request = [self requestWithURLString:urlString];
-  GTMSessionFetcher *fetcher;
-  if (_fetcherService) {
-    fetcher = [_fetcherService fetcherWithRequest:request];
-  } else {
-    fetcher = [GTMSessionFetcher fetcherWithRequest:request];
-  }
-  XCTAssertNotNil(fetcher);
-  fetcher.allowLocalhostRequest = YES;
-  fetcher.allowedInsecureSchemes = @[ @"http" ];
-  fetcher.comment = [self currentTestName];
-  return fetcher;
-}
-
-- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url {
-  return [self fetcherWithURLString:url.absoluteString];
-}
-
-// Utility method for making a fetcher to test for retries.
-- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
-                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
-                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
-                                           userData:(id)userData {
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:urlString];
-
-  fetcher.retryEnabled = YES;
-  fetcher.retryBlock = retryBlock;
-  fetcher.maxRetryInterval = maxRetryInterval;
-  fetcher.userData = userData;
-
-  // We force a minimum retry interval for unit testing; otherwise,
-  // we'd have no idea how many retries will occur before the max
-  // retry interval occurs, since the minimum would be random
-  [fetcher setMinRetryInterval:1.0];
-  return fetcher;
-}
-
-- (void)waitForBackgroundTaskEndedNotifications:(FetcherNotificationsCounter *)fnctr {
-#if GTM_BACKGROUND_TASK_FETCHING
-  // The callback group does not include the main thread dispatch of notifications, so
-  // we need to explicitly wait for those.
-  NSMutableArray *remainingNotificationObjects = [fnctr.backgroundTasksStarted mutableCopy];
-  [remainingNotificationObjects removeObjectsInArray:fnctr.backgroundTasksEnded];
-  if (remainingNotificationObjects.count == 0) return;
-
-  NSMutableArray *expectations NS_VALID_UNTIL_END_OF_SCOPE = [NSMutableArray array];
-  for (id obj in remainingNotificationObjects) {
-    [expectations addObject:[self expectationForNotification:kSubUIAppBackgroundTaskEnded
-                                                      object:obj
-                                                     handler:nil]];
-  }
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-#endif
-}
-
 @end
 
 @implementation TestAuthorizer
@@ -2952,307 +2952,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   self.expired = NO;
   return YES;
 }
-
-@end
-
-#if GTM_BACKGROUND_TASK_FETCHING
-@interface SubstituteUIApplicationTaskInfo : NSObject
-@property(atomic, assign) UIBackgroundTaskIdentifier taskIdentifier;
-@property(atomic, copy) NSString *taskName;
-@property(atomic, copy) dispatch_block_t expirationHandler;
-@end
-
-NSString *const kSubUIAppBackgroundTaskBegan = @"kSubUIAppBackgroundTaskBegan";
-NSString *const kSubUIAppBackgroundTaskEnded = @"kSubUIAppBackgroundTaskEnded";
-
-@implementation SubstituteUIApplication {
-  UIBackgroundTaskIdentifier _identifier;
-  NSMutableDictionary<NSNumber *, SubstituteUIApplicationTaskInfo *> *_identifierToTaskInfoMap;
-}
-
-UIBackgroundTaskIdentifier gTaskID = 1000;
-
-+ (UIBackgroundTaskIdentifier)lastTaskID {
-  @synchronized(self) {
-    return gTaskID;
-  }
-}
-
-+ (UIBackgroundTaskIdentifier)reserveTaskID {
-  @synchronized(self) {
-    return ++gTaskID;
-  }
-}
-
-- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(NSString *)taskName
-                                        expirationHandler:(dispatch_block_t)handler {
-  // Threading stress is tested in [GTMSessionFetcherServiceTest testThreadingStress].
-  // For the simple fetcher tests, the fetchers start on the main thread, so the background
-  // tasks start on the main thread. Since moving the NSURLSession delegate queue to default
-  // to a background queue, this SubstituteUIApplication, gTaskID access, and
-  // FetcherNotificationsCounter must be safe from arbitrary threads.
-  UIBackgroundTaskIdentifier taskID = [SubstituteUIApplication reserveTaskID];
-
-  SubstituteUIApplicationTaskInfo *taskInfo = [[SubstituteUIApplicationTaskInfo alloc] init];
-  taskInfo.taskIdentifier = taskID;
-  taskInfo.taskName = taskName;
-  taskInfo.expirationHandler = handler;
-
-  @synchronized(self) {
-    if (!_identifierToTaskInfoMap) _identifierToTaskInfoMap = [[NSMutableDictionary alloc] init];
-    _identifierToTaskInfoMap[@(taskID)] = taskInfo;
-  }
-
-  // Post the notification synchronously from the current thread.
-  [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskBegan
-                                                      object:@(taskID)];
-  return taskID;
-}
-
-- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)taskID {
-  @synchronized(self) {
-    NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
-             @"endBackgroundTask failed to find task: %lu", (unsigned long)taskID);
-
-    [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
-  }
-
-  // Post the notification synchronously from the current thread.
-  [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskEnded
-                                                      object:@(taskID)];
-}
-
-- (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler {
-  NSUInteger count;
-  @synchronized([SubstituteUIApplication class]) {
-    count = _identifierToTaskInfoMap.count;
-  }
-  if (count == 0) {
-    handler(0, nil);
-    return;
-  }
-
-  @synchronized(self) {
-    for (NSNumber *taskID in _identifierToTaskInfoMap) {
-      SubstituteUIApplicationTaskInfo *taskInfo = _identifierToTaskInfoMap[taskID];
-      taskInfo.expirationHandler();
-    }
-  }
-  // We expect that all background tasks ended themselves soon after their handlers were called.
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), ^{
-                   NSArray<SubstituteUIApplicationTaskInfo *> *failedToExpire;
-                   @synchronized(self) {
-                     failedToExpire = self->_identifierToTaskInfoMap.allValues;
-                   }
-                   handler(count, failedToExpire);
-                 });
-}
-
-@end
-
-@implementation SubstituteUIApplicationTaskInfo
-@synthesize taskIdentifier = _taskIdentifier;
-@synthesize taskName = _taskName;
-@synthesize expirationHandler = _expirationHandler;
-
-- (NSString *)description {
-  return
-      [NSString stringWithFormat:@"<task %lu \"%@\">", (unsigned long)_taskIdentifier, _taskName];
-}
-
-@end
-
-#endif  // GTM_BACKGROUND_TASK_FETCHING
-
-@implementation FetcherNotificationsCounter {
-  NSDate *_counterCreationDate;
-#if GTM_BACKGROUND_TASK_FETCHING
-  UIBackgroundTaskIdentifier _priorTaskID;
-#endif
-}
-
-@synthesize fetchStarted = _fetchStarted, fetchStopped = _fetchStopped,
-            fetchCompletionInvoked = _fetchCompletionInvoked,
-            uploadChunkFetchStarted = _uploadChunkFetchStarted,
-            uploadChunkFetchStopped = _uploadChunkFetchStopped,
-            retryDelayStarted = _retryDelayStarted, retryDelayStopped = _retryDelayStopped,
-            uploadLocationObtained = _uploadLocationObtained,
-            uploadChunkRequestPaths = _uploadChunkRequestPaths,
-            uploadChunkCommands = _uploadChunkCommands, uploadChunkOffsets = _uploadChunkOffsets,
-            uploadChunkLengths = _uploadChunkLengths,
-            fetchersStartedDescriptions = _fetchersStartedDescriptions,
-            fetchersStoppedDescriptions = _fetchersStoppedDescriptions,
-            backgroundTasksStarted = _backgroundTasksStarted,
-            backgroundTasksEnded = _backgroundTasksEnded;
-
-- (instancetype)init {
-  self = [super init];
-  if (self) {
-    _counterCreationDate = [[NSDate alloc] init];
-
-    _uploadChunkRequestPaths = [[NSMutableArray alloc] init];
-    _uploadChunkCommands = [[NSMutableArray alloc] init];
-    _uploadChunkOffsets = [[NSMutableArray alloc] init];
-    _uploadChunkLengths = [[NSMutableArray alloc] init];
-    _fetchersStartedDescriptions = [[NSMutableArray alloc] init];
-    _fetchersStoppedDescriptions = [[NSMutableArray alloc] init];
-    _backgroundTasksStarted = [[NSMutableArray alloc] init];
-    _backgroundTasksEnded = [[NSMutableArray alloc] init];
-#if GTM_BACKGROUND_TASK_FETCHING
-    _priorTaskID = [SubstituteUIApplication lastTaskID];
-#endif
-
-    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-    [nc addObserver:self
-           selector:@selector(fetchStateChanged:)
-               name:kGTMSessionFetcherStartedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(fetchStateChanged:)
-               name:kGTMSessionFetcherStoppedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(fetchCompletionInvoked:)
-               name:kGTMSessionFetcherCompletionInvokedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(retryDelayStateChanged:)
-               name:kGTMSessionFetcherRetryDelayStartedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(retryDelayStateChanged:)
-               name:kGTMSessionFetcherRetryDelayStoppedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(uploadLocationObtained:)
-               name:kGTMSessionFetcherUploadLocationObtainedNotification
-             object:nil];
-#if GTM_BACKGROUND_TASK_FETCHING
-    [nc addObserver:self
-           selector:@selector(backgroundTaskBegan:)
-               name:kSubUIAppBackgroundTaskBegan
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(backgroundTaskEnded:)
-               name:kSubUIAppBackgroundTaskEnded
-             object:nil];
-#endif
-  }
-  return self;
-}
-
-- (void)dealloc {
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
-- (BOOL)shouldIgnoreNotification:(NSNotification *)note {
-  GTMSessionFetcher *fetcher = note.object;
-  NSDate *fetcherBeginDate = fetcher.initialBeginFetchDate;
-  BOOL isTooOld =
-      (fetcherBeginDate && [fetcherBeginDate compare:_counterCreationDate] == NSOrderedAscending);
-  return isTooOld;
-}
-
-- (NSString *)descriptionForFetcher:(GTMSessionFetcher *)fetcher {
-  NSString *description =
-      [NSString stringWithFormat:@"fetcher %p %@ %@", fetcher, fetcher.comment ?: @"<no comment>",
-                                 fetcher.request.URL.absoluteString];
-  if (fetcher.retryCount > 0) {
-    description =
-        [description stringByAppendingFormat:@" retry %lu", (unsigned long)fetcher.retryCount];
-  }
-  return description;
-}
-
-- (void)fetchStateChanged:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  GTMSessionFetcher *fetcher = note.object;
-  BOOL isUploadChunkFetcher = ([fetcher parentUploadFetcher] != nil);
-  BOOL isFetchStartedNotification = [note.name isEqual:kGTMSessionFetcherStartedNotification];
-
-  if (isFetchStartedNotification) {
-    ++_fetchStarted;
-    [_fetchersStartedDescriptions addObject:[self descriptionForFetcher:fetcher]];
-
-    if (isUploadChunkFetcher) {
-      ++_uploadChunkFetchStarted;
-
-      NSURLRequest *request = fetcher.request;
-      NSString *command = [request valueForHTTPHeaderField:@"X-Goog-Upload-Command"];
-      NSInteger offset = [[request valueForHTTPHeaderField:@"X-Goog-Upload-Offset"] integerValue];
-      NSInteger length = [[request valueForHTTPHeaderField:@"Content-Length"] integerValue];
-      NSString *path = request.URL.path;
-      [_uploadChunkRequestPaths addObject:path];
-      [_uploadChunkCommands addObject:command];
-      [_uploadChunkOffsets addObject:@(offset)];
-      [_uploadChunkLengths addObject:@(length)];
-
-      NSAssert([[fetcher parentUploadFetcher] isKindOfClass:[GTMSessionUploadFetcher class]],
-               @"Unexpected parent");
-    }
-  } else {
-    ++_fetchStopped;
-    [_fetchersStoppedDescriptions addObject:[self descriptionForFetcher:fetcher]];
-
-    if (isUploadChunkFetcher) {
-      ++_uploadChunkFetchStopped;
-    }
-  }
-
-  NSAssert(_fetchStopped <= _fetchStarted, @"fetch notification imbalance: starts=%d stops=%d",
-           (int)_fetchStarted, (int)_fetchStopped);
-}
-
-- (void)fetchCompletionInvoked:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  ++_fetchCompletionInvoked;
-}
-
-- (void)retryDelayStateChanged:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  if ([note.name isEqual:kGTMSessionFetcherRetryDelayStartedNotification]) {
-    ++_retryDelayStarted;
-  } else {
-    ++_retryDelayStopped;
-  }
-  NSAssert(_retryDelayStopped <= _retryDelayStarted,
-           @"retry delay notification imbalance: starts=%d stops=%d", (int)_retryDelayStarted,
-           (int)_retryDelayStopped);
-}
-
-- (void)uploadLocationObtained:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  __unused GTMSessionUploadFetcher *fetcher = note.object;
-  NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);
-
-  ++_uploadLocationObtained;
-}
-
-#if GTM_BACKGROUND_TASK_FETCHING
-- (void)backgroundTaskBegan:(NSNotification *)note {
-  // Ignore notifications that predate this object's existence.
-  if (((NSNumber *)note.object).unsignedLongLongValue <= _priorTaskID) {
-    return;
-  }
-  @synchronized(self) {
-    [_backgroundTasksStarted addObject:(id)note.object];
-  }
-}
-
-- (void)backgroundTaskEnded:(NSNotification *)note {
-  @synchronized(self) {
-    // Ignore notifications that were started prior to this object's existence.
-    if (![_backgroundTasksStarted containsObject:(NSNumber *)note.object]) return;
-
-    [_backgroundTasksEnded addObject:(id)note.object];
-  }
-}
-#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 @end
 
