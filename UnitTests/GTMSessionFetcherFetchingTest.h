@@ -62,6 +62,17 @@ extern NSString *const kGTMGettysburgFileName;
 // Utility method for making a request with the object's timeout.
 - (NSMutableURLRequest *)requestWithURLString:(NSString *)urlString;
 
+// Retrieves the name of the currently running test for logging.
+- (NSString *)currentTestName;
+
+// Utility methods for creating fetchers.
+- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString;
+- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url;
+- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
+                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
+                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
+                                           userData:(id)userData;
+
 @end
 
 @interface GTMSessionFetcher (FetchingTest)
@@ -81,54 +92,6 @@ extern NSString *const kGTMGettysburgFileName;
 + (instancetype)asyncAuthorizer;
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
-
-@end
-
-#if GTM_BACKGROUND_TASK_FETCHING
-
-// A fake of UIApplication that posts notifications when a background task begins
-// and ends.
-@class SubstituteUIApplicationTaskInfo;
-
-typedef void (^SubstituteUIApplicationExpirationCallback)(
-    NSUInteger numberOfBackgroundTasksToExpire,
-    NSArray<SubstituteUIApplicationTaskInfo *> *_Nullable tasksFailingToExpire);
-
-@interface SubstituteUIApplication : NSObject <GTMUIApplicationProtocol>
-
-- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
-                                        expirationHandler:(nullable dispatch_block_t)handler;
-- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)identifier;
-
-- (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler;
-
-@end
-
-extern NSString *const kSubUIAppBackgroundTaskBegan;
-extern NSString *const kSubUIAppBackgroundTaskEnded;
-
-#endif  // GTM_BACKGROUND_TASK_FETCHING
-
-@interface FetcherNotificationsCounter : NSObject
-@property(nonatomic) int fetchStarted;
-@property(nonatomic) int fetchStopped;
-@property(nonatomic) int fetchCompletionInvoked;
-@property(nonatomic) int uploadChunkFetchStarted;  // Includes query fetches.
-@property(nonatomic) int uploadChunkFetchStopped;  // Includes query fetches.
-@property(nonatomic) int retryDelayStarted;
-@property(nonatomic) int retryDelayStopped;
-@property(nonatomic) int uploadLocationObtained;
-
-@property(nonatomic) NSMutableArray *uploadChunkRequestPaths;  // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkCommands;      // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkOffsets;       // of NSUInteger
-@property(nonatomic) NSMutableArray *uploadChunkLengths;       // of NSUInteger
-
-@property(nonatomic) NSMutableArray *fetchersStartedDescriptions;  // of NSString
-@property(nonatomic) NSMutableArray *fetchersStoppedDescriptions;  // of NSString
-
-@property(nonatomic) NSMutableArray *backgroundTasksStarted;  // of boxed UIBackgroundTaskIdentifier
-@property(nonatomic) NSMutableArray *backgroundTasksEnded;    // of boxed UIBackgroundTaskIdentifier
 
 @end
 
