@@ -332,6 +332,10 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   return gUploadFetcherPointerArrayForBackgroundSessions;
 }
 
++ (instancetype)fetcherWithSessionIdentifier:(NSString *)sessionIdentifier {
+  return [self uploadFetcherForSessionIdentifier:sessionIdentifier];
+}
+
 + (instancetype)uploadFetcherForSessionIdentifier:(NSString *)sessionIdentifier {
   GTMSESSION_ASSERT_DEBUG(sessionIdentifier != nil, @"Invalid session identifier");
   NSArray *uploadFetchersForBackgroundSessions = [self uploadFetchersForBackgroundSessions];
