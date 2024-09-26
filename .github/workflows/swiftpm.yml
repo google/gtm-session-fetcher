@@ -46,7 +46,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos"]
+        # GitHub runners dropped visionOS. https://github.com/actions/runner-images/issues/10559
+        PLATFORM: ["ios", "macos", "tvos", "watchos"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v4
