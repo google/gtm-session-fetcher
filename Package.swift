@@ -5,10 +5,10 @@ import PackageDescription
 let package = Package(
     name: "GTMSessionFetcher",
     platforms: [
-        .iOS(.v10),
-        .macOS(.v10_12),
-        .tvOS(.v10),
-        .watchOS(.v6)
+        .iOS(.v13),
+        .macOS(.v10_15),
+        .tvOS(.v13),
+        .watchOS(.v7)
     ],
     products: [
         .library(
