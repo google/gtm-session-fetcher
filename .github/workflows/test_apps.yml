@@ -41,10 +41,8 @@ jobs:
             ;;
         esac
 
-        set -o pipefail
         xcodebuild \
             -project TestApps/TestApps.xcodeproj \
             -scheme "${XCODE_SCHEME}" \
             -configuration ${{ matrix.CONFIGURATION }} \
-            build \
-          | xcpretty
+            build
