@@ -494,7 +494,7 @@
 					../Sources/Core/Public,
 					../Sources/Full/Public,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -579,7 +579,7 @@
 					../Sources/Core/Public,
 					../Sources/Full/Public,
 				);
-				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				SDKROOT = macosx;
 				TVOS_DEPLOYMENT_TARGET = 13.0;
