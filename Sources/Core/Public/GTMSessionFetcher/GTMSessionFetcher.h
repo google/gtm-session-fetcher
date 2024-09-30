@@ -367,8 +367,8 @@ extern "C" {
 // Apps targeting new SDKs can force the old behavior by defining
 // GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH = 0.
 #ifndef GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH
-// Default to the on-launch behavior for iOS.
-#if TARGET_OS_IOS
+// Default to the on-launch behavior for iOS 13+.
+#if TARGET_OS_IOS && defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
 #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 1
 #else
 #define GTMSESSION_RECONNECT_BACKGROUND_SESSIONS_ON_LAUNCH 0
