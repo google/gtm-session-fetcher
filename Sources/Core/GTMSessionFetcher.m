@@ -97,7 +97,6 @@ NS_ASSUME_NONNULL_END
 #define GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY 1
 #endif
 
-#define GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
 #if TARGET_OS_IOS
 # if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0
 #  define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
@@ -969,14 +968,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 #if !GTM_ALLOW_INSECURE_REQUESTS
 #if GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
     _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
-#elif GTM_SDK_SUPPORTS_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
-    if (@available(iOS 13, tvOS 13, macOS 10.15, *)) {
+#else
+    if (@available(iOS 13, *)) {
       _configuration.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
     } else {
       _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
     }
-#else
-    _configuration.TLSMinimumSupportedProtocol = kTLSProtocol12;
 #endif  // GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION
 #endif
   }  // !_configuration
