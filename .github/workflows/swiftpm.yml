@@ -46,14 +46,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # GitHub runners dropped visionOS. https://github.com/actions/runner-images/issues/10559
-        PLATFORM: ["ios", "macos", "tvos", "watchos"]
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v4
     - name: Build and Test
       run:  |
         set -eu
+        ACTIONS="build test"
         case "${{matrix.PLATFORM}}" in
           ios)
             DESTINATION="platform=iOS Simulator,name=iPhone 14,OS=latest"
@@ -65,7 +65,10 @@ jobs:
             DESTINATION="platform=tvOS Simulator,name=Apple TV,OS=latest"
             ;;
           visionos)
+            # https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+            # doesn't list any visionOS simulators installed
             DESTINATION="platform=visionOS Simulator,name=Apple Vision Pro,OS=latest"
+            ACTIONS="build"
             ;;
           watchos)
             DESTINATION="platform=WatchOS Simulator,name=Apple Watch Series 7 (45mm),OS=latest"
@@ -76,4 +79,4 @@ jobs:
             -scheme GTMSessionFetcher-Package \
             -configuration ${{ matrix.CONFIGURATION }} \
             -destination "${DESTINATION}" \
-            build test
+            ${ACTIONS}
