@@ -5,7 +5,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-static atomic_bool gShouldStartThreads = ATOMIC_VAR_INIT(false);
+static atomic_bool gShouldStartThreads = false;
 
 typedef NS_ENUM(NSInteger, GTMSessionFetcherUserAgentThreadState) {
   GTMSessionFetcherUserAgentThreadStateDefault = 0,
