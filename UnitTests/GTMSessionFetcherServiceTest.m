@@ -592,8 +592,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
     }
   }
 
-  [self waitForExpectations:@[ fetcherCallbackExpectation, fetcherStartedExpectation__,
-                               fetcherStoppedExpectation__ ] timeout:10.0];
+  [self waitForExpectations:@[
+    fetcherCallbackExpectation, fetcherStartedExpectation__, fetcherStoppedExpectation__
+  ]
+                    timeout:10.0];
 
   XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)0, @"hosts running");
   XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)0, @"hosts delayed");
@@ -1781,34 +1783,116 @@ static bool IsCurrentProcessBeingDebugged(void) {
   XCTAssertNotNil(collectedMetrics);
 }
 
+- (void)testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherService {
+  [self helperForStopFetchers:1 stopDelaySeconds:1 reuseSession:NO];
+}
+
 - (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherService {
+  [self helperForStopFetchers:1 stopDelaySeconds:0 reuseSession:NO];
+}
+
+- (void)
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse {
+  [self helperForStopFetchers:1 stopDelaySeconds:1 reuseSession:YES];
+}
+
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse10 {
+  [self helperForStopFetchers:10 stopDelaySeconds:0 reuseSession:NO];
+}
+
+- (void)
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse10 {
+  [self helperForStopFetchers:10 stopDelaySeconds:1 reuseSession:NO];
+}
+
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse10 {
+  [self helperForStopFetchers:10 stopDelaySeconds:0 reuseSession:YES];
+}
+
+- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse10 {
+  [self helperForStopFetchers:10 stopDelaySeconds:1 reuseSession:YES];
+}
+
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse40 {
+  // Higher count to attempt catching any cases where concurrent fetches to the same host get
+  // delayed in some way.
+  [self helperForStopFetchers:40 stopDelaySeconds:0 reuseSession:NO];
+}
+
+- (void)
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse40 {
+  // Higher count to attempt catching any cases where concurrent fetches to the same host get
+  // delayed in some way.
+  [self helperForStopFetchers:40 stopDelaySeconds:1 reuseSession:NO];
+}
+
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse40 {
+  // Higher count to attempt catching any cases where concurrent fetches to the same host get
+  // delayed in some way.
+  [self helperForStopFetchers:40 stopDelaySeconds:0 reuseSession:YES];
+}
+
+- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse40 {
+  // Higher count to attempt catching any cases where concurrent fetches to the same host get
+  // delayed in some way.
+  [self helperForStopFetchers:40 stopDelaySeconds:1 reuseSession:YES];
+}
+
+- (void)helperForStopFetchers:(NSUInteger)numberOfFetches
+             stopDelaySeconds:(unsigned int)sleepTime
+                 reuseSession:(BOOL)reuseSession {
+  XCTAssertTrue(numberOfFetches > 0);
+
   if (!_isServerRunning) return;
 
-  // GIVEN
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowLocalhostRequest = YES;
   service.stopFetchingTriggersCompletionHandler = YES;
+  service.reuseSession = reuseSession;
 
   NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
-  GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
+  NSData *gettysburgAddress = [_testServer documentDataAtPath:kValidFileName];
 
-  // EXPECT
-  XCTestExpectation *expectation =
-      [self expectationWithDescription:(id _Nonnull)fetchURL.absoluteString];
-  __block NSError *fetchError = nil;
-  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *_fetchError) {
-    fetchError = _fetchError;
-    [expectation fulfill];
-  }];
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Completion expection"];
+  expectation.expectedFulfillmentCount = numberOfFetches;
 
-  // WHEN
-  [fetcher stopFetching];
+  NSMutableArray<GTMSessionFetcher *> *fetchers =
+      [NSMutableArray arrayWithCapacity:numberOfFetches];
+  for (NSUInteger i = numberOfFetches; i; --i) {
+    GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
+    [fetchers addObject:fetcher];
+
+    [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+      if (fetchData) {
+        XCTAssertEqualObjects(fetchData, gettysburgAddress);
+        XCTAssertNil(fetchError);
+      }
+      if (fetchError) {
+        XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
+        XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+        XCTAssertNil(fetchData);
+      }
+      [expectation fulfill];
+    }];
+  }
+  XCTAssertEqual(fetchers.count, numberOfFetches);
+
+  if (sleepTime) {
+    sleep(sleepTime);
+  }
+
+  // If there is >1 fetcher, stop all the initial ones, and let the last one finish.
+  NSArray<GTMSessionFetcher *> *fetcherToStop =
+      numberOfFetches > 1 ? [fetchers subarrayWithRange:NSMakeRange(0, numberOfFetches - 1)]
+                          : fetchers;
+  fetchers = nil;
+  for (GTMSessionFetcher *fetcher in fetcherToStop) {
+    [fetcher stopFetching];
+  }
+  fetcherToStop = nil;
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
-  // THEN
-  XCTAssertNotNil(fetchError);
-  XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
-  XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  // The completion does all the validations.
 }
 
 @end
