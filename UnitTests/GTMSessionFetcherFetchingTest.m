@@ -1570,7 +1570,15 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #endif
 }
 
-- (void)testCancelFetchWithCallback {
+- (void)testDelayedCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:1];
+}
+
+- (void)testImmediateCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:0];
+}
+
+- (void)internalCancelFetchWithCallback:(unsigned int)sleepTime {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -1591,7 +1599,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [expectation fulfill];
   }];
 
-  sleep(1);
+  if (sleepTime) {
+    sleep(sleepTime);
+  }
   [fetcher stopFetching];
 
   WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
@@ -2847,14 +2857,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     @[ @"http://original_host/", @"[nil]", @"http://original_host/" ],
   ];
 
-  NSURL *(^toNSURL)(NSString*) = ^NSURL*(NSString *s) {
+  NSURL * (^toNSURL)(NSString *) = ^NSURL *(NSString *s) {
     return [s isEqual:@"[nil]"] ? nil : [NSURL URLWithString:s];
   };
 
   for (NSArray<NSString *> *testCase in testCases) {
-    NSURL *redirectURL =
-        [GTMSessionFetcher redirectURLWithOriginalRequestURL:toNSURL(testCase[0])
-                                          redirectRequestURL:toNSURL(testCase[1])];
+    NSURL *redirectURL = [GTMSessionFetcher redirectURLWithOriginalRequestURL:toNSURL(testCase[0])
+                                                           redirectRequestURL:toNSURL(testCase[1])];
     XCTAssertEqualObjects(redirectURL, [NSURL URLWithString:testCase[2]]);
   }
 }
