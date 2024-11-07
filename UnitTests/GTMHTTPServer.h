@@ -114,6 +114,9 @@ enum {
 @property(nonatomic, readonly) int statusCode;
 @property(nonatomic, copy) NSData *body;
 
+// If non zero, the response will be queued tobe sent after this amount of time.
+@property(nonatomic) double delaySeconds;
+
 + (instancetype)responseWithString:(NSString *)plainText;
 + (instancetype)responseWithHTMLString:(NSString *)htmlString;
 + (instancetype)responseWithBody:(NSData *)body

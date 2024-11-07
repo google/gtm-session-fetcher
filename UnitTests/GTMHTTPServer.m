@@ -416,7 +416,20 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
             NSOutputStream *outputStream = connDict[kOutputStream];
             [outputStream scheduleInRunLoop:[NSRunLoop currentRunLoop]
                                     forMode:NSDefaultRunLoopMode];
-            [outputStream open];
+            if (response.delaySeconds) {
+              dispatch_time_t delayTime =
+                  dispatch_time(DISPATCH_TIME_NOW, (int64_t)(response.delaySeconds * NSEC_PER_SEC));
+              dispatch_after(delayTime, dispatch_get_main_queue(), ^{
+                @try {
+                  [outputStream open];
+                } @catch (NSException *e) {
+                  NSLog(@"Exception while doing a delayed response open: %@", e);
+                }  // COV_NF_LINE - radar 5851992 only reachable w/ an uncaught exception,
+                   // un-testable
+              });
+            } else {
+              [outputStream open];
+            }
           }
         }
       } @catch (NSException *e) {  // COV_NF_START
@@ -650,6 +663,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 @implementation GTMHTTPResponseMessage {
   CFHTTPMessageRef _message;
 }
+
+@synthesize delaySeconds = _delaySeconds;
 
 - (instancetype)init {
   return [self initWithBody:nil contentType:nil statusCode:0];
