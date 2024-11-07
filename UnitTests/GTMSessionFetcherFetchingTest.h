@@ -85,11 +85,13 @@ extern NSString *const kGTMGettysburgFileName;
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
 @property(atomic, assign, getter=isAsync) BOOL async;
+@property(atomic, assign) NSUInteger delay;  // Only honored if async
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
 
 + (instancetype)syncAuthorizer;
 + (instancetype)asyncAuthorizer;
++ (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds;
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
