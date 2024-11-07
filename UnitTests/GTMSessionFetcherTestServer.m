@@ -489,9 +489,9 @@ static NSString *const kEtag = @"GoodETag";
 
   NSString *sleepStr = [[self class] valueForParameter:@"sleep" query:query];
   if (sleepStr) {
-    NSTimeInterval interval = [sleepStr doubleValue];
-    [NSThread sleepForTimeInterval:interval];
-    return sendResponse(408, nil, nil);  // request timeout
+    GTMHTTPResponseMessage *response = sendResponse(408, nil, nil);  // request timeout
+    response.delaySeconds = [sleepStr doubleValue];
+    return response;
   }
   if (ifMatch != nil && ![ifMatch isEqual:kEtag]) {
     // there is no match, hence this is an inconsistent PUT or DELETE
