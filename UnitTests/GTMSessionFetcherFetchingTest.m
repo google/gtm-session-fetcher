@@ -1578,19 +1578,56 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self internalCancelFetchWithCallback:0];
 }
 
+- (void)testDelayedSyncAuthCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer syncAuthorizer]];
+}
+
+- (void)testImmediateSyncAuthCancelFetchWithCallback {
+  XCTSkip(@"Has failed on CI, but not locally, needs investigation.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
+}
+
+- (void)testDelayedAsyncAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
+}
+
+- (void)testImmediateAsyncAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
+}
+
+- (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
+}
+
+- (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
+}
+
 - (void)internalCancelFetchWithCallback:(unsigned int)sleepTime {
+  [self internalCancelFetchWithCallback:sleepTime authorizer:nil];
+}
+
+#pragma clang diagnostic ignored "-Wdeprecated"
+- (void)internalCancelFetchWithCallback:(unsigned int)sleepTime
+                             authorizer:(nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
+#pragma clang diagnostic pop
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
-  __block GTMSessionFetcher *fetcher;
-
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
                                                            parameters:@{@"sleep" : @"10"}];
-  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
   fetcher.stopFetchingTriggersCompletionHandler = YES;
+  if (authorizer) {
+    fetcher.authorizer = authorizer;
+  }
   XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data, @"error data unexpected");
@@ -2871,7 +2908,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @end
 
 @implementation TestAuthorizer
-@synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError;
+@synthesize async = _async, delay = _delay, expired = _expired,
+            willFailWithError = _willFailWithError;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
@@ -2880,6 +2918,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 + (instancetype)asyncAuthorizer {
   TestAuthorizer *authorizer = [self syncAuthorizer];
   authorizer.async = YES;
+  return authorizer;
+}
+
++ (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.async = YES;
+  authorizer.delay = delaySeconds;
   return authorizer;
 }
 
@@ -2908,9 +2953,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
 
   if (self.async) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-      handler(error);
-    });
+    if (self.delay) {
+      dispatch_time_t delay_time =
+          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
+      dispatch_after(delay_time, dispatch_get_main_queue(), ^{
+        handler(error);
+      });
+    } else {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        handler(error);
+      });
+    }
   } else {
     handler(error);
   }
