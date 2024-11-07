@@ -135,18 +135,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (NSString *)localURLStringToTestFileName:(NSString *)name parameters:(NSDictionary *)params {
-  NSString *localURLString = [self localURLStringToTestFileName:name];
-
-  // Add any parameters from the dictionary.
-  if (params.count) {
-    NSMutableArray *array = [NSMutableArray array];
-    for (NSString *key in params) {
-      [array addObject:[NSString stringWithFormat:@"%@=%@", key,
-                                                  [[params objectForKey:key] description]]];
-    }
-    NSString *paramsStr = [array componentsJoinedByString:@"&"];
-    localURLString = [localURLString stringByAppendingFormat:@"?%@", paramsStr];
-  }
+  NSString *localURLString = [[_testServer localURLForFile:name parameters:params] absoluteString];
   return localURLString;
 }
 
