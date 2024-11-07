@@ -231,6 +231,22 @@ static NSString *const kEtag = @"GoodETag";
   return [NSURL URLWithString:urlString];
 }
 
+- (NSURL *)localURLForFile:(NSString *)name parameters:(NSDictionary *)params {
+  NSURL *url = [self localURLForFile:name];
+  if (!params.count) {
+    return url;
+  }
+  NSString *urlString = [url absoluteString];
+  NSMutableArray *array = [NSMutableArray array];
+  for (NSString *key in params) {
+    [array addObject:[NSString
+                         stringWithFormat:@"%@=%@", key, [[params objectForKey:key] description]]];
+  }
+  NSString *paramsStr = [array componentsJoinedByString:@"&"];
+  urlString = [urlString stringByAppendingFormat:@"?%@", paramsStr];
+  return [NSURL URLWithString:urlString];
+}
+
 - (NSData *)documentDataAtPath:(NSString *)requestPath {
   if ([requestPath hasPrefix:@"/"]) {
     requestPath = [requestPath substringFromIndex:1];
