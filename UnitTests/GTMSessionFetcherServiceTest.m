@@ -1797,46 +1797,21 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [self helperForStopFetchers:1 stopDelaySeconds:1 reuseSession:YES];
 }
 
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse10 {
-  [self helperForStopFetchers:10 stopDelaySeconds:0 reuseSession:NO];
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse5 {
+  [self helperForStopFetchers:5 stopDelaySeconds:0 reuseSession:NO];
 }
 
 - (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse10 {
-  [self helperForStopFetchers:10 stopDelaySeconds:1 reuseSession:NO];
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse5 {
+  [self helperForStopFetchers:5 stopDelaySeconds:1 reuseSession:NO];
 }
 
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse10 {
-  [self helperForStopFetchers:10 stopDelaySeconds:0 reuseSession:YES];
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse5 {
+  [self helperForStopFetchers:5 stopDelaySeconds:0 reuseSession:YES];
 }
 
-- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse10 {
-  [self helperForStopFetchers:10 stopDelaySeconds:1 reuseSession:YES];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40 stopDelaySeconds:0 reuseSession:NO];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40 stopDelaySeconds:1 reuseSession:NO];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40 stopDelaySeconds:0 reuseSession:YES];
-}
-
-- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40 stopDelaySeconds:1 reuseSession:YES];
+- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse5 {
+  [self helperForStopFetchers:5 stopDelaySeconds:1 reuseSession:YES];
 }
 
 - (void)testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSync {
@@ -1861,69 +1836,31 @@ static bool IsCurrentProcessBeingDebugged(void) {
                    authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse10 {
-  [self helperForStopFetchers:10
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:NO
                    authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse10 {
-  [self helperForStopFetchers:10
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:NO
                    authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse10 {
-  [self helperForStopFetchers:10
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:YES
                    authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse10 {
-  [self helperForStopFetchers:10
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
+    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:YES
                    authorizer:[TestAuthorizer syncAuthorizer]];
@@ -1951,71 +1888,31 @@ static bool IsCurrentProcessBeingDebugged(void) {
                    authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse10 {
-  [self helperForStopFetchers:10
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:NO
                    authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse10 {
-  [self helperForStopFetchers:10
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:NO
                    authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse10 {
-  [self helperForStopFetchers:10
+- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:YES
                    authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse10 {
-  [self helperForStopFetchers:10
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
+    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:YES
                    authorizer:[TestAuthorizer asyncAuthorizer]];
@@ -2045,72 +1942,32 @@ static bool IsCurrentProcessBeingDebugged(void) {
 }
 
 - (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse10 {
-  [self helperForStopFetchers:10
+    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:NO
                    authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse10 {
-  [self helperForStopFetchers:10
+    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:NO
                    authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse10 {
-  [self helperForStopFetchers:10
+    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:0
                  reuseSession:YES
                    authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
 }
 
 - (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse10 {
-  [self helperForStopFetchers:10
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse40 {
-  // Higher count to attempt catching any cases where concurrent fetches to the same host get
-  // delayed in some way.
-  [self helperForStopFetchers:40
+    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse5 {
+  [self helperForStopFetchers:5
              stopDelaySeconds:1
                  reuseSession:YES
                    authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
@@ -2144,60 +2001,39 @@ static bool IsCurrentProcessBeingDebugged(void) {
     service.authorizer = authorizer;
   }
 
-  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
-  NSData *gettysburgAddress = [_testServer documentDataAtPath:kValidFileName];
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"Completion expection"];
-  expectation.expectedFulfillmentCount = numberOfFetches;
-
-  __block NSUInteger successfulFetches = 0;
-  __block NSUInteger failureFetches = 0;
-
+  // Use a URL that will timeout, so the fetch takes a long time so we can cancel it.
+  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName parameters:@{@"sleep" : @"5"}];
   NSMutableArray<GTMSessionFetcher *> *fetchers =
       [NSMutableArray arrayWithCapacity:numberOfFetches];
   for (NSUInteger i = numberOfFetches; i; --i) {
     GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
     [fetchers addObject:fetcher];
+  }
+  XCTAssertEqual(fetchers.count, numberOfFetches);
 
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Completion expection"];
+  expectation.expectedFulfillmentCount = numberOfFetches;
+
+  for (GTMSessionFetcher *fetcher in fetchers) {
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-      if (fetchData) {
-        ++successfulFetches;
-        XCTAssertEqualObjects(fetchData, gettysburgAddress);
-        XCTAssertNil(fetchError);
-      }
-      if (fetchError) {
-        ++failureFetches;
-        XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
-        XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
-        XCTAssertNil(fetchData);
-      }
+      XCTAssertNil(fetchData);
+      XCTAssertNotNil(fetchError);
+      XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
+      XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
       [expectation fulfill];
     }];
   }
-  XCTAssertEqual(fetchers.count, numberOfFetches);
 
   if (sleepTime) {
     sleep(sleepTime);
   }
 
-  // If there is >1 fetcher, stop all the initial ones, and let the last one finish.
-  NSArray<GTMSessionFetcher *> *fetchersToStop =
-      numberOfFetches > 1 ? [fetchers subarrayWithRange:NSMakeRange(0, numberOfFetches - 1)]
-                          : fetchers;
-  fetchers = nil;
-  for (GTMSessionFetcher *fetcher in fetchersToStop) {
+  for (GTMSessionFetcher *fetcher in fetchers) {
     [fetcher stopFetching];
   }
-  fetchersToStop = nil;
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  fetchers = nil;
 
-  if (numberOfFetches > 1) {
-    XCTAssertEqual(successfulFetches, 1);
-    XCTAssertEqual(failureFetches, numberOfFetches - 1);
-  } else {
-    XCTAssertEqual(successfulFetches, 0);
-    XCTAssertEqual(failureFetches, 1);
-  }
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
 @end
