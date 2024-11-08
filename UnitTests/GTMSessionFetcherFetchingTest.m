@@ -1610,8 +1610,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
+  // Use a URL that will timeout, so the fetch takes a long time so we can cancel it.
   NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                           parameters:@{@"sleep" : @"10"}];
+                                                           parameters:@{@"sleep" : @"5"}];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
   fetcher.stopFetchingTriggersCompletionHandler = YES;
   if (authorizer) {
