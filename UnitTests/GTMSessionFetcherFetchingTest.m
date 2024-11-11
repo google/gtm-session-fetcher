@@ -1563,7 +1563,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self internalCancelFetchWithCallback:1];
 }
 
+- (void)testDelayedCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self internalCancelFetchWithCallback:1];
+}
+
 - (void)testImmediateCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:0];
+}
+
+- (void)testImmediateCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
   [self internalCancelFetchWithCallback:0];
 }
 
@@ -1571,7 +1581,18 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
+- (void)testDelayedSyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer syncAuthorizer]];
+}
+
 - (void)testImmediateSyncAuthCancelFetchWithCallback {
+  XCTSkip(@"Has failed on CI, but not locally, needs investigation.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
+}
+
+- (void)testImmediateSyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
   XCTSkip(@"Has failed on CI, but not locally, needs investigation.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
 }
@@ -1581,7 +1602,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
+- (void)testDelayedAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
+}
+
 - (void)testImmediateAsyncAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
+}
+
+- (void)testImmediateAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
   XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
@@ -1591,7 +1624,19 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
 }
 
+- (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
+}
+
 - (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback {
+  XCTSkip(@"Currently fails, needs fixing.");
+  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
+}
+
+- (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
   XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
 }
