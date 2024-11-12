@@ -1993,9 +1993,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   self.retryBlock = nil;
   self.testBlock = nil;
   self.resumeDataBlock = nil;
-  if (@available(iOS 10.0, *)) {
-    self.metricsCollectionBlock = nil;
-  }
+  self.metricsCollectionBlock = nil;
 }
 
 - (void)forgetSessionIdentifierForFetcher {
@@ -3114,8 +3112,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 - (void)URLSession:(NSURLSession *)session
                           task:(NSURLSessionTask *)task
-    didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics
-    API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
+    didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
     GTMSessionFetcherMetricsCollectionBlock metricsCollectionBlock = _metricsCollectionBlock;

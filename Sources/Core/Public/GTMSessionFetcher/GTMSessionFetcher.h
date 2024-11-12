@@ -503,7 +503,6 @@ typedef void (^GTMSessionFetcherRetryResponse)(BOOL shouldRetry);
 typedef void (^GTMSessionFetcherRetryBlock)(BOOL suggestedWillRetry, NSError *_Nullable error,
                                             GTMSessionFetcherRetryResponse response);
 
-API_AVAILABLE(ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0))
 typedef void (^GTMSessionFetcherMetricsCollectionBlock)(NSURLSessionTaskMetrics *metrics);
 
 typedef void (^GTMSessionFetcherTestResponse)(NSHTTPURLResponse *_Nullable response,
@@ -1077,9 +1076,7 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // The optional block for collecting the metrics of the present session.
 //
 // This is called on the callback queue.
-@property(atomic, copy, nullable)
-    GTMSessionFetcherMetricsCollectionBlock metricsCollectionBlock API_AVAILABLE(
-        ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0));
+@property(atomic, copy, nullable) GTMSessionFetcherMetricsCollectionBlock metricsCollectionBlock;
 
 // Retry intervals must be strictly less than maxRetryInterval, else
 // they will be limited to maxRetryInterval and no further retries will
