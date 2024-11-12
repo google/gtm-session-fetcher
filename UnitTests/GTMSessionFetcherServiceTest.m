@@ -304,8 +304,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
   // We'll verify we fetched from the server the same data that is on disk.
   NSData *gettysburgAddress = [_testServer documentDataAtPath:kValidFileName];
 
-  // We'll create 10 fetchers.  Only 2 should run simultaneously.
-  // 1 should fail; the rest should succeeed.
+  // We'll create several fetchers.  Only 2 should run simultaneously (per host).
+  // 1 should fail; a few will be stopped the rest should succeeed.
   const NSUInteger kMaxRunningFetchersPerHost = 2;
 
   NSString *const kUserAgent = @"ServiceTest-UA";
@@ -322,10 +322,18 @@ static bool IsCurrentProcessBeingDebugged(void) {
   NSString *invalidFile = [kValidFileName stringByAppendingString:@"?status=400"];
   NSURL *invalidFileURL = [_testServer localURLForFile:invalidFile];
 
+  NSString *stopSilentFile = [kValidFileName stringByAppendingString:@"?stop=silent"];
+  NSURL *stopSilentFileURL = [_testServer localURLForFile:stopSilentFile];
+
+  NSString *stopCallbackFile = [kValidFileName stringByAppendingString:@"?stop=callback"];
+  NSURL *stopCallbackFileURL = [_testServer localURLForFile:stopCallbackFile];
+
   NSURL *altValidURL = [_testServer localv6URLForFile:invalidFile];
 
   XCTAssertEqualObjects(validFileURL.host, @"localhost", @"unexpected host");
   XCTAssertEqualObjects(invalidFileURL.host, @"localhost", @"unexpected host");
+  XCTAssertEqualObjects(stopSilentFileURL.host, @"localhost", @"unexpected host");
+  XCTAssertEqualObjects(stopCallbackFileURL.host, @"localhost", @"unexpected host");
   XCTAssertEqualObjects(altValidURL.host, @"::1", @"unexpected host");
 
   // Make an array with the urls from the different hosts, including one
@@ -334,13 +342,20 @@ static bool IsCurrentProcessBeingDebugged(void) {
   for (int idx = 1; idx <= 4; idx++) [urlArray addObject:validFileURL];
   [urlArray addObject:invalidFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
+  for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopSilentFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:altValidURL];
+  // TODO(thomasvl) currently fail: The current code paths remove these from
+  // pending, but doesn't actually get the completions ever called as requested.
+  // Will be fixed in follow up PRs.
+  // for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopCallbackFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
+  for (int idx = 1; idx <= 2; idx++) [urlArray addObject:stopSilentFileURL];
   NSUInteger totalNumberOfFetchers = urlArray.count;
 
   __block NSMutableArray *pending = [NSMutableArray array];
   __block NSMutableArray *running = [NSMutableArray array];
   __block NSMutableArray *completed = [NSMutableArray array];
+  NSMutableArray *stoppedNoCallback = [NSMutableArray array];
 
   NSInteger priorityVal = 0;
 
@@ -367,6 +382,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
                   NSURLRequest *fetcherReq = fetcher.request;
                   NSURL *fetcherReqURL = fetcherReq.URL;
+
+                  // A fetcher that gets stopped should not trigger any notifications.
+                  XCTAssertFalse([fetcherReqURL.query hasPrefix:@"stop="]);
+
                   NSString *host = fetcherReqURL.host;
                   NSUInteger numberRunning = FetchersPerHost(running, host);
                   XCTAssertTrue(numberRunning > 0, @"count error");
@@ -403,19 +422,25 @@ static bool IsCurrentProcessBeingDebugged(void) {
                   [completed addObject:fetcher];
                   [running removeObject:fetcher];
 
-                  NSString *host = fetcher.request.URL.host;
+                  // A fetcher that gets stopped should not trigger any notifications.
+                  NSURL *fetcherReqURL = fetcher.request.URL;
+                  XCTAssertFalse([fetcherReqURL.query hasPrefix:@"stop="]);
 
+                  NSString *host = fetcherReqURL.host;
                   NSUInteger numberRunning = FetchersPerHost(running, host);
                   NSUInteger numberPending = FetchersPerHost(pending, host);
                   NSUInteger numberCompleted = FetchersPerHost(completed, host);
+                  NSUInteger numberStopped = FetchersPerHost(stoppedNoCallback, host);
 
                   XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost,
                                            @"too many running");
                   XCTAssertLessThanOrEqual(
-                      numberPending + numberRunning + numberCompleted, URLsPerHost(urlArray, host),
-                      @"%d issued running (pending:%u running:%u completed:%u)",
+                      numberPending + numberRunning + numberCompleted + numberStopped,
+                      URLsPerHost(urlArray, host),
+                      @"%d issued running (pending:%u running:%u completed:%u stopped: %u)",
                       (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
-                      (unsigned int)numberRunning, (unsigned int)numberCompleted);
+                      (unsigned int)numberRunning, (unsigned int)numberCompleted,
+                      (unsigned int)numberStopped);
 
                   // The stop notification may be posted on the main thread before or after the
                   // fetcher service has been notified the fetcher has stopped.
@@ -429,6 +454,12 @@ static bool IsCurrentProcessBeingDebugged(void) {
     if (priorityVal > 1) priorityVal = -1;
     fetcher.servicePriority = priorityVal;
 
+    BOOL stopFetch = [fileURL.query hasPrefix:@"stop="];
+    BOOL stopWithCallback = [fileURL.query isEqual:@"stop=callback"];
+    if (stopWithCallback) {
+      fetcher.stopFetchingTriggersCompletionHandler = YES;
+    }
+
     // Start this fetcher.
     [fetchersInFlight addObject:fetcher];
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
@@ -436,25 +467,43 @@ static bool IsCurrentProcessBeingDebugged(void) {
       XCTAssert([fetchersInFlight containsObject:fetcher]);
       [fetchersInFlight removeObjectIdenticalTo:fetcher];
 
-      // The query should be empty except for the URL with a status code.
+      // The query should be empty except for the URL with a status code or the ones
+      // marked for stopping.
       NSString *query = [fetcher.request.URL query];
       BOOL isValidRequest = (query.length == 0);
       if (isValidRequest) {
         XCTAssertEqualObjects(fetchData, gettysburgAddress, @"Bad fetch data");
         XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, fetchError.userInfo);
       } else {
-        // This is the query with ?status=400.
-        XCTAssertEqual(fetchError.code, (NSInteger)400, @"expected error");
+        if ([query isEqual:@"stop=callback"]) {
+          XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain, @"expected error");
+          XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled, @"expected error");
+        } else if ([query hasPrefix:@"stop="]) {
+          XCTFail(@"Should not have gotten completion for stopped call");
+        } else {
+          // This is the query with ?status=400.
+          XCTAssertEqual(fetchError.code, (NSInteger)400, @"expected error");
+        }
       }
       [expectation fulfill];
     }];
+    if (stopFetch) {
+      [fetcher stopFetching];
+      [pending removeObject:fetcher];
+      if (!stopWithCallback) {
+        [stoppedNoCallback addObject:fetcher];
+        [fetchersInFlight removeObject:fetcher];
+        [expectation fulfill];
+      }
+    }
   }
 
   [self waitForExpectations:expectations timeout:_timeoutInterval];
 
   XCTAssertEqual(pending.count, (NSUInteger)0, @"still pending: %@", pending);
   XCTAssertEqual(running.count, (NSUInteger)0, @"still running: %@", running);
-  XCTAssertEqual(completed.count, (NSUInteger)totalNumberOfFetchers, @"incomplete");
+  XCTAssertEqual(completed.count + stoppedNoCallback.count, (NSUInteger)totalNumberOfFetchers,
+                 @"incomplete");
   XCTAssertEqual(fetchersInFlight.count, (NSUInteger)0, @"Uncompleted: %@", fetchersInFlight);
 
   XCTAssertEqual([service numberOfFetchers], (NSUInteger)0, @"service non-empty");
@@ -545,6 +594,9 @@ static bool IsCurrentProcessBeingDebugged(void) {
     fetcher.stopFetchingTriggersCompletionHandler = doStopCallbacks;
     [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
       if (doStopCallbacks) {
+        // Since they are getting stopped, they should all produce errors, not data.
+        XCTAssertNil(fetchData);
+        XCTAssertNotNil(fetchError);
         [fetcherCallbackExpectation fulfill];
       } else {
         // We shouldn't reach any of the callbacks.
@@ -560,25 +612,23 @@ static bool IsCurrentProcessBeingDebugged(void) {
   // We should see two fetchers running and one delayed for each host.
   NSArray *localhosts = [service.runningFetchersByHost objectForKey:@"localhost"];
   XCTAssertEqual(localhosts.count, (NSUInteger)2, @"hosts running");
+  NSArray *localv6hosts = [service.runningFetchersByHost objectForKey:@"::1"];
+  XCTAssertEqual(localv6hosts.count, (NSUInteger)2, @"hosts running");
 
   localhosts = [service.delayedFetchersByHost objectForKey:@"localhost"];
   XCTAssertEqual(localhosts.count, (NSUInteger)1, @"hosts delayed");
+  localv6hosts = [service.delayedFetchersByHost objectForKey:@"::1"];
+  XCTAssertEqual(localv6hosts.count, (NSUInteger)1, @"hosts delayed");
 
   XCTAssertNil(service.stoppedAllFetchersDate);
-
-  NSArray *delayedFetchersByHost;
-  NSArray *runningFetchersByHost;
-
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    delayedFetchersByHost = service.delayedFetchersByHost.allValues;
-    runningFetchersByHost = service.runningFetchersByHost.allValues;
-  }
 
   if (useStopAllAPI) {
     [service stopAllFetchers];
   } else {
+    // Stop the delayed fetchers first so a delayed one doesn't get started when canceling
+    // a running one.
+    NSArray *delayedFetchersByHost = service.delayedFetchersByHost.allValues;
+    NSArray *runningFetchersByHost = service.runningFetchersByHost.allValues;
     for (NSArray *delayedForHost in delayedFetchersByHost) {
       NSArray *delayed = [delayedForHost copy];
       for (GTMSessionFetcher *fetcher in delayed) {
@@ -603,6 +653,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   if (useStopAllAPI) {
     XCTAssertNotNil(service.stoppedAllFetchersDate);
+  } else {
+    XCTAssertNil(service.stoppedAllFetchersDate);
   }
 }
 
