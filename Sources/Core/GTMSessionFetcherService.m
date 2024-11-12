@@ -659,6 +659,8 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
     [_runningFetchersByHost removeAllObjects];
   }
 
+  // Stop the delayed fetchers first so a delayed one doesn't get started when canceling
+  // a running one.
   for (NSArray *delayedForHost in delayedFetchersByHost) {
     for (GTMSessionFetcher *fetcher in delayedForHost) {
       [self stopFetcher:fetcher];
