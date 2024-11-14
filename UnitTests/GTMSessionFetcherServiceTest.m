@@ -341,6 +341,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
   NSMutableArray *urlArray = [NSMutableArray array];
   for (int idx = 1; idx <= 4; idx++) [urlArray addObject:validFileURL];
   [urlArray addObject:invalidFileURL];
+  // Ensure things will get queued due to the per host limit.
+  XCTAssertGreaterThan(urlArray.count, kMaxRunningFetchersPerHost);
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
   for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopSilentFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:altValidURL];
@@ -352,10 +354,12 @@ static bool IsCurrentProcessBeingDebugged(void) {
   for (int idx = 1; idx <= 2; idx++) [urlArray addObject:stopSilentFileURL];
   NSUInteger totalNumberOfFetchers = urlArray.count;
 
+  // These are used to track the fetchers via notifications.
   __block NSMutableArray *pending = [NSMutableArray array];
   __block NSMutableArray *running = [NSMutableArray array];
   __block NSMutableArray *completed = [NSMutableArray array];
-  NSMutableArray *stoppedNoCallback = [NSMutableArray array];
+  // Fetchers that will get stopped.
+  NSMutableArray *stopped = [NSMutableArray array];
 
   NSInteger priorityVal = 0;
 
@@ -376,15 +380,14 @@ static bool IsCurrentProcessBeingDebugged(void) {
                     object:fetcher
                      queue:nil
                 usingBlock:^(NSNotification *note) {
+                  XCTAssertTrue([pending containsObject:fetcher]);
+
                   // Verify that we have at most two fetchers running for this fetcher's host.
                   [running addObject:fetcher];
                   [pending removeObject:fetcher];
 
                   NSURLRequest *fetcherReq = fetcher.request;
                   NSURL *fetcherReqURL = fetcherReq.URL;
-
-                  // A fetcher that gets stopped should not trigger any notifications.
-                  XCTAssertFalse([fetcherReqURL.query hasPrefix:@"stop="]);
 
                   NSString *host = fetcherReqURL.host;
                   NSUInteger numberRunning = FetchersPerHost(running, host);
@@ -418,6 +421,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
                     object:fetcher
                      queue:nil
                 usingBlock:^(NSNotification *note) {
+                  XCTAssertTrue([running containsObject:fetcher]);
+
                   // Verify that we only have two fetchers running.
                   [completed addObject:fetcher];
                   [running removeObject:fetcher];
@@ -430,7 +435,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
                   NSUInteger numberRunning = FetchersPerHost(running, host);
                   NSUInteger numberPending = FetchersPerHost(pending, host);
                   NSUInteger numberCompleted = FetchersPerHost(completed, host);
-                  NSUInteger numberStopped = FetchersPerHost(stoppedNoCallback, host);
+                  NSUInteger numberStopped = FetchersPerHost(stopped, host);
 
                   XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost,
                                            @"too many running");
@@ -447,8 +452,6 @@ static bool IsCurrentProcessBeingDebugged(void) {
                 }];
     [observers addObject:stopObserver];
 
-    [pending addObject:fetcher];
-
     // Set the fetch priority to a value that cycles 0, 1, -1, 0, ...
     priorityVal++;
     if (priorityVal > 1) priorityVal = -1;
@@ -458,6 +461,17 @@ static bool IsCurrentProcessBeingDebugged(void) {
     BOOL stopWithCallback = [fileURL.query isEqual:@"stop=callback"];
     if (stopWithCallback) {
       fetcher.stopFetchingTriggersCompletionHandler = YES;
+    }
+
+    if (stopFetch) {
+      // All the fetchers that will be stopped should end up queued, as we're
+      // also testing that they are handled correctly for callbacks and the
+      // general per host limits. So make sure we've got atleast the max per
+      // host pending already.
+      NSUInteger numberPending = FetchersPerHost(pending, fetcher.request.URL.host);
+      XCTAssertGreaterThanOrEqual(numberPending, kMaxRunningFetchersPerHost);
+    } else {
+      [pending addObject:fetcher];
     }
 
     // Start this fetcher.
@@ -489,9 +503,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
     }];
     if (stopFetch) {
       [fetcher stopFetching];
-      [pending removeObject:fetcher];
-      if (!stopWithCallback) {
-        [stoppedNoCallback addObject:fetcher];
+      [stopped addObject:fetcher];
+      if (stopWithCallback) {
+        // The completion will remove it from inflight and complete the expectation.
+      } else {
         [fetchersInFlight removeObject:fetcher];
         [expectation fulfill];
       }
@@ -500,10 +515,12 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   [self waitForExpectations:expectations timeout:_timeoutInterval];
 
+  // Check the notification counts.
   XCTAssertEqual(pending.count, (NSUInteger)0, @"still pending: %@", pending);
   XCTAssertEqual(running.count, (NSUInteger)0, @"still running: %@", running);
-  XCTAssertEqual(completed.count + stoppedNoCallback.count, (NSUInteger)totalNumberOfFetchers,
+  XCTAssertEqual(completed.count + stopped.count, (NSUInteger)totalNumberOfFetchers,
                  @"incomplete");
+  // All the expected callbacks happened.
   XCTAssertEqual(fetchersInFlight.count, (NSUInteger)0, @"Uncompleted: %@", fetchersInFlight);
 
   XCTAssertEqual([service numberOfFetchers], (NSUInteger)0, @"service non-empty");
