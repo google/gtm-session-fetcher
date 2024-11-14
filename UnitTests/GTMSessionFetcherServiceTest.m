@@ -346,11 +346,9 @@ static bool IsCurrentProcessBeingDebugged(void) {
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
   for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopSilentFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:altValidURL];
-  // TODO(thomasvl) currently fail: The current code paths remove these from
-  // pending, but doesn't actually get the completions ever called as requested.
-  // Will be fixed in follow up PRs.
-  // for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopCallbackFileURL];
+  for (int idx = 1; idx <= 3; idx++) [urlArray addObject:stopCallbackFileURL];
   for (int idx = 1; idx <= 5; idx++) [urlArray addObject:validFileURL];
+  for (int idx = 1; idx <= 2; idx++) [urlArray addObject:stopCallbackFileURL];
   for (int idx = 1; idx <= 2; idx++) [urlArray addObject:stopSilentFileURL];
   NSUInteger totalNumberOfFetchers = urlArray.count;
 
@@ -572,6 +570,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [self stopAllFetchersHelperUseStopAllAPI:NO callbacksAfterStop:NO];
 }
 
+- (void)testStopAllFetchersWithCallbacks {
+  [self stopAllFetchersHelperUseStopAllAPI:YES callbacksAfterStop:YES];
+}
+
 - (void)testStopAllFetchersSeparatelyWithCallbacks {
   [self stopAllFetchersHelperUseStopAllAPI:NO callbacksAfterStop:YES];
 }
@@ -599,9 +601,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
   XCTestExpectation *fetcherCallbackExpectation =
       [[XCTNSNotificationExpectation alloc] initWithName:@"callback"];
   if (doStopCallbacks) {
-    fetcherCallbackExpectation.expectedFulfillmentCount = 4;
+    fetcherCallbackExpectation.expectedFulfillmentCount = urlArray.count;
     fetcherCallbackExpectation.assertForOverFulfill = YES;
   } else {
+    // No callbacks, just complete this expectation now.
     [fetcherCallbackExpectation fulfill];
   }
 
