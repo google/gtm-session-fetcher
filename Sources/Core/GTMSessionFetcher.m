@@ -706,11 +706,16 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     mayDelay = NO;
   }
   if (mayDelay && _service) {
-    // Set the delayed state so there can't be a race incase between it getting queued in
-    // the `fetcherShouldBeginFetching:` call and some other thread completing a different
-    // fetch and thus starting this one (if we were trying to set the state based on the
-    // return result).
-    @synchronized(self) { _delayState = kDelayStateServiceDelayed; }
+    BOOL savedStoppedState;
+    @synchronized(self) {
+      savedStoppedState = _userStoppedFetching;
+      // Set the delayed state so there can't be a race incase between it getting queued in
+      // the `fetcherShouldBeginFetching:` call and some other thread completing a different
+      // fetch and thus starting this one. If we were trying to set the state based on the
+      // return result, there would be a small window for that race.
+      _delayState = kDelayStateServiceDelayed;
+    }
+
     BOOL shouldFetchNow = [_service fetcherShouldBeginFetching:self];
     if (!shouldFetchNow) {
       // The fetch is deferred, but will happen later.
@@ -726,8 +731,21 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       }
       return;
     }
-    // Per comment above, correct state since it wasn't delayed.
-    @synchronized(self) { _delayState = kDelayStateNotDelayed; }
+
+    @synchronized(self) {
+      // Per comment above, correct state since it wasn't delayed.
+      _delayState = kDelayStateNotDelayed;
+
+      // If a `-stopFetching` came in while the service check was made, then the side effect of the
+      // state setting caused the handler (if needed) to already be made, so there we want to just
+      // exit and not continue the fetch.
+      //
+      // TODO(thomasvl): If `savedStoppedState` was already `YES`, then it's a more general problem
+      // which will be handled elsewhere/later.
+      if (!savedStoppedState && savedStoppedState != _userStoppedFetching) {
+        return;
+      }
+    }
   }
 
   if ([fetchRequest valueForHTTPHeaderField:@"User-Agent"] == nil) {
@@ -2051,14 +2069,28 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 // External stop method
 - (void)stopFetching {
+  BOOL triggerCallback;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
     // Prevent enqueued callbacks from executing. The completion handler will still execute if
     // the property `stopFetchingTriggersCompletionHandler` is `YES`.
     _userStoppedFetching = YES;
+
+    // `stopFetchReleasingCallbacks:` will dequeue it if there is a sevice throttled
+    // delay, so the canceled callback needs to be directly triggered since the serivce
+    // won't attempt to restart it.
+    triggerCallback = _delayState == kDelayStateServiceDelayed && self.stopFetchingTriggersCompletionHandler;
   }  // @synchronized(self)
-  [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
+
+  if (triggerCallback) {
+    NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                         code:GTMSessionFetcherErrorUserCancelled
+                                     userInfo:nil];
+    [self finishWithError:error shouldRetry:NO];
+  } else {
+    [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
+  }
 }
 
 // Cancel the fetch of the URL that's currently in progress.
