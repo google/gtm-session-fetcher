@@ -124,6 +124,19 @@ NS_ASSUME_NONNULL_END
 #define GTM_SWIFT_DISABLE_ASYNC
 #endif
 
+// Internal tracking of the delayed state.
+//
+// This is currently not complete, it is being worked in to better track things
+// to ensure `stopFetching` always triggers callback when requested.
+typedef NS_ENUM(NSUInteger, GTMSessionFetcherDelayState) {
+  kDelayStateNotDelayed = 0,
+  kDelayStateServiceDelayed,
+  kDelayStateCalculatingUA,
+  kDelayStateAuthorizing,
+  // TODO(thomasvl): More to be added as needed.
+  // ApplyingDecorators?
+};
+
 @interface GTMSessionFetcher ()
 
 @property(atomic, strong, readwrite, nullable) NSData *downloadedData;
@@ -239,6 +252,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                                    // initial beginFetch
   NSDate *_initialRequestDate;     // date of first request to the target server (ignoring auth)
   BOOL _hasAttemptedAuthRefresh;   // accessed only in shouldRetryNowForStatus:
+
+  GTMSessionFetcherDelayState _delayState;
 
   NSString *_comment;  // comment for log
   NSString *_log;
@@ -487,6 +502,11 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
+  // Reset the delayed state since things are starting over.
+  @synchronized(self) {
+    _delayState = kDelayStateNotDelayed;
+  }
+
   NSMutableURLRequest *fetchRequest =
       _request;  // The request property is now externally immutable.
   NSURL *fetchRequestURL = fetchRequest.URL;
@@ -686,17 +706,28 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     mayDelay = NO;
   }
   if (mayDelay && _service) {
+    // Set the delayed state so there can't be a race incase between it getting queued in
+    // the `fetcherShouldBeginFetching:` call and some other thread completing a different
+    // fetch and thus starting this one (if we were trying to set the state based on the
+    // return result).
+    @synchronized(self) { _delayState = kDelayStateServiceDelayed; }
     BOOL shouldFetchNow = [_service fetcherShouldBeginFetching:self];
     if (!shouldFetchNow) {
       // The fetch is deferred, but will happen later.
       //
       // If this session is held by the fetcher service, clear the session now so that we don't
       // assume it's still valid after the fetcher is restarted.
+      //
+      // NOTE: In hindsight, this could be a race, some other thread could be starting it while
+      // doing these checks/work, but it also doesn't seem safe to put the whole block in a
+      // since `@synchronized(self)` block.
       if (self.canShareSession) {
         self.session = nil;
       }
       return;
     }
+    // Per comment above, correct state since it wasn't delayed.
+    @synchronized(self) { _delayState = kDelayStateNotDelayed; }
   }
 
   if ([fetchRequest valueForHTTPHeaderField:@"User-Agent"] == nil) {
@@ -1016,6 +1047,9 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                                     mayDecorate:(BOOL)mayDecorate {
   GTMSESSION_LOG_DEBUG_VERBOSE(
       @"GTMSessionFetcher fetching User-Agent from GTMUserAgentProvider %@...", _userAgentProvider);
+  @synchronized(self) {
+    _delayState = kDelayStateCalculatingUA;
+  }
   __weak __typeof__(self) weakSelf = self;
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     __strong __typeof__(self) strongSelf = weakSelf;
@@ -1735,6 +1769,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 - (void)authorizeRequest {
   GTMSessionCheckNotSynchronized(self);
+
+  @synchronized(self) {
+    _delayState = kDelayStateAuthorizing;
+  }
 
   id authorizer = self.authorizer;
   // Prefer the block-based implementation. This *is* a change in behavior, but if authorizers
