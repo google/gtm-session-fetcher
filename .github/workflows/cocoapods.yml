@@ -29,8 +29,7 @@ jobs:
       matrix:
         # watchOS fails linting when there are test, wedge in --skip-tests for
         # those runs.
-        # GitHub runners dropped visionOS. https://github.com/actions/runner-images/issues/10559
-        PLATFORM: ["ios", "macos", "tvos", "watchos --skip-tests"]
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos --skip-tests"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v4
