@@ -27,9 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # watchOS fails linting when there are test, wedge in --skip-tests for
-        # those runs.
-        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos --skip-tests"]
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
     - uses: actions/checkout@v4
