@@ -1788,8 +1788,27 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (void)authorizeRequest {
   GTMSessionCheckNotSynchronized(self);
 
+  BOOL stopped = NO;
   @synchronized(self) {
-    _delayState = kDelayStateAuthorizing;
+    if (_userStoppedFetching) {
+      stopped = YES;
+    } else {
+      // Go into the delayed state for getting the authorization.
+      _delayState = kDelayStateAuthorizing;
+    }
+  }
+
+  if (stopped) {
+    // We end up here if someone calls `stopFetching` from another thread/queue while
+    // the fetch was being started up, so while `stopFetching` did the needed shutdown
+    // we have to ensure the requested callback was triggered.
+    if (self.stopFetchingTriggersCompletionHandler) {
+      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                           code:GTMSessionFetcherErrorUserCancelled
+                                       userInfo:nil];
+      [self finishWithError:error shouldRetry:NO];
+    }
+    return;
   }
 
   id authorizer = self.authorizer;
@@ -1827,13 +1846,26 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     finishedWithError:(nullable NSError *)error {
   GTMSessionCheckNotSynchronized(self);
 
+  @synchronized(self) {
+    // If `stopFetching` was called, do nothing, since the fetch was in a delay state
+    // any needed callback already happened.
+    if (_userStoppedFetching) {
+      return;
+    }
+    if (error == nil) {
+      _request = authorizedRequest;
+
+      // If `stopFetching` wasn't called, clear the `_delayState`, so a call after this
+      // point will trigger a callback as needed. This also ensure if this is going to
+      // error below a cancel callback couldn't also trigger.
+      _delayState = kDelayStateNotDelayed;
+    }
+  }
+
   if (error != nil) {
     // We can't fetch without authorization
     [self failToBeginFetchWithError:(NSError *_Nonnull)error];
   } else {
-    @synchronized(self) {
-      _request = authorizedRequest;
-    }
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
 }
@@ -2080,7 +2112,12 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // `stopFetchReleasingCallbacks:` will dequeue it if there is a sevice throttled
     // delay, so the canceled callback needs to be directly triggered since the serivce
     // won't attempt to restart it.
-    triggerCallback = _delayState == kDelayStateServiceDelayed && self.stopFetchingTriggersCompletionHandler;
+    //
+    // And the authorization delay assumes all stop notifications needed will be done
+    // from here.
+    triggerCallback =
+        (_delayState == kDelayStateServiceDelayed || _delayState == kDelayStateAuthorizing) &&
+        self.stopFetchingTriggersCompletionHandler;
   }  // @synchronized(self)
 
   if (triggerCallback) {
