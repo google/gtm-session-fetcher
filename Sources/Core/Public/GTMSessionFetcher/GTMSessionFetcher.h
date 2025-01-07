@@ -873,6 +873,8 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // The fetcher encodes information used to resume a session in the session identifier.
 // This method, intended for internal use returns the encoded information.  The sessionUserInfo
 // dictionary is stored as identifier metadata.
+// NOTE: This type is a lie and could be an issue for Swift. The values for private keys (prefixed
+// with an underscore) aren't always strings; but changing the type is a breaking change.
 - (nullable NSDictionary<NSString *, NSString *> *)sessionIdentifierMetadata;
 
 #if TARGET_OS_IPHONE && !TARGET_OS_WATCH
