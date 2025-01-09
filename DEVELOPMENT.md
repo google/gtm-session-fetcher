@@ -68,16 +68,12 @@ To update the version number and push a release:
 
 1.  Publish the CocoaPod.
 
-    1.  Do a final sanity check on the podspec file:
+    ```sh
+    $ pod trunk push --skip-tests GTMSessionFetcher.podspec
+    ```
 
-        ```sh
-        $ pod spec lint GTMSessionFetcher.podspec
-        ```
-
-        If you used the update script above, this should pass without problems.
-
-    1.  Publish the pod:
-
-        ```sh
-        $ pod trunk push GTMSessionFetcher.podspec
-        ```
+    NOTE: We use `--skip-tests` because CocoaPods has issues testing spec that
+    have tests and target watchOS. The CI setup also skips the tests for watchOS
+    for the same reason. Since we generally get testing on ever PR these seems
+    to be safe. If CI ever can start to enable watchOS tests, that running the
+    tests against as part of the push will be an option.
