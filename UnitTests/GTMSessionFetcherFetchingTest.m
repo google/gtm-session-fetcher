@@ -54,6 +54,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @interface GTMSessionFetcher (ExposedForTesting)
 + (nullable NSURL *)redirectURLWithOriginalRequestURL:(nullable NSURL *)originalRequestURL
                                    redirectRequestURL:(nullable NSURL *)redirectRequestURL;
+- (NSString *)createSessionIdentifierWithMetadata:(NSDictionary *)metadata;
+@end
+
+@interface TestIdentifierMetadataFecher : GTMSessionFetcher
+@property(strong, nullable) NSDictionary *testIdentifierMetadata;
+@end
+
+@implementation TestIdentifierMetadataFecher
+- (nullable NSDictionary *)sessionIdentifierMetadataUnsynchronized {
+  return self.testIdentifierMetadata;
+}
 @end
 
 // Base class for fetcher and chunked upload tests.
@@ -257,6 +268,120 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 @end
 
 @implementation GTMSessionFetcherFetchingTest
+
+#pragma mark - SessionUserInfo Tests
+
+- (void)testSetSessionUserInfo {
+  GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+
+  @try {
+    NSDictionary *dict = @{@1 : @"invalid non string key"};
+    fetcher.sessionUserInfo = dict;
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason, @"sessionUserInfo keys must be NSStrings: 1");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  // Key with a leading underscore
+  @try {
+    fetcher.sessionUserInfo = @{@"_invalidUnderscore" : @"value"};
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason, @"sessionUserInfo keys starting with an underscore are "
+                                            @"reserved for the library: _invalidUnderscore");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  @try {
+    NSDictionary *dict = @{@"InvalidNonStringValue" : @1};
+    fetcher.sessionUserInfo = dict;
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason,
+                          @"Values in sessionUserInfo must be NSStrings: InvalidNonStringValue: 1");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  NSDictionary *validDict = @{@"key" : @"value"};
+  @try {
+    fetcher.sessionUserInfo = validDict;
+  } @catch (NSException *exception) {
+    XCTFail(@"Shouldn't have gotten here: %@", exception);
+  }
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, validDict);
+  XCTAssertTrue(fetcher.sessionUserInfo == validDict);  // Ptr equality, property is strong.
+}
+
+- (void)testCreateSessionIdentifierWithMetadata {
+  // Since `sessionUserInfo` is a `strong` property, the value can be modified after being set
+  // and thus `createSessionIdentifierWithMetadata:` has to deal with late arriving invalide
+  // values. Everything else should get encoded into the identifier.
+
+  GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithObject:@"GoodValue"
+                                                                 forKey:@"GoodKey"];
+  fetcher.sessionUserInfo = dict;
+
+  // Values that make it through end up in the identifier
+  NSString *identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertTrue([identifier containsString:@"{\"GoodKey\":\"GoodValue\"}"], @"%@", identifier);
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@"NonStringKey" forKey:@2];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"NonStringKey"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@"KeysCantHaveLeadingUnderscore" forKey:@"_InvalidKey"];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"InvalidKey"], @"%@", identifier);
+  XCTAssertFalse([identifier containsString:@"KeysCantHaveLeadingUnderscore"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@1 forKey:@"ValuesMustBeStrings"];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"ValuesMustBeStrings"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+}
+
+- (void)testSessionUserInfoFromSessionIdentifierMetadata {
+  NSDictionary *expected = @{@"GoodKey" : @"GoodValue"};
+  NSMutableDictionary *dict = [expected mutableCopy];
+
+  TestIdentifierMetadataFecher *fetcher =
+      [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  // Add these additions will get dropped
+
+  [dict setObject:@"NonStringKey" forKey:@1];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  [dict setObject:@"InvalidKey" forKey:@"_UnderscorePrefixedKey"];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  [dict setObject:@5 forKey:@"NonStringValue"];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+}
 
 #pragma mark - Fetcher Tests
 
