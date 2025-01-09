@@ -47,7 +47,7 @@ To update the version number and push a release:
     new version number, by passing in the new version (must be in X.Y.Z format).
 
     ```sh
-    $ ./update_version.py 1.3.1
+    ./update_version.py 1.3.1
     ```
 
     Submit the changes to the repo.
@@ -69,7 +69,7 @@ To update the version number and push a release:
 1.  Publish the CocoaPod.
 
     ```sh
-    $ pod trunk push --skip-tests GTMSessionFetcher.podspec
+    pod trunk push --skip-tests GTMSessionFetcher.podspec
     ```
 
     NOTE: We use `--skip-tests` because CocoaPods has issues testing spec that
