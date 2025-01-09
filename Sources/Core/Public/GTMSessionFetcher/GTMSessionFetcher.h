@@ -604,14 +604,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 #endif
 
 // Completion handler passed to -[GTMFetcherDecoratorProtocol fetcherWillStart:completionHandler:].
-
-// TODO(https://github.com/google/gtm-session-fetcher/issues/398): Uncomment this when the next
-// major version bump happens, since this is an API breaking change for Swift clients.
-//
-// typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable_result,
-//                                                                      NSError *_Nullable);
-
-typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable,
+typedef void (^GTMFetcherDecoratorFetcherWillStartCompletionHandler)(NSURLRequest *_Nullable_result,
                                                                      NSError *_Nullable);
 
 // Allows intercepting a request and optionally modifying it before the request (or a retry)
