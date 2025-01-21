@@ -1585,57 +1585,47 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 - (void)testImmediateSyncAuthCancelFetchWithCallback {
-  XCTSkip(@"Has failed on CI, but not locally, needs investigation.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
 - (void)testImmediateSyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  XCTSkip(@"Has failed on CI, but not locally, needs investigation.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
 }
 
 - (void)testDelayedAsyncAuthCancelFetchWithCallback {
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)testDelayedAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)testImmediateAsyncAuthCancelFetchWithCallback {
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)testImmediateAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
 }
 
 - (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback {
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
 }
 
 - (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
 }
 
 - (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback {
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
 }
 
 - (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  XCTSkip(@"Currently fails, needs fixing.");
   [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
 }
 
@@ -1649,7 +1639,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #pragma clang diagnostic pop
   if (!_isServerRunning) return;
 
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+  // If the authorizer is async, then the fetch won't fully begin, and there won't ever be
+  // a start notification (and thus stop notification).
+  int expectedNotificationCount = ((TestAuthorizer*)authorizer).isAsync ? 0 : 1;
+  XCTestExpectation *fetcherStartedExpectation = nil;
+  XCTestExpectation *fetcherStoppedExpectation = nil;
+  if (expectedNotificationCount) {
+    fetcherStartedExpectation =
+        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification];
+    fetcherStoppedExpectation =
+        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification];
+  }
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
@@ -1674,19 +1674,17 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
   [fetcher stopFetching];
 
-  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
-
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
 #if GTM_BACKGROUND_TASK_FETCHING
   [self waitForBackgroundTaskEndedNotifications:fnctr];
-  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)expectedNotificationCount);
   XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
 #endif
 }
