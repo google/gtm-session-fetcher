@@ -98,23 +98,23 @@ NS_ASSUME_NONNULL_END
 #endif
 
 #if TARGET_OS_IOS
-# if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0
-#  define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
-# else
-#  define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
-# endif
+#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0
+#define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
+#else
+#define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 0
+#endif
 #else  // Not iOS
-# define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
+#define GTM_SDK_REQUIRES_TLSMINIMUMSUPPORTEDPROTOCOLVERSION 1
 #endif
 
 #if TARGET_OS_IOS
-# if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0
-#  define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
-# else
-#  define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 0
-# endif
+#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_13_0
+#define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
+#else
+#define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 0
+#endif
 #else  // Not iOS
-# define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
+#define GTM_SDK_REQUIRES_SECTRUSTEVALUATEWITHERROR 1
 #endif
 
 #if __has_attribute(swift_async)
@@ -647,7 +647,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
         return;
       }
     }  // !isSecure
-  }    // (requestURL != nil) && !isDataRequest
+  }  // (requestURL != nil) && !isDataRequest
 
   if (self.cookieStorage == nil) {
     self.cookieStorage = [[self class] staticCookieStorage];
@@ -1779,8 +1779,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         GTMSESSION_ASSERT_DEBUG([key isKindOfClass:[NSString class]],
                                 @"metadataToInclude keys must be NSStrings: %@", key);
         GTMSESSION_ASSERT_DEBUG([key hasPrefix:@"_"],
-                                @"metadataToInclude should only have prefixed keys: %@ - %@",
-                                key, obj);
+                                @"metadataToInclude should only have prefixed keys: %@ - %@", key,
+                                obj);
       }];
 #endif
       [metadataDict addEntriesFromDictionary:(NSDictionary *)metadataToInclude];
@@ -1789,12 +1789,12 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     if (defaultMetadataDict) {
 #if DEBUG
       [defaultMetadataDict enumerateKeysAndObjectsUsingBlock:^(id _Nonnull key, id _Nonnull obj,
-                                                               BOOL * _Nonnull stop) {
+                                                               BOOL *_Nonnull stop) {
         GTMSESSION_ASSERT_DEBUG([key isKindOfClass:[NSString class]],
                                 @"defaultMetadataDict keys must be NSStrings: %@", key);
         GTMSESSION_ASSERT_DEBUG([key hasPrefix:@"_"],
-                                @"defaultMetadataDict should only have prefixed keys: %@ - %@",
-                                key, obj);
+                                @"defaultMetadataDict should only have prefixed keys: %@ - %@", key,
+                                obj);
       }];
 #endif
       [metadataDict addEntriesFromDictionary:defaultMetadataDict];
@@ -1972,30 +1972,30 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       @"GTMSessionFetcher decorate requestWillStart %zu decorators, index %zu, "
       @"retry count %zu, decorator %@",
       decorators.count, index, self.retryCount, decorator);
-  [decorator fetcherWillStart:self
-            completionHandler:^(NSURLRequest *_Nullable newRequest, NSError *_Nullable error) {
-              GTMSESSION_LOG_DEBUG_VERBOSE(
-                  @"GTMSessionFetcher decorator requestWillStart index %zu "
-                  @"complete, newRequest %@, error %@",
-                  index, newRequest, error);
-              __strong __typeof__(self) strongSelf = weakSelf;
-              if (!strongSelf) {
-                GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestWillStart "
-                                     @"decorators completed, ignoring.");
-                return;
-              }
-              if (error) {
-                [self failToBeginFetchWithError:(NSError *_Nonnull)error];
-                return;
-              }
-              if (newRequest) {
-                // Copying `NSURLRequest` should be cheap, but in case profiling shows this
-                // operation is prohibitively expensive, this API might need to be changed to allow
-                // clients to manipulate `self.request` directly.
-                [strongSelf updateMutableRequest:[newRequest mutableCopy]];
-              }
-              [strongSelf applyDecoratorsAtRequestWillStart:decorators startingAtIndex:index + 1];
-            }];
+  [decorator
+       fetcherWillStart:self
+      completionHandler:^(NSURLRequest *_Nullable newRequest, NSError *_Nullable error) {
+        GTMSESSION_LOG_DEBUG_VERBOSE(@"GTMSessionFetcher decorator requestWillStart index %zu "
+                                     @"complete, newRequest %@, error %@",
+                                     index, newRequest, error);
+        __strong __typeof__(self) strongSelf = weakSelf;
+        if (!strongSelf) {
+          GTMSESSION_LOG_DEBUG(@"GTMSessionFetcher destroyed before requestWillStart "
+                               @"decorators completed, ignoring.");
+          return;
+        }
+        if (error) {
+          [self failToBeginFetchWithError:(NSError *_Nonnull)error];
+          return;
+        }
+        if (newRequest) {
+          // Copying `NSURLRequest` should be cheap, but in case profiling shows this
+          // operation is prohibitively expensive, this API might need to be changed to allow
+          // clients to manipulate `self.request` directly.
+          [strongSelf updateMutableRequest:[newRequest mutableCopy]];
+        }
+        [strongSelf applyDecoratorsAtRequestWillStart:decorators startingAtIndex:index + 1];
+      }];
 }
 
 - (void)applyDecoratorsAtRequestDidFinish:(NSArray<id<GTMFetcherDecoratorProtocol>> *)decorators
@@ -2723,8 +2723,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   NSString *redirectScheme = redirectRequestURL.scheme;
 
   // If no change in scheme with redirect, just return the redirect.
-  if (originalScheme != nil &&
-      redirectScheme != nil &&
+  if (originalScheme != nil && redirectScheme != nil &&
       [originalScheme caseInsensitiveCompare:redirectScheme] == NSOrderedSame) {
     return redirectRequestURL;
   }
