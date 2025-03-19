@@ -713,6 +713,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       // the `fetcherShouldBeginFetching:` call and some other thread completing a different
       // fetch and thus starting this one. If we were trying to set the state based on the
       // return result, there would be a small window for that race.
+      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
       _delayState = kDelayStateServiceDelayed;
     }
 
@@ -1066,6 +1068,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   GTMSESSION_LOG_DEBUG_VERBOSE(
       @"GTMSessionFetcher fetching User-Agent from GTMUserAgentProvider %@...", _userAgentProvider);
   @synchronized(self) {
+    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed, @"Unexpected internal state: %lu",
+                            (unsigned long)_delayState);
     _delayState = kDelayStateCalculatingUA;
   }
   __weak __typeof__(self) weakSelf = self;
@@ -1880,6 +1884,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       stopped = YES;
     } else {
       // Go into the delayed state for getting the authorization.
+      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
       _delayState = kDelayStateAuthorizing;
     }
   }
@@ -1917,9 +1923,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     [authorizer authorizeRequest:mutableRequest delegate:self didFinishSelector:callbackSel];
   } else {
     GTMSESSION_ASSERT_DEBUG(authorizer == nil, @"invalid authorizer for fetch");
-
-    // No authorizing possible, and authorizing happens only after any delay;
-    // just begin fetching
+    // Should really never get here the main flow shouldn't have called here if there
+    // wasn't an authorizer, but for safety sake, continue on through the starting process.
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
 }
