@@ -739,18 +739,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     mayDelay = NO;
   }
   if (mayDelay && _service) {
-    BOOL savedStoppedState;
-    @synchronized(self) {
-      GTMSessionMonitorSynchronized(self);
-
-      savedStoppedState = _userStoppedFetching;
-      // Set the delayed state so there can't be a race incase between it getting queued in
-      // the `fetcherShouldBeginFetching:` call and some other thread completing a different
-      // fetch and thus starting this one. If we were trying to set the state based on the
-      // return result, there would be a small window for that race.
-      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
-      _delayState = kDelayStateServiceDelayed;
+    // Set the delayed state so there can't be a race between it getting queued in the
+    // `fetcherShouldBeginFetching:` call and some other thread completing a different fetch and
+    // thus starting this one. If we were trying to set the state based on the return result, there
+    // would be a small window for that race.
+    if (![self startDelayState:kDelayStateServiceDelayed]) {
+      return;
     }
 
     BOOL shouldFetchNow = [_service fetcherShouldBeginFetching:self];
@@ -778,10 +772,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       // If a `-stopFetching` came in while the service check was made, then the side effect of the
       // state setting caused the handler (if needed) to already be made, so there we want to just
       // exit and not continue the fetch.
-      //
-      // TODO(thomasvl): If `savedStoppedState` was already `YES`, then it's a more general problem
-      // which will be handled elsewhere/later.
-      if (!savedStoppedState && savedStoppedState != _userStoppedFetching) {
+      if (_userStoppedFetching) {
         return;
       }
     }
