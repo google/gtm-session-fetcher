@@ -1076,13 +1076,31 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                                     mayDecorate:(BOOL)mayDecorate {
   GTMSESSION_LOG_DEBUG_VERBOSE(
       @"GTMSessionFetcher fetching User-Agent from GTMUserAgentProvider %@...", _userAgentProvider);
+  BOOL stopped = NO;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed, @"Unexpected internal state: %lu",
-                            (unsigned long)_delayState);
-    _delayState = kDelayStateCalculatingUA;
+    if (_userStoppedFetching) {
+      stopped = YES;
+    } else {
+      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
+      _delayState = kDelayStateCalculatingUA;
+    }
   }
+  if (stopped) {
+    // We end up here if someone calls `stopFetching` from another thread/queue while
+    // the fetch was being started up, so while `stopFetching` did the needed shutdown
+    // we have to ensure the requested callback was triggered.
+    if (self.stopFetchingTriggersCompletionHandler) {
+      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                           code:GTMSessionFetcherErrorUserCancelled
+                                       userInfo:nil];
+      [self finishWithError:error shouldRetry:NO];
+    }
+    return;
+  }
+
   __weak __typeof__(self) weakSelf = self;
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     __strong __typeof__(self) strongSelf = weakSelf;
@@ -1097,23 +1115,16 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                             @"GTMUserAgentProvider %@ should have cached user agent now that it's "
                             @"calculated, but returned nil",
                             userAgentProvider);
-    BOOL shouldStop;
     @synchronized(strongSelf) {
       GTMSessionMonitorSynchronized(strongSelf);
+      // If `stopFetching` was called, do nothing, since the fetch was in a delay state
+      // any needed callback already happened.
+      if (strongSelf->_userStoppedFetching) {
+        return;
+      }
       [strongSelf->_request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
-      shouldStop = strongSelf->_userStoppedFetching;
     }
-    if (shouldStop) {
-      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                           code:GTMSessionFetcherErrorUserCancelled
-                                       userInfo:nil];
-      [strongSelf invokeFetchCallbacksOnCallbackQueueWithData:nil
-                                                        error:error
-                                                  mayDecorate:NO
-                                       shouldReleaseCallbacks:YES];
-    } else {
-      [strongSelf beginFetchMayDelay:mayDelay mayAuthorize:mayAuthorize mayDecorate:mayDecorate];
-    }
+    [strongSelf beginFetchMayDelay:mayDelay mayAuthorize:mayAuthorize mayDecorate:mayDecorate];
   });
 }
 
@@ -2223,8 +2234,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     //
     // And the authorization delay assumes all stop notifications needed will be done
     // from here.
+    // TODO(thomasvl): Should it just check that _delayState != kDelayStateNotDelayed?
     triggerCallback =
-        (_delayState == kDelayStateServiceDelayed || _delayState == kDelayStateAuthorizing) &&
+        (_delayState == kDelayStateServiceDelayed || _delayState == kDelayStateAuthorizing ||
+         _delayState == kDelayStateCalculatingUA) &&
         self.stopFetchingTriggersCompletionHandler;
   }  // @synchronized(self)
 
