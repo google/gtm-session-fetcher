@@ -504,6 +504,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
   // Reset the delayed state since things are starting over.
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     _delayState = kDelayStateNotDelayed;
   }
 
@@ -708,6 +710,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   if (mayDelay && _service) {
     BOOL savedStoppedState;
     @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+
       savedStoppedState = _userStoppedFetching;
       // Set the delayed state so there can't be a race incase between it getting queued in
       // the `fetcherShouldBeginFetching:` call and some other thread completing a different
@@ -735,6 +739,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
 
     @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+
       // Per comment above, correct state since it wasn't delayed.
       _delayState = kDelayStateNotDelayed;
 
@@ -941,10 +947,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                          // UIApplication on the main thread.
                          UIBackgroundTaskIdentifier localTaskID;
                          @synchronized(self) {
+                           GTMSessionMonitorSynchronized(self);
                            localTaskID = guardedTaskID;
                          }
                          if (localTaskID != UIBackgroundTaskInvalid) {
                            @synchronized(self) {
+                             GTMSessionMonitorSynchronized(self);
                              if (localTaskID == self.backgroundTaskIdentifier) {
                                self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
                              }
@@ -953,6 +961,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                          }
                        }];
     @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
       guardedTaskID = returnedTaskID;
       self.backgroundTaskIdentifier = returnedTaskID;
     }
@@ -1068,6 +1077,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   GTMSESSION_LOG_DEBUG_VERBOSE(
       @"GTMSessionFetcher fetching User-Agent from GTMUserAgentProvider %@...", _userAgentProvider);
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed, @"Unexpected internal state: %lu",
                             (unsigned long)_delayState);
     _delayState = kDelayStateCalculatingUA;
@@ -1861,6 +1872,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   // we need to tell UIApplication we're done.
   UIBackgroundTaskIdentifier bgTaskID;
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     bgTaskID = self.backgroundTaskIdentifier;
     if (bgTaskID != UIBackgroundTaskInvalid) {
       self.backgroundTaskIdentifier = UIBackgroundTaskInvalid;
@@ -1880,6 +1893,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
   BOOL stopped = NO;
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     if (_userStoppedFetching) {
       stopped = YES;
     } else {
@@ -1938,6 +1953,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   GTMSessionCheckNotSynchronized(self);
 
   @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
     // If `stopFetching` was called, do nothing, since the fetch was in a delay state
     // any needed callback already happened.
     if (_userStoppedFetching) {
