@@ -496,6 +496,37 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   [self beginFetchWithCompletionHandler:handler];
 }
 
+// Helper to begin a delayed state. If the fetch has already been stopped, then it will
+// trigger a needed callback instead of setting the state. It returnsYES/NO based on if
+// starting up of the fetch should continue.
+- (BOOL)startDelayState:(GTMSessionFetcherDelayState)delayState __attribute__((objc_direct)) {
+  BOOL stopped = NO;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (_userStoppedFetching) {
+      stopped = YES;
+    } else {
+      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
+      _delayState = delayState;
+    }
+  }
+  if (stopped) {
+    // We end up here if someone calls `stopFetching` from another thread/queue while
+    // the fetch was being started up, so while `stopFetching` did the needed shutdown
+    // we have to ensure the requested callback was triggered.
+    if (self.stopFetchingTriggersCompletionHandler) {
+      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                           code:GTMSessionFetcherErrorUserCancelled
+                                       userInfo:nil];
+      [self finishWithError:error shouldRetry:NO];
+    }
+    return NO;  // Caller to stop.
+  }
+  return YES;
+}
+
 - (void)beginFetchMayDelay:(BOOL)mayDelay
               mayAuthorize:(BOOL)mayAuthorize
                mayDecorate:(BOOL)mayDecorate {
@@ -1076,28 +1107,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
                                     mayDecorate:(BOOL)mayDecorate {
   GTMSESSION_LOG_DEBUG_VERBOSE(
       @"GTMSessionFetcher fetching User-Agent from GTMUserAgentProvider %@...", _userAgentProvider);
-  BOOL stopped = NO;
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
 
-    if (_userStoppedFetching) {
-      stopped = YES;
-    } else {
-      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
-      _delayState = kDelayStateCalculatingUA;
-    }
-  }
-  if (stopped) {
-    // We end up here if someone calls `stopFetching` from another thread/queue while
-    // the fetch was being started up, so while `stopFetching` did the needed shutdown
-    // we have to ensure the requested callback was triggered.
-    if (self.stopFetchingTriggersCompletionHandler) {
-      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                           code:GTMSessionFetcherErrorUserCancelled
-                                       userInfo:nil];
-      [self finishWithError:error shouldRetry:NO];
-    }
+  if (![self startDelayState:kDelayStateCalculatingUA]) {
     return;
   }
 
@@ -1902,30 +1913,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 - (void)authorizeRequest {
   GTMSessionCheckNotSynchronized(self);
 
-  BOOL stopped = NO;
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    if (_userStoppedFetching) {
-      stopped = YES;
-    } else {
-      // Go into the delayed state for getting the authorization.
-      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
-      _delayState = kDelayStateAuthorizing;
-    }
-  }
-
-  if (stopped) {
-    // We end up here if someone calls `stopFetching` from another thread/queue while
-    // the fetch was being started up, so while `stopFetching` did the needed shutdown
-    // we have to ensure the requested callback was triggered.
-    if (self.stopFetchingTriggersCompletionHandler) {
-      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                           code:GTMSessionFetcherErrorUserCancelled
-                                       userInfo:nil];
-      [self finishWithError:error shouldRetry:NO];
-    }
+  if (![self startDelayState:kDelayStateAuthorizing]) {
     return;
   }
 
