@@ -1,0 +1,6 @@
+module GTMSessionFetcherFull {
+    header "GTMGatherInputStream.h"
+    header "GTMMIMEDocument.h"
+    header "GTMReadMonitorInputStream.h"
+    export *
+}
