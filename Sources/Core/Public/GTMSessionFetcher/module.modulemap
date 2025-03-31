@@ -1,0 +1,7 @@
+module GTMSessionFetcherCore {
+    header "GTMSessionFetcher.h"
+    header "GTMSessionFetcherLogging.h"
+    header "GTMSessionFetcherService.h"
+    header "GTMSessionUploadFetcher.h"
+    export *
+}

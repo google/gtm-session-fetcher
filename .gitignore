@@ -33,3 +33,10 @@ Podfile.lock
 
 # CocoaPods generate
 gen/
+
+# Bazel
+bazel-bin
+bazel-gtm-session-fetcher
+bazel-out
+bazel-testlogs
+MODULE.bazel.lock

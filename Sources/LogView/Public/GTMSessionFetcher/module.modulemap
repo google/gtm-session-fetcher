@@ -1,0 +1,4 @@
+module GTMSessionFetcherLogView {
+    header "GTMSessionFetcherLogViewController.h"
+    export *
+}
