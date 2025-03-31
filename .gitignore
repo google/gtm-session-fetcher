@@ -33,3 +33,6 @@ Podfile.lock
 
 # CocoaPods generate
 gen/
+
+# Bazel
+bazel-*

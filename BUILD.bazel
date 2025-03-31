@@ -1,0 +1,132 @@
+load("@rules_apple//apple:ios.bzl", "ios_unit_test")
+load("@rules_apple//apple:macos.bzl", "macos_unit_test")
+load("@rules_cc//cc:defs.bzl", "objc_library")
+load("@rules_swift//swift:swift.bzl", "swift_test")
+
+package(default_visibility = ["//visibility:public"])
+
+core_hdrs_internal = glob(
+    ["Sources/Core/**/*.h"],
+    exclude = ["Sources/Core/Public/**/*.h"],
+)
+
+objc_library(
+    name = "GTMSessionFetcherCore",
+    srcs = glob(["Sources/Core/**/*.m"]) + core_hdrs_internal,
+    hdrs = glob(["Sources/Core/Public/**/*.h"]),
+    enable_modules = True,
+    includes = [
+        "Sources/Core/Public",
+        "Sources/Core/Public/GTMSessionFetcher",
+    ],
+    module_name = "GTMSessionFetcherCore",
+    sdk_frameworks = ["Foundation"],
+)
+
+objc_library(
+    name = "GTMSessionFetcherFull",
+    srcs = glob(["Sources/Full/**/*.m"]),
+    hdrs = glob(["Sources/Full/Public/**/*.h"]),
+    enable_modules = True,
+    includes = [
+        "Sources/Full/Public",
+        "Sources/Full/Public/GTMSessionFetcher",
+    ],
+    module_name = "GTMSessionFetcherFull",
+    deps = [":GTMSessionFetcherCore"],
+)
+
+objc_library(
+    name = "GTMSessionFetcherLogView",
+    srcs = glob([
+        "Sources/LogView/**/*.m",
+        "Sources/LogView/**/*.h",
+    ]),
+    hdrs = glob(["Sources/LogView/Public/**/*.h"]),
+    enable_modules = True,
+    includes = [
+        "Sources/LogView/Public",
+        "Sources/LogView/Public/GTMSessionFetcher",
+    ],
+    module_name = "GTMSessionFetcherLogView",
+    sdk_frameworks = [
+        "WebKit",
+        "Security",
+    ],
+    deps = [":GTMSessionFetcherCore"],
+)
+
+core_tests = glob(
+    [
+        "UnitTests/**/*.m",
+        "UnitTests/**/*.h",
+    ],
+    exclude = ["GTMSessionFetcherUserAgentTest.m"],
+)
+
+objc_library(
+    name = "GTMSessionFetcherCoreTestsLib",
+    srcs = core_tests + core_hdrs_internal,
+    includes = [
+        "Sources/Core",
+        "UnitTests",
+    ],
+    sdk_frameworks = [
+        "CFNetwork",
+        "Security",
+    ],
+    deps = [
+        ":GTMSessionFetcherCore",
+        ":GTMSessionFetcherFull",
+    ],
+)
+
+macos_unit_test(
+    name = "GTMSessionFetcherCoreTests",
+    minimum_os_version = "10.15",
+    deps = [":GTMSessionFetcherCoreTestsLib"],
+)
+
+ios_unit_test(
+    name = "GTMSessionFetcherCoreTests_iOS",
+    minimum_os_version = "12.0",
+    runner = "@rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
+    deps = [":GTMSessionFetcherCoreTestsLib"],
+)
+
+objc_library(
+    name = "GTMSessionFetcherUserAgentTestsLib",
+    srcs = ["UnitTests/GTMSessionFetcherUserAgentTest.m"],
+    includes = ["UnitTests"],
+    sdk_frameworks = [
+        "Security",
+    ],
+    deps = [":GTMSessionFetcherCore"],
+)
+
+macos_unit_test(
+    name = "GTMSessionFetcherUserAgentTests",
+    minimum_os_version = "10.15",
+    target_compatible_with = ["@platforms//os:osx"],
+    deps = [":GTMSessionFetcherUserAgentTestsLib"],
+)
+
+ios_unit_test(
+    name = "GTMSessionFetcherUserAgentTests_iOS",
+    minimum_os_version = "12.0",
+    runner = "@rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
+    target_compatible_with = ["@platforms//os:ios"],
+    deps = [":GTMSessionFetcherUserAgentTestsLib"],
+)
+
+swift_test(
+    name = "GTMSessionFetcherSwiftTestsLib",
+    srcs = ["SwiftPMTests/SwiftImportTest/ImportTests.swift"],
+    deps = [
+        ":GTMSessionFetcherCore",
+        ":GTMSessionFetcherFull",
+        ":GTMSessionFetcherLogView",
+    ],
+)
+
+# ObjCImportTest is omitted from bazel build because it currently fails to build.
