@@ -81,10 +81,15 @@ extern NSString *const kGTMGettysburgFileName;
 - (nullable NSMutableURLRequest *)mutableRequestForTesting;
 @end
 
+typedef void (^TestAuthorizerWaitBlock)(void);
+
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
 @property(atomic, assign, getter=isAsync) BOOL async;
+// Only honored if async, will get called on a work queue and when it returns authorization will be
+// completed.
+@property(atomic) TestAuthorizerWaitBlock waitBlock;
 @property(atomic, assign) NSUInteger delay;  // Only honored if async
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
@@ -92,6 +97,7 @@ extern NSString *const kGTMGettysburgFileName;
 + (instancetype)syncAuthorizer;
 + (instancetype)asyncAuthorizer;
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds;
++ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)delayBlock;
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
