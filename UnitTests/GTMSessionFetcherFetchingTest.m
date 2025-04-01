@@ -1685,7 +1685,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
   TestAuthorizerModeNone = 0,
   TestAuthorizerModeSync,
-  TestAuthorizerModeAsync,
   TestAuthorizerModeWaitPreSleep,
   TestAuthorizerModeWaitPreStop,
   TestAuthorizerModeWaitPostStop,
@@ -1743,33 +1742,6 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 - (void)testPreSyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
   [self testPreSyncAuthCancelFetchWithCallback];
-}
-
-- (void)testDelayedAsyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeAsync];
-}
-
-- (void)testDelayedAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testDelayedAsyncAuthCancelFetchWithCallback];
-}
-
-- (void)testImmediateAsyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeAsync];
-}
-
-- (void)testImmediateAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testImmediateAsyncAuthCancelFetchWithCallback];
-}
-
-- (void)testPreAsyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeAsync];
-}
-
-- (void)testPreAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testPreAsyncAuthCancelFetchWithCallback];
 }
 
 - (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback {
@@ -1851,9 +1823,6 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
         break;
       case TestAuthorizerModeSync:
         fetcher.authorizer = [TestAuthorizer syncAuthorizer];
-        break;
-      case TestAuthorizerModeAsync:
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
         break;
       case TestAuthorizerModeWaitPreSleep:
         XCTAssertGreaterThan(sleepTime, 0,
