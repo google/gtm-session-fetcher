@@ -1682,91 +1682,143 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #endif
 }
 
+typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
+  TestAuthorizerModeNone = 0,
+  TestAuthorizerModeSync,
+  TestAuthorizerModeAsync,
+  TestAuthorizerModeWaitPreSleep,
+  TestAuthorizerModeWaitPreStop,
+  TestAuthorizerModeWaitPostStop,
+};
+
 - (void)testDelayedCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeNone];
 }
 
 - (void)testDelayedCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:1];
+  [self testDelayedCancelFetchWithCallback];
 }
 
 - (void)testImmediateCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0];
+  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeNone];
 }
 
 - (void)testImmediateCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:0];
+  [self testImmediateCancelFetchWithCallback];
+}
+
+- (void)testPreCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeNone];
+}
+
+- (void)PerCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testPreCancelFetchWithCallback];
 }
 
 - (void)testDelayedSyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer syncAuthorizer]];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeSync];
 }
 
 - (void)testDelayedSyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer syncAuthorizer]];
+  [self testDelayedSyncAuthCancelFetchWithCallback];
 }
 
 - (void)testImmediateSyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
+  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeSync];
 }
 
 - (void)testImmediateSyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer syncAuthorizer]];
+  [self testImmediateSyncAuthCancelFetchWithCallback];
+}
+
+- (void)testPreSyncAuthCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeSync];
+}
+
+- (void)testPreSyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testPreSyncAuthCancelFetchWithCallback];
 }
 
 - (void)testDelayedAsyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeAsync];
 }
 
 - (void)testDelayedAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizer]];
+  [self testDelayedAsyncAuthCancelFetchWithCallback];
 }
 
 - (void)testImmediateAsyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
+  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeAsync];
 }
 
 - (void)testImmediateAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizer]];
+  [self testImmediateAsyncAuthCancelFetchWithCallback];
+}
+
+- (void)testPreAsyncAuthCancelFetchWithCallback {
+  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeAsync];
+}
+
+- (void)testPreAsyncAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testPreAsyncAuthCancelFetchWithCallback];
 }
 
 - (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPreSleep];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPreStop];
+  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPostStop];
 }
 
 - (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:1 authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
+  [self testDelayedAsyncDelayedAuthCancelFetchWithCallback];
 }
 
 - (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
+  // No sleep
+  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeWaitPreStop];
+  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeWaitPostStop];
 }
 
 - (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
   _fetcherService = nil;
-  [self internalCancelFetchWithCallback:0 authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
+  [self testImmediateAsyncDelayedAuthCancelFetchWithCallback];
 }
 
-- (void)internalCancelFetchWithCallback:(unsigned int)sleepTime {
-  [self internalCancelFetchWithCallback:sleepTime authorizer:nil];
+- (void)testPreAsyncDelayedAuthCancelFetchWithCallback {
+  // No sleep
+  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeWaitPreStop];
+  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeWaitPostStop];
+}
+
+- (void)testPreAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testPreAsyncDelayedAuthCancelFetchWithCallback];
 }
 
 #pragma clang diagnostic ignored "-Wdeprecated"
-- (void)internalCancelFetchWithCallback:(unsigned int)sleepTime
-                             authorizer:(nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
+- (void)internalCancelFetchWithCallback:(int)sleepTime
+                         authorizerMode:(TestAuthorizerMode)authorizerMode {
 #pragma clang diagnostic pop
   if (!_isServerRunning) return;
 
   // If the authorizer is async, then the fetch won't fully begin, and there won't ever be
-  // a start notification (and thus stop notification).
-  int expectedNotificationCount = ((TestAuthorizer*)authorizer).isAsync ? 0 : 1;
+  // a start notification (and thus stop notification). Likewise, if the fetch is stopped before
+  // it even starts, there won't be a notification.
+  int expectedNotificationCount =
+      (authorizerMode != TestAuthorizerModeNone && authorizerMode != TestAuthorizerModeSync) ||
+              (sleepTime < 0)
+          ? 0
+          : 1;
   XCTestExpectation *fetcherStartedExpectation = nil;
   XCTestExpectation *fetcherStoppedExpectation = nil;
   if (expectedNotificationCount) {
@@ -1783,10 +1835,48 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                            parameters:@{@"sleep" : @"5"}];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
   fetcher.stopFetchingTriggersCompletionHandler = YES;
-  if (authorizer) {
-    fetcher.authorizer = authorizer;
+
+  dispatch_semaphore_t authSemaphone = dispatch_semaphore_create(0);
+
+  if (sleepTime < 0) {
+    if (authorizerMode != TestAuthorizerModeNone) {
+      fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
+        XCTFail(@"stopFetching called before begin should have prevented the authorizer from ever "
+                @"being called.");
+      }];
+    }
+  } else {
+    switch (authorizerMode) {
+      case TestAuthorizerModeNone:
+        break;
+      case TestAuthorizerModeSync:
+        fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+        break;
+      case TestAuthorizerModeAsync:
+        fetcher.authorizer = [TestAuthorizer asyncAuthorizer];
+        break;
+      case TestAuthorizerModeWaitPreSleep:
+        XCTAssertGreaterThan(sleepTime, 0,
+                             @"PreSleep when 'stop' was before 'begin' doesn't make sense.");
+      case TestAuthorizerModeWaitPreStop:
+      case TestAuthorizerModeWaitPostStop: {
+        XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
+          NSUInteger waitTime =
+              1 + (authorizerMode != TestAuthorizerModeWaitPreSleep ? sleepTime : 0);
+          intptr_t waitResult = dispatch_semaphore_wait(
+              authSemaphone, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
+          XCTAssertEqual(0, waitResult);
+          [authExpect fulfill];
+        }];
+      } break;
+    }
   }
+
   XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
+  if (sleepTime < 0) {  // <0 means stop before begin.
+    [fetcher stopFetching];
+  }
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data, @"error data unexpected");
     XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
@@ -1794,17 +1884,32 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [expectation fulfill];
   }];
 
-  if (sleepTime) {
-    sleep(sleepTime);
+  if (sleepTime >= 0) {
+    if (authorizerMode == TestAuthorizerModeWaitPreSleep) {
+      dispatch_semaphore_signal(authSemaphone);
+    }
+    if (sleepTime) {
+      sleep(sleepTime);
+    }
+    if (authorizerMode == TestAuthorizerModeWaitPreStop) {
+      dispatch_semaphore_signal(authSemaphone);
+    }
+    [fetcher stopFetching];
+    if (authorizerMode == TestAuthorizerModeWaitPostStop) {
+      dispatch_semaphore_signal(authSemaphone);
+    }
+  } else {
+    // No harm in signaling even if not needed.
+    dispatch_semaphore_signal(authSemaphone);
   }
-  [fetcher stopFetching];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@",
+                 fnctr.fetchersStartedDescriptions);
   XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
 #if GTM_BACKGROUND_TASK_FETCHING
@@ -3077,6 +3182,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   return authorizer;
 }
 
++ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.async = YES;
+  authorizer.waitBlock = waitBlock;
+  return authorizer;
+}
+
 + (instancetype)expiredSyncAuthorizer {
   TestAuthorizer *authorizer = [self syncAuthorizer];
   authorizer.expired = YES;
@@ -3102,7 +3214,14 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
 
   if (self.async) {
-    if (self.delay) {
+    if (self.waitBlock) {
+      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        self.waitBlock();
+        dispatch_async(dispatch_get_main_queue(), ^{
+          handler(error);
+        });
+      });
+    } else if (self.delay) {
       dispatch_time_t delay_time =
           dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
       dispatch_after(delay_time, dispatch_get_main_queue(), ^{

@@ -414,40 +414,40 @@ static bool IsCurrentProcessBeingDebugged(void) {
     [observers addObject:startObserver];
 
     // Fetcher stopped notification.
-    id stopObserver = [nc
-        addObserverForName:kGTMSessionFetcherStoppedNotification
-                    object:fetcher
-                     queue:nil
-                usingBlock:^(NSNotification *note) {
-                  XCTAssertTrue([running containsObject:fetcher]);
+    id stopObserver =
+        [nc addObserverForName:kGTMSessionFetcherStoppedNotification
+                        object:fetcher
+                         queue:nil
+                    usingBlock:^(NSNotification *note) {
+                      XCTAssertTrue([running containsObject:fetcher]);
 
-                  // Verify that we only have two fetchers running.
-                  [completed addObject:fetcher];
-                  [running removeObject:fetcher];
+                      // Verify that we only have two fetchers running.
+                      [completed addObject:fetcher];
+                      [running removeObject:fetcher];
 
-                  // A fetcher that gets stopped should not trigger any notifications.
-                  NSURL *fetcherReqURL = fetcher.request.URL;
-                  XCTAssertFalse([fetcherReqURL.query hasPrefix:@"stop="]);
+                      // A fetcher that gets stopped should not trigger any notifications.
+                      NSURL *fetcherReqURL = fetcher.request.URL;
+                      XCTAssertFalse([fetcherReqURL.query hasPrefix:@"stop="]);
 
-                  NSString *host = fetcherReqURL.host;
-                  NSUInteger numberRunning = FetchersPerHost(running, host);
-                  NSUInteger numberPending = FetchersPerHost(pending, host);
-                  NSUInteger numberCompleted = FetchersPerHost(completed, host);
-                  NSUInteger numberStopped = FetchersPerHost(stopped, host);
+                      NSString *host = fetcherReqURL.host;
+                      NSUInteger numberRunning = FetchersPerHost(running, host);
+                      NSUInteger numberPending = FetchersPerHost(pending, host);
+                      NSUInteger numberCompleted = FetchersPerHost(completed, host);
+                      NSUInteger numberStopped = FetchersPerHost(stopped, host);
 
-                  XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost,
-                                           @"too many running");
-                  XCTAssertLessThanOrEqual(
-                      numberPending + numberRunning + numberCompleted + numberStopped,
-                      URLsPerHost(urlArray, host),
-                      @"%d issued running (pending:%u running:%u completed:%u stopped: %u)",
-                      (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
-                      (unsigned int)numberRunning, (unsigned int)numberCompleted,
-                      (unsigned int)numberStopped);
+                      XCTAssertLessThanOrEqual(numberRunning, kMaxRunningFetchersPerHost,
+                                               @"too many running");
+                      XCTAssertLessThanOrEqual(
+                          numberPending + numberRunning + numberCompleted + numberStopped,
+                          URLsPerHost(urlArray, host),
+                          @"%d issued running (pending:%u running:%u completed:%u stopped: %u)",
+                          (unsigned int)totalNumberOfFetchers, (unsigned int)numberPending,
+                          (unsigned int)numberRunning, (unsigned int)numberCompleted,
+                          (unsigned int)numberStopped);
 
-                  // The stop notification may be posted on the main thread before or after the
-                  // fetcher service has been notified the fetcher has stopped.
-                }];
+                      // The stop notification may be posted on the main thread before or after the
+                      // fetcher service has been notified the fetcher has stopped.
+                    }];
     [observers addObject:stopObserver];
 
     // Set the fetch priority to a value that cycles 0, 1, -1, 0, ...
@@ -488,7 +488,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
         XCTAssertNil(fetchError, @"unexpected %@ %@", fetchError, fetchError.userInfo);
       } else {
         if ([query isEqual:@"stop=callback"]) {
-          XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain, @"expected error");
+          XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain,
+                                @"expected error");
           XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled, @"expected error");
         } else if ([query hasPrefix:@"stop="]) {
           XCTFail(@"Should not have gotten completion for stopped call");
@@ -516,8 +517,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   // Check the notification counts.
   XCTAssertEqual(pending.count, (NSUInteger)0, @"still pending: %@", pending);
   XCTAssertEqual(running.count, (NSUInteger)0, @"still running: %@", running);
-  XCTAssertEqual(completed.count + stopped.count, (NSUInteger)totalNumberOfFetchers,
-                 @"incomplete");
+  XCTAssertEqual(completed.count + stopped.count, (NSUInteger)totalNumberOfFetchers, @"incomplete");
   // All the expected callbacks happened.
   XCTAssertEqual(fetchersInFlight.count, (NSUInteger)0, @"Uncompleted: %@", fetchersInFlight);
 
