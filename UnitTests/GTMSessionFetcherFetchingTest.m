@@ -3162,7 +3162,7 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 @end
 
 @implementation TestAuthorizer
-@synthesize async = _async, delay = _delay, expired = _expired,
+@synthesize waitBlock = _waitBlock, delay = _delay, expired = _expired,
             willFailWithError = _willFailWithError;
 
 + (instancetype)syncAuthorizer {
@@ -3170,21 +3170,20 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 }
 
 + (instancetype)asyncAuthorizer {
-  TestAuthorizer *authorizer = [self syncAuthorizer];
-  authorizer.async = YES;
+  TestAuthorizer *authorizer = [self asyncAuthorizerBlocked:^{
+      // Nothing.
+  }];
   return authorizer;
 }
 
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds {
   TestAuthorizer *authorizer = [self syncAuthorizer];
-  authorizer.async = YES;
   authorizer.delay = delaySeconds;
   return authorizer;
 }
 
 + (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock {
   TestAuthorizer *authorizer = [self syncAuthorizer];
-  authorizer.async = YES;
   authorizer.waitBlock = waitBlock;
   return authorizer;
 }
@@ -3213,25 +3212,19 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
-  if (self.async) {
-    if (self.waitBlock) {
-      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        self.waitBlock();
-        dispatch_async(dispatch_get_main_queue(), ^{
-          handler(error);
-        });
-      });
-    } else if (self.delay) {
-      dispatch_time_t delay_time =
-          dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
-      dispatch_after(delay_time, dispatch_get_main_queue(), ^{
-        handler(error);
-      });
-    } else {
+  if (self.waitBlock) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      self.waitBlock();
       dispatch_async(dispatch_get_main_queue(), ^{
         handler(error);
       });
-    }
+    });
+  } else if (self.delay) {
+    dispatch_time_t delay_time =
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
+    dispatch_after(delay_time, dispatch_get_main_queue(), ^{
+      handler(error);
+    });
   } else {
     handler(error);
   }

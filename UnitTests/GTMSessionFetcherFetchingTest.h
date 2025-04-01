@@ -86,18 +86,19 @@ typedef void (^TestAuthorizerWaitBlock)(void);
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
-@property(atomic, assign, getter=isAsync) BOOL async;
-// Only honored if async, will get called on a work queue and when it returns authorization will be
-// completed.
+// Will get called on a work queue and when it returns authorization will be completed.
+// If no `waitBlock` and no `delay`, they the authorizer will complete synchroniously when called.
 @property(atomic) TestAuthorizerWaitBlock waitBlock;
-@property(atomic, assign) NSUInteger delay;  // Only honored if async
+// Can't be used with `waitBlock`, will complete the authorization after this delay.
+@property(atomic, assign) NSUInteger delay;
+
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
 
 + (instancetype)syncAuthorizer;
 + (instancetype)asyncAuthorizer;
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds;
-+ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)delayBlock;
++ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock;
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
