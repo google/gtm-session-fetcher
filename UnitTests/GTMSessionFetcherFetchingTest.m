@@ -1712,7 +1712,8 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
   [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeNone];
 }
 
-- (void)PerCancelFetchWithCallback_WithoutFetcherService {
+- (void)testPerCancelFetchWithCallback_WithoutFetcherService {
+  XCTSkip(@"Not currently passing, was misnamed and not running.");
   _fetcherService = nil;
   [self testPreCancelFetchWithCallback];
 }
