@@ -2413,9 +2413,10 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (void)testStopFetchWithCallback_DelayedStop_SyncAuth {
   // Using an Authorizer that calls the completion synchronously, wait 1s after the fetch is
   // started and then stop it.
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
   [self runStopFetchingCallbackTestWithNotifications:YES
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         sleep(1);
@@ -2431,9 +2432,10 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (void)testStopFetchWithCallback_ImmediateStop_SyncAuth {
   // Using an Authorizer that calls the completion synchronously, stop immediately after starting
   // the fetch.
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
   [self runStopFetchingCallbackTestWithNotifications:YES
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         [fetcher stopFetching];
@@ -2450,13 +2452,11 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // should be handled before the authenticator is invoked.
   [self runStopFetchingCallbackTestWithNotifications:NO
                                             preBegin:^(GTMSessionFetcher *fetcher) {
-                                              fetcher.authorizer =
-                                                  [TestAuthorizer asyncAuthorizerBlocked:^{
-                                                    XCTFail(
-                                                        @"stopFetching called before begin should "
-                                                        @"have prevented the authorizer from ever "
-                                                        @"being called.");
-                                                  }];
+                                              fetcher.authorizer = [[TestFailingAuthorizer alloc]
+                                                  initWithFailureMessage:
+                                                      @"stopFetching called before begin should "
+                                                      @"have prevented the authorizer from ever "
+                                                      @"being called."];
 
                                               [fetcher stopFetching];
                                             }
@@ -2472,24 +2472,15 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
   // starting the fetch, then wait 1s before calling `-stopFetching`.
 
-  // Use a semaphore to control when the Authorizor completes inrelation to the rest of the fetching
-  // sequence.
-  dispatch_semaphore_t authSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime = 1;
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphore, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         // Trigger the auth to complete.
-        dispatch_semaphore_signal(authSemaphore);
+        [(TestAuthorizer *)fetcher.authorizer unblock];
         // And then delay the stop
         sleep(1);
         [fetcher stopFetching];
@@ -2505,26 +2496,19 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
   // before triggering the authorization and calling `-stopFetching`.
 
-  // Use a semaphore to control when the Authorizor completes inrelation to the rest of the fetching
-  // sequence.
-  dispatch_semaphore_t authSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime = 1 + 1;  // Account for the sleep before allowing auth
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphore, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
+        fetcher.authorizer = [TestAuthorizer
+            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
+                    testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         // Delay
         sleep(1);
         // Trigger the auth to complete and then the stop.
-        dispatch_semaphore_signal(authSemaphore);
+        [(TestAuthorizer *)fetcher.authorizer unblock];
         [fetcher stopFetching];
       }];
 }
@@ -2538,27 +2522,20 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
   // before calling `-stopFetching` and then triggering the authorization.
 
-  // Use a semaphore to control when the Authorizor completes inrelation to the rest of the fetching
-  // sequence.
-  dispatch_semaphore_t authSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime = 1 + 1;  // Account for the sleep before allowing auth
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphore, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
+        fetcher.authorizer = [TestAuthorizer
+            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
+                    testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         // Delay
         sleep(1);
         // Stop the fetch and then allow the auth to happen.
         [fetcher stopFetching];
-        dispatch_semaphore_signal(authSemaphore);
+        [(TestAuthorizer *)fetcher.authorizer unblock];
       }];
 }
 
@@ -2571,23 +2548,14 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using an Authorizer that calls the completion asynchronously, start the fetch and then
   // immediately triggering the authorization and call `-stopFetching`.
 
-  // Use a semaphore to control when the Authorizor completes inrelation to the rest of the fetching
-  // sequence.
-  dispatch_semaphore_t authSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime = 1;
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphore, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
-        dispatch_semaphore_signal(authSemaphore);
+        [(TestAuthorizer *)fetcher.authorizer unblock];
         [fetcher stopFetching];
       }];
 }
@@ -2601,24 +2569,15 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using an Authorizer that calls the completion asynchronously, start the fetch and then
   // immediately call `-stopFetching` and then triggering the authorization.
 
-  // Use a semaphore to control when the Authorizor completes inrelation to the rest of the fetching
-  // sequence.
-  dispatch_semaphore_t authSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime = 1;
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphore, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         [fetcher stopFetching];
-        dispatch_semaphore_signal(authSemaphore);
+        [(TestAuthorizer *)fetcher.authorizer unblock];
       }];
 }
 
@@ -3273,30 +3232,70 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 
 @end
 
-@implementation TestAuthorizer
-@synthesize waitBlock = _waitBlock, delay = _delay, expired = _expired,
-            willFailWithError = _willFailWithError;
+@interface TestAuthorizer ()
+@property(atomic, assign, getter=isAsync) BOOL async;
+@property(atomic, assign) NSUInteger delay;
+@end
+
+@implementation TestAuthorizer {
+  // Support block mode.
+  NSUInteger _waitSeconds;
+  dispatch_semaphore_t _semaphore;
+}
+
+@synthesize async = _async, delay = _delay, expired = _expired,
+            willFailWithError = _willFailWithError, testExpectation = _testExpectation;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
 }
 
-+ (instancetype)asyncAuthorizer {
-  TestAuthorizer *authorizer = [self asyncAuthorizerBlocked:^{
-      // Nothing.
-  }];
++ (instancetype)syncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.testExpectation = testExpectation;
   return authorizer;
+}
+
++ (instancetype)asyncAuthorizer {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.async = YES;
+  return authorizer;
+}
+
++ (instancetype)asyncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
+  authorizer.testExpectation = testExpectation;
+  return authorizer;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds {
+  if (!seconds) {
+    [NSException raise:NSInvalidArgumentException format:@"You must use a nonzero time to wait"];
+  }
+  TestAuthorizer *authorizor = [self asyncAuthorizer];
+  if (authorizor) {
+    authorizor->_waitSeconds = seconds;
+    authorizor->_semaphore = dispatch_semaphore_create(0);
+  }
+  return authorizor;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
+                        testExpectation:(XCTestExpectation *)testExpecation {
+  TestAuthorizer *authorizor = [self asyncWithBlockedTimeout:seconds];
+  authorizor.testExpectation = testExpecation;
+  return authorizor;
+}
+
+- (void)unblock {
+  NSAssert(_waitSeconds, @"This was not a blocked authorizer");
+  dispatch_semaphore_signal(_semaphore);
+  _waitSeconds = 0;
 }
 
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds {
-  TestAuthorizer *authorizer = [self syncAuthorizer];
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
   authorizer.delay = delaySeconds;
-  return authorizer;
-}
-
-+ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock {
-  TestAuthorizer *authorizer = [self syncAuthorizer];
-  authorizer.waitBlock = waitBlock;
   return authorizer;
 }
 
@@ -3324,21 +3323,34 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
-  if (self.waitBlock) {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      self.waitBlock();
-      dispatch_async(dispatch_get_main_queue(), ^{
-        handler(error);
-      });
-    });
-  } else if (self.delay) {
+  if (self.delay) {
     dispatch_time_t delay_time =
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
     dispatch_after(delay_time, dispatch_get_main_queue(), ^{
       handler(error);
+      [self.testExpectation fulfill];
+    });
+  } else if (_waitSeconds) {
+    // Move to a work queue and block for the semaphore to be signaled.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      intptr_t waitResult = dispatch_semaphore_wait(
+          self->_semaphore, dispatch_time(DISPATCH_TIME_NOW, self->_waitSeconds * NSEC_PER_SEC));
+      XCTAssertEqual(0, waitResult);
+      dispatch_async(dispatch_get_main_queue(), ^{
+        handler(error);
+        [self.testExpectation fulfill];
+      });
+    });
+  } else if (self.isAsync) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      dispatch_async(dispatch_get_main_queue(), ^{
+        handler(error);
+        [self.testExpectation fulfill];
+      });
     });
   } else {
     handler(error);
+    [self.testExpectation fulfill];
   }
 }
 
@@ -3386,6 +3398,25 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (BOOL)primeForRefresh {
   self.expired = NO;
   return YES;
+}
+
+@end
+
+@implementation TestFailingAuthorizer {
+  NSString *_failureMessage;
+}
+
+- (instancetype)initWithFailureMessage:(NSString *)failureMessage {
+  self = [super init];
+  if (self) {
+    _failureMessage = failureMessage;
+  }
+  return self;
+}
+
+- (void)authorizeRequest:(NSMutableURLRequest *)request
+       completionHandler:(void (^)(NSError *_Nullable))handler {
+  XCTFail(@"%@", _failureMessage);
 }
 
 @end

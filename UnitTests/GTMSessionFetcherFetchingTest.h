@@ -81,27 +81,45 @@ extern NSString *const kGTMGettysburgFileName;
 - (nullable NSMutableURLRequest *)mutableRequestForTesting;
 @end
 
-typedef void (^TestAuthorizerWaitBlock)(void);
-
 // Authorization testing.
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
-// Will get called on a work queue and when it returns authorization will be completed.
-// If no `waitBlock` and no `delay`, they the authorizer will complete synchroniously when called.
-@property(atomic) TestAuthorizerWaitBlock waitBlock;
-// Can't be used with `waitBlock`, will complete the authorization after this delay.
-@property(atomic, assign) NSUInteger delay;
+@property(atomic, readonly, getter=isAsync) BOOL async;
+@property(atomic, readonly) NSUInteger delay;
 
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
 
+// An expectation to `-fulfill` after completing the authorization.
+@property(atomic, nullable) XCTestExpectation *testExpectation;
+
 + (instancetype)syncAuthorizer;
++ (instancetype)syncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation;
+
 + (instancetype)asyncAuthorizer;
++ (instancetype)asyncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation;
+
+// These will create an authorizor that will block the authorization call for the given timeout
+// until `-unblock` is called, at which point they will complete the authorization.
+//
+// NOTE: These are "1 shot" authorizers.  i.e. - you can't use them with multiple fetches.
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds;
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
+                        testExpectation:(XCTestExpectation *)testExpecation;
+- (void)unblock;
+
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds;
-+ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock;
+
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
+@end
+
+// This authorizer will call XCTFail with the given message, the inherrited properties change
+// nothing about it's behavior.
+@interface TestFailingAuthorizer : TestAuthorizer
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithFailureMessage:(NSString *)failureMessage NS_DESIGNATED_INITIALIZER;
 @end
 
 NS_ASSUME_NONNULL_END
