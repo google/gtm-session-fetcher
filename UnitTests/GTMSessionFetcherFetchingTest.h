@@ -85,7 +85,6 @@ extern NSString *const kGTMGettysburgFileName;
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
 @property(atomic, readonly, getter=isAsync) BOOL async;
-@property(atomic, readonly) NSUInteger delay;
 
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
@@ -107,8 +106,6 @@ extern NSString *const kGTMGettysburgFileName;
 + (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
                         testExpectation:(XCTestExpectation *)testExpecation;
 - (void)unblock;
-
-+ (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds;
 
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
