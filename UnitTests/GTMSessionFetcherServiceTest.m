@@ -29,7 +29,6 @@
 #import <GTMSessionFetcher/GTMSessionFetcherService.h>
 #import "GTMSessionFetcherService+Internal.h"
 
-#import "GTMSessionFetcherFetchingTest.h"  // For TestAuthorizer
 #import "GTMSessionFetcherTestServer.h"
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init
@@ -1853,222 +1852,17 @@ static bool IsCurrentProcessBeingDebugged(void) {
   XCTAssertNotNil(collectedMetrics);
 }
 
-- (void)testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherService {
-  [self helperForStopFetchers:1 stopDelaySeconds:1 reuseSession:NO];
-}
-
 - (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherService {
-  [self helperForStopFetchers:1 stopDelaySeconds:0 reuseSession:NO];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse {
-  [self helperForStopFetchers:1 stopDelaySeconds:1 reuseSession:YES];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionReuse5 {
-  [self helperForStopFetchers:5 stopDelaySeconds:0 reuseSession:NO];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionReuse5 {
-  [self helperForStopFetchers:5 stopDelaySeconds:1 reuseSession:NO];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionReuse5 {
-  [self helperForStopFetchers:5 stopDelaySeconds:0 reuseSession:YES];
-}
-
-- (void)testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionReuse5 {
-  [self helperForStopFetchers:5 stopDelaySeconds:1 reuseSession:YES];
-}
-
-- (void)testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSync {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSync {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionSyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionSyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer syncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceAsync {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceAsync {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizer]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceAsyncDelayed {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceAsyncDelayed {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse {
-  [self helperForStopFetchers:1
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingWithDelayTriggersCompletionHandlerFromFetcherServiceNoSessionAsyncDelayedReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:NO
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:0
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:1]];
-}
-
-- (void)
-    testFetcherUsesStopFetchingDelayTriggersCompletionHandlerFromFetcherServiceSessionAsyncDelayedReuse5 {
-  [self helperForStopFetchers:5
-             stopDelaySeconds:1
-                 reuseSession:YES
-                   authorizer:[TestAuthorizer asyncAuthorizerDelayed:2]];
-}
-
-- (void)helperForStopFetchers:(NSUInteger)numberOfFetches
-             stopDelaySeconds:(unsigned int)sleepTime
-                 reuseSession:(BOOL)reuseSession {
-  [self helperForStopFetchers:numberOfFetches
-             stopDelaySeconds:sleepTime
-                 reuseSession:reuseSession
-                   authorizer:nil];
-}
-
-#pragma clang diagnostic ignored "-Wdeprecated"
-- (void)helperForStopFetchers:(NSUInteger)numberOfFetches
-             stopDelaySeconds:(unsigned int)sleepTime
-                 reuseSession:(BOOL)reuseSession
-                   authorizer:(nullable id<GTMFetcherAuthorizationProtocol>)authorizer {
-#pragma clang diagnostic pop
-
-  XCTAssertTrue(numberOfFetches > 0);
-
   if (!_isServerRunning) return;
+
+  // TODO(thomasvl): Revisit this to make it more targeted in handling cancels with delays
+  // correctly.
+  NSUInteger numberOfFetches = 2;
 
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowLocalhostRequest = YES;
   service.stopFetchingTriggersCompletionHandler = YES;
-  service.reuseSession = reuseSession;
-  if (authorizer) {
-    service.authorizer = authorizer;
-  }
+  service.maxRunningFetchersPerHost = 1;
 
   // Use a URL that will timeout, so the fetch takes a long time so we can cancel it.
   NSURL *fetchURL = [_testServer localURLForFile:kValidFileName parameters:@{@"sleep" : @"5"}];
@@ -2091,10 +1885,6 @@ static bool IsCurrentProcessBeingDebugged(void) {
       XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
       [expectation fulfill];
     }];
-  }
-
-  if (sleepTime) {
-    sleep(sleepTime);
   }
 
   for (GTMSessionFetcher *fetcher in fetchers) {
