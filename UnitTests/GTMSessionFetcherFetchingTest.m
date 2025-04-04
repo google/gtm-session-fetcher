@@ -55,6 +55,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 + (nullable NSURL *)redirectURLWithOriginalRequestURL:(nullable NSURL *)originalRequestURL
                                    redirectRequestURL:(nullable NSURL *)redirectRequestURL;
 - (NSString *)createSessionIdentifierWithMetadata:(NSDictionary *)metadata;
+- (BOOL)userStoppedFetching;
 @end
 
 @interface TestIdentifierMetadataFecher : GTMSessionFetcher
@@ -1682,213 +1683,6 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 #endif
 }
 
-typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
-  TestAuthorizerModeNone = 0,
-  TestAuthorizerModeSync,
-  TestAuthorizerModeWaitPreSleep,
-  TestAuthorizerModeWaitPreStop,
-  TestAuthorizerModeWaitPostStop,
-};
-
-- (void)testDelayedCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeNone];
-}
-
-- (void)testDelayedCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testDelayedCancelFetchWithCallback];
-}
-
-- (void)testImmediateCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeNone];
-}
-
-- (void)testImmediateCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testImmediateCancelFetchWithCallback];
-}
-
-- (void)testPreCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeNone];
-}
-
-- (void)testPerCancelFetchWithCallback_WithoutFetcherService {
-  XCTSkip(@"Not currently passing, was misnamed and not running.");
-  _fetcherService = nil;
-  [self testPreCancelFetchWithCallback];
-}
-
-- (void)testDelayedSyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeSync];
-}
-
-- (void)testDelayedSyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testDelayedSyncAuthCancelFetchWithCallback];
-}
-
-- (void)testImmediateSyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeSync];
-}
-
-- (void)testImmediateSyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testImmediateSyncAuthCancelFetchWithCallback];
-}
-
-- (void)testPreSyncAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeSync];
-}
-
-- (void)testPreSyncAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testPreSyncAuthCancelFetchWithCallback];
-}
-
-- (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback {
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPreSleep];
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPreStop];
-  [self internalCancelFetchWithCallback:1 authorizerMode:TestAuthorizerModeWaitPostStop];
-}
-
-- (void)testDelayedAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testDelayedAsyncDelayedAuthCancelFetchWithCallback];
-}
-
-- (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback {
-  // No sleep
-  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeWaitPreStop];
-  [self internalCancelFetchWithCallback:0 authorizerMode:TestAuthorizerModeWaitPostStop];
-}
-
-- (void)testImmediateAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testImmediateAsyncDelayedAuthCancelFetchWithCallback];
-}
-
-- (void)testPreAsyncDelayedAuthCancelFetchWithCallback {
-  // No sleep
-  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeWaitPreStop];
-  [self internalCancelFetchWithCallback:-1 authorizerMode:TestAuthorizerModeWaitPostStop];
-}
-
-- (void)testPreAsyncDelayedAuthCancelFetchWithCallback_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testPreAsyncDelayedAuthCancelFetchWithCallback];
-}
-
-#pragma clang diagnostic ignored "-Wdeprecated"
-- (void)internalCancelFetchWithCallback:(int)sleepTime
-                         authorizerMode:(TestAuthorizerMode)authorizerMode {
-#pragma clang diagnostic pop
-  if (!_isServerRunning) return;
-
-  // If the authorizer is async, then the fetch won't fully begin, and there won't ever be
-  // a start notification (and thus stop notification). Likewise, if the fetch is stopped before
-  // it even starts, there won't be a notification.
-  int expectedNotificationCount =
-      (authorizerMode != TestAuthorizerModeNone && authorizerMode != TestAuthorizerModeSync) ||
-              (sleepTime < 0)
-          ? 0
-          : 1;
-  XCTestExpectation *fetcherStartedExpectation = nil;
-  XCTestExpectation *fetcherStoppedExpectation = nil;
-  if (expectedNotificationCount) {
-    fetcherStartedExpectation =
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStartedNotification];
-    fetcherStoppedExpectation =
-        [[XCTNSNotificationExpectation alloc] initWithName:kGTMSessionFetcherStoppedNotification];
-  }
-
-  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
-
-  // Use a URL that will timeout, so the fetch takes a long time so we can cancel it.
-  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
-                                                           parameters:@{@"sleep" : @"5"}];
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
-  fetcher.stopFetchingTriggersCompletionHandler = YES;
-
-  dispatch_semaphore_t authSemaphone = dispatch_semaphore_create(0);
-
-  if (sleepTime < 0) {
-    if (authorizerMode != TestAuthorizerModeNone) {
-      fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-        XCTFail(@"stopFetching called before begin should have prevented the authorizer from ever "
-                @"being called.");
-      }];
-    }
-  } else {
-    switch (authorizerMode) {
-      case TestAuthorizerModeNone:
-        break;
-      case TestAuthorizerModeSync:
-        fetcher.authorizer = [TestAuthorizer syncAuthorizer];
-        break;
-      case TestAuthorizerModeWaitPreSleep:
-        XCTAssertGreaterThan(sleepTime, 0,
-                             @"PreSleep when 'stop' was before 'begin' doesn't make sense.");
-      case TestAuthorizerModeWaitPreStop:
-      case TestAuthorizerModeWaitPostStop: {
-        XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
-        fetcher.authorizer = [TestAuthorizer asyncAuthorizerBlocked:^{
-          NSUInteger waitTime =
-              1 + (authorizerMode != TestAuthorizerModeWaitPreSleep ? sleepTime : 0);
-          intptr_t waitResult = dispatch_semaphore_wait(
-              authSemaphone, dispatch_time(DISPATCH_TIME_NOW, waitTime * NSEC_PER_SEC));
-          XCTAssertEqual(0, waitResult);
-          [authExpect fulfill];
-        }];
-      } break;
-    }
-  }
-
-  XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
-  if (sleepTime < 0) {  // <0 means stop before begin.
-    [fetcher stopFetching];
-  }
-  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
-    XCTAssertNil(data, @"error data unexpected");
-    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
-    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherErrorDomain);
-    [expectation fulfill];
-  }];
-
-  if (sleepTime >= 0) {
-    if (authorizerMode == TestAuthorizerModeWaitPreSleep) {
-      dispatch_semaphore_signal(authSemaphone);
-    }
-    if (sleepTime) {
-      sleep(sleepTime);
-    }
-    if (authorizerMode == TestAuthorizerModeWaitPreStop) {
-      dispatch_semaphore_signal(authSemaphone);
-    }
-    [fetcher stopFetching];
-    if (authorizerMode == TestAuthorizerModeWaitPostStop) {
-      dispatch_semaphore_signal(authSemaphone);
-    }
-  } else {
-    // No harm in signaling even if not needed.
-    dispatch_semaphore_signal(authSemaphone);
-  }
-
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-
-  [self assertCallbacksReleasedForFetcher:fetcher];
-
-  // Check the notifications.
-  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@",
-                 fnctr.fetchersStartedDescriptions);
-  XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
-  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
-#if GTM_BACKGROUND_TASK_FETCHING
-  [self waitForBackgroundTaskEndedNotifications:fnctr];
-  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)expectedNotificationCount);
-  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
-#endif
-}
-
 - (void)testFetchToFile {
   if (!_isServerRunning) return;
 
@@ -2483,6 +2277,313 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 - (void)testCollectingMetrics_WithWrongFetch_BadStatusCode_WithoutFetcherService {
   _fetcherService = nil;
   [self testCollectingMetrics_WithWrongFetch_BadStatusCode];
+}
+
+#pragma mark - Test StopFetching Triggers Callbacks
+// This is a suite of tests that try to ensure that canceling at different points during the
+// starting flow of `-beginFetch...` all properly get caught and trigger the callback.
+
+typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
+
+// Helper that runs the tests that test `-stopFetching` at different points in the fetcher internal
+// startup. This is to remove some of the boilerplate from the test cases and hopefully make those
+// more clear.
+//
+// @note At least `preBegin` or `postBegin` _must_ be provided (both can also be), and _one_ of them
+//       is expected to call `-stopFetching` on the fetcher for the helper to work.
+//
+// @param triggersNotifications  If the test should trigger the start/stop notifications.
+// @param preBegin               An optional block to run before the `-beginFetch...` call to do
+//                               extra work/configuration.
+// @param postBegin              An optional block to run right after the `-beginFetch...` call.
+//
+- (void)
+    runStopFetchingCallbackTestWithNotifications:(BOOL)triggersNotifications
+                                        preBegin:(nullable StopFetchingCallbackTestBlock)preBegin
+                                       postBegin:(nullable StopFetchingCallbackTestBlock)postBegin {
+  if (!_isServerRunning) return;
+
+  XCTAssertTrue(preBegin != nil || postBegin != nil,
+                @"preBegin and postBegin can't both be nil, you must provide at least one, and one "
+                @"of them has to call `-stopFetching`");
+
+  // If the authorizer is async, then the fetch won't fully begin, and there won't ever be
+  // a start notification (and thus stop notification). Likewise, if the fetch is stopped before
+  // it even starts, there won't be a notification.
+  int expectedNotificationCount = triggersNotifications ? 1 : 0;
+  XCTestExpectation *fetcherStartedExpectation = nil;
+  XCTestExpectation *fetcherStoppedExpectation = nil;
+  if (expectedNotificationCount) {
+    // The FetcherNotificationsCounter is used to validate things, but these ensure we wait for
+    // the notifications so there are no races on the counts.
+    fetcherStartedExpectation = [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                                          object:nil
+                                                         handler:nil];
+    fetcherStoppedExpectation = [self expectationForNotification:kGTMSessionFetcherStoppedNotification
+                                                          object:nil
+                                                         handler:nil];
+  }
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  // Use a URL that will timeout, so the fetch takes a while so it can always be cancelled.
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"5"}];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+
+  if (preBegin) {
+    preBegin(fetcher);
+  }
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data, @"error data unexpected");
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherErrorDomain);
+    [expectation fulfill];
+  }];
+
+  if (postBegin) {
+    postBegin(fetcher);
+  }
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertTrue(
+      [fetcher userStoppedFetching],
+      @"Test case error: `preBegin`/`postBegin` didn't appear to have cause `-stopFetching`");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@",
+                 fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)expectedNotificationCount);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
+- (void)testStopFetchWithCallback_DelayedStop {
+  // Wait 1s after the fetch is started and then stop it.
+  [self runStopFetchingCallbackTestWithNotifications:YES
+                                            preBegin:nil
+                                           postBegin:^(GTMSessionFetcher *fetcher) {
+                                             sleep(1);
+                                             [fetcher stopFetching];
+                                           }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop {
+  // Stop immediately after starting the fetch.
+  [self runStopFetchingCallbackTestWithNotifications:YES
+                                            preBegin:nil
+                                           postBegin:^(GTMSessionFetcher *fetcher) {
+                                             [fetcher stopFetching];
+                                           }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop {
+  // Call to `-stopFetching` before even starting the fetch.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_WithoutFetcherService {
+  XCTSkip(@"not currently passing");
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_PreBeginStop];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_SyncAuth {
+  // Using an Authorizer that calls the completion synchronously, wait 1s after the fetch is
+  // started and then stop it.
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:YES
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        sleep(1);
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_SyncAuth_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_SyncAuth];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_SyncAuth {
+  // Using an Authorizer that calls the completion synchronously, stop immediately after starting
+  // the fetch.
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:YES
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_SyncAuth_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop_SyncAuth];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_AuthNotCalled {
+  // When stopping the fetch before it is begun, no authenticator should get called as the stop
+  // should be handled before the authenticator is invoked.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.authorizer = [[TestFailingAuthorizer alloc]
+                                                  initWithFailureMessage:
+                                                      @"stopFetching called before begin should "
+                                                      @"have prevented the authorizer from ever "
+                                                      @"being called."];
+
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_AuthNotCalled_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_PreBeginStop_AuthNotCalled];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep {
+  // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
+  // starting the fetch, then wait 1s before calling `-stopFetching`.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Trigger the auth to complete.
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+        // And then delay the stop
+        sleep(1);
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop {
+  // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
+  // before triggering the authorization and calling `-stopFetching`.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer
+            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
+                    testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Delay
+        sleep(1);
+        // Trigger the auth to complete and then the stop.
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop {
+  // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
+  // before calling `-stopFetching` and then triggering the authorization.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer
+            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
+                    testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Delay
+        sleep(1);
+        // Stop the fetch and then allow the auth to happen.
+        [fetcher stopFetching];
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop {
+  // Using an Authorizer that calls the completion asynchronously, start the fetch and then
+  // immediately triggering the authorization and call `-stopFetching`.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop {
+  // Using an Authorizer that calls the completion asynchronously, start the fetch and then
+  // immediately call `-stopFetching` and then triggering the authorization.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [fetcher stopFetching];
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop];
 }
 
 #pragma mark - TestBlock Tests
@@ -3131,30 +3232,70 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 
 @end
 
-@implementation TestAuthorizer
-@synthesize waitBlock = _waitBlock, delay = _delay, expired = _expired,
-            willFailWithError = _willFailWithError;
+@interface TestAuthorizer ()
+@property(atomic, assign, getter=isAsync) BOOL async;
+@property(atomic, assign) NSUInteger delay;
+@end
+
+@implementation TestAuthorizer {
+  // Support block mode.
+  NSUInteger _waitSeconds;
+  dispatch_semaphore_t _semaphore;
+}
+
+@synthesize async = _async, delay = _delay, expired = _expired,
+            willFailWithError = _willFailWithError, testExpectation = _testExpectation;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
 }
 
-+ (instancetype)asyncAuthorizer {
-  TestAuthorizer *authorizer = [self asyncAuthorizerBlocked:^{
-      // Nothing.
-  }];
++ (instancetype)syncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.testExpectation = testExpectation;
   return authorizer;
+}
+
++ (instancetype)asyncAuthorizer {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.async = YES;
+  return authorizer;
+}
+
++ (instancetype)asyncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
+  authorizer.testExpectation = testExpectation;
+  return authorizer;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds {
+  if (!seconds) {
+    [NSException raise:NSInvalidArgumentException format:@"You must use a nonzero time to wait"];
+  }
+  TestAuthorizer *authorizor = [self asyncAuthorizer];
+  if (authorizor) {
+    authorizor->_waitSeconds = seconds;
+    authorizor->_semaphore = dispatch_semaphore_create(0);
+  }
+  return authorizor;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
+                        testExpectation:(XCTestExpectation *)testExpecation {
+  TestAuthorizer *authorizor = [self asyncWithBlockedTimeout:seconds];
+  authorizor.testExpectation = testExpecation;
+  return authorizor;
+}
+
+- (void)unblock {
+  NSAssert(_waitSeconds, @"This was not a blocked authorizer");
+  dispatch_semaphore_signal(_semaphore);
+  _waitSeconds = 0;
 }
 
 + (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds {
-  TestAuthorizer *authorizer = [self syncAuthorizer];
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
   authorizer.delay = delaySeconds;
-  return authorizer;
-}
-
-+ (instancetype)asyncAuthorizerBlocked:(TestAuthorizerWaitBlock)waitBlock {
-  TestAuthorizer *authorizer = [self syncAuthorizer];
-  authorizer.waitBlock = waitBlock;
   return authorizer;
 }
 
@@ -3182,21 +3323,34 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
-  if (self.waitBlock) {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      self.waitBlock();
-      dispatch_async(dispatch_get_main_queue(), ^{
-        handler(error);
-      });
-    });
-  } else if (self.delay) {
+  if (self.delay) {
     dispatch_time_t delay_time =
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
     dispatch_after(delay_time, dispatch_get_main_queue(), ^{
       handler(error);
+      [self.testExpectation fulfill];
+    });
+  } else if (_waitSeconds) {
+    // Move to a work queue and block for the semaphore to be signaled.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      intptr_t waitResult = dispatch_semaphore_wait(
+          self->_semaphore, dispatch_time(DISPATCH_TIME_NOW, self->_waitSeconds * NSEC_PER_SEC));
+      XCTAssertEqual(0, waitResult);
+      dispatch_async(dispatch_get_main_queue(), ^{
+        handler(error);
+        [self.testExpectation fulfill];
+      });
+    });
+  } else if (self.isAsync) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      dispatch_async(dispatch_get_main_queue(), ^{
+        handler(error);
+        [self.testExpectation fulfill];
+      });
     });
   } else {
     handler(error);
+    [self.testExpectation fulfill];
   }
 }
 
@@ -3244,6 +3398,25 @@ typedef NS_ENUM(NSInteger, TestAuthorizerMode) {
 - (BOOL)primeForRefresh {
   self.expired = NO;
   return YES;
+}
+
+@end
+
+@implementation TestFailingAuthorizer {
+  NSString *_failureMessage;
+}
+
+- (instancetype)initWithFailureMessage:(NSString *)failureMessage {
+  self = [super init];
+  if (self) {
+    _failureMessage = failureMessage;
+  }
+  return self;
+}
+
+- (void)authorizeRequest:(NSMutableURLRequest *)request
+       completionHandler:(void (^)(NSError *_Nullable))handler {
+  XCTFail(@"%@", _failureMessage);
 }
 
 @end
