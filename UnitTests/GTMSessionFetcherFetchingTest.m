@@ -3234,7 +3234,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 
 @interface TestAuthorizer ()
 @property(atomic, assign, getter=isAsync) BOOL async;
-@property(atomic, assign) NSUInteger delay;
 @end
 
 @implementation TestAuthorizer {
@@ -3243,8 +3242,8 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   dispatch_semaphore_t _semaphore;
 }
 
-@synthesize async = _async, delay = _delay, expired = _expired,
-            willFailWithError = _willFailWithError, testExpectation = _testExpectation;
+@synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError,
+            testExpectation = _testExpectation;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
@@ -3293,12 +3292,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   _waitSeconds = 0;
 }
 
-+ (instancetype)asyncAuthorizerDelayed:(NSUInteger)delaySeconds {
-  TestAuthorizer *authorizer = [self asyncAuthorizer];
-  authorizer.delay = delaySeconds;
-  return authorizer;
-}
-
 + (instancetype)expiredSyncAuthorizer {
   TestAuthorizer *authorizer = [self syncAuthorizer];
   authorizer.expired = YES;
@@ -3323,14 +3316,7 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
-  if (self.delay) {
-    dispatch_time_t delay_time =
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.delay * NSEC_PER_SEC));
-    dispatch_after(delay_time, dispatch_get_main_queue(), ^{
-      handler(error);
-      [self.testExpectation fulfill];
-    });
-  } else if (_waitSeconds) {
+  if (_waitSeconds) {
     // Move to a work queue and block for the semaphore to be signaled.
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
       intptr_t waitResult = dispatch_semaphore_wait(
@@ -3342,11 +3328,9 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
       });
     });
   } else if (self.isAsync) {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      dispatch_async(dispatch_get_main_queue(), ^{
-        handler(error);
-        [self.testExpectation fulfill];
-      });
+    dispatch_async(dispatch_get_main_queue(), ^{
+      handler(error);
+      [self.testExpectation fulfill];
     });
   } else {
     handler(error);
