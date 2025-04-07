@@ -2592,11 +2592,11 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // Using a UAProvider, trigger the provider after starting the fetch, then wait 1s before calling
   // `-stopFetching`.
 
-  XCTSkip(@"not currently passing");
   XCTestExpectation *providerExpect =
       [self expectationWithDescription:@"Expect for UAProvider block"];
 
-  [self runStopFetchingCallbackTestWithNotifications:NO
+  // The notifications will fire because after unblocking, the sleep allows the fetch to start.
+  [self runStopFetchingCallbackTestWithNotifications:YES
       preBegin:^(GTMSessionFetcher *fetcher) {
         fetcher.userAgentProvider =
             [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
