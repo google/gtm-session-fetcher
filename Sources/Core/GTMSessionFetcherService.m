@@ -338,6 +338,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 #pragma mark Queue Management
 
 - (void)addRunningFetcher:(GTMSessionFetcher *)fetcher forHost:(NSString *)host {
+  GTMSessionCheckSynchronized(self);
   // Add to the array of running fetchers for this host, creating the array if needed.
   NSMutableArray *runningForHost = [_runningFetchersByHost objectForKey:host];
   if (runningForHost == nil) {
@@ -349,6 +350,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 }
 
 - (void)addDelayedFetcher:(GTMSessionFetcher *)fetcher forHost:(NSString *)host {
+  GTMSessionCheckSynchronized(self);
   // Add to the array of delayed fetchers for this host, creating the array if needed.
   NSMutableArray *delayedForHost = [_delayedFetchersByHost objectForKey:host];
   if (delayedForHost == nil) {
@@ -397,7 +399,8 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 
     NSMutableArray *runningForHost = [_runningFetchersByHost objectForKey:host];
     if (runningForHost != nil && [runningForHost indexOfObjectIdenticalTo:fetcher] != NSNotFound) {
-      GTMSESSION_ASSERT_DEBUG(NO, @"%@ was already running", fetcher);
+      // It was already running, this can be caused by a fetch that needed to do authorization,
+      // invoke a UserAgent provider or decorators.
       return YES;
     }
 
