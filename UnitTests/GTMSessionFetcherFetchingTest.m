@@ -3448,7 +3448,9 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
         _semaphore, dispatch_time(DISPATCH_TIME_NOW, _waitSeconds * NSEC_PER_SEC));
     XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds", (unsigned long)_waitSeconds);
   }
-  return _userAgentBlock();
+  NSString *result = _userAgentBlock();
+  self.cachedUserAgent = result;
+  return result;
 }
 
 @end
