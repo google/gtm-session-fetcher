@@ -3323,7 +3323,8 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
       intptr_t waitResult = dispatch_semaphore_wait(
           self->_semaphore, dispatch_time(DISPATCH_TIME_NOW, self->_waitSeconds * NSEC_PER_SEC));
-      XCTAssertEqual(0, waitResult);
+      XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds",
+                     (unsigned long)self->_waitSeconds);
       dispatch_async(dispatch_get_main_queue(), ^{
         handler(error);
         [self.testExpectation fulfill];
@@ -3407,7 +3408,11 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 
 @end
 
-@implementation TestUserAgentBlockProvider
+@implementation TestUserAgentBlockProvider {
+  // Support block mode.
+  NSUInteger _waitSeconds;
+  dispatch_semaphore_t _semaphore;
+}
 
 @synthesize cachedUserAgent = _cachedUserAgent;
 
@@ -3419,7 +3424,30 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   return self;
 }
 
+- (instancetype)initWithBlockedTimeout:(NSUInteger)seconds
+                        userAgentBlock:(nonnull UserAgentBlock)userAgentBlock {
+  if (!seconds) {
+    [NSException raise:NSInvalidArgumentException format:@"You must use a nonzero time to wait"];
+  }
+  if (self = [self initWithUserAgentBlock:userAgentBlock]) {
+    _waitSeconds = seconds;
+    _semaphore = dispatch_semaphore_create(0);
+  }
+  return self;
+}
+
+- (void)unblock {
+  NSAssert(_waitSeconds, @"This was not a blocked UAProvider");
+  dispatch_semaphore_signal(_semaphore);
+  _waitSeconds = 0;
+}
+
 - (NSString *)userAgent {
+  if (_waitSeconds) {
+    intptr_t waitResult = dispatch_semaphore_wait(
+        _semaphore, dispatch_time(DISPATCH_TIME_NOW, _waitSeconds * NSEC_PER_SEC));
+    XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds", (unsigned long)_waitSeconds);
+  }
   return _userAgentBlock();
 }
 

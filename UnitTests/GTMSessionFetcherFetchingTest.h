@@ -132,6 +132,14 @@ typedef NSString *_Nonnull (^UserAgentBlock)(void);
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithUserAgentBlock:(UserAgentBlock)userAgentBlock NS_DESIGNATED_INITIALIZER;
 
+// When called, this provider will block for the given timeout until `-unblock` is called, at which
+// point it will invoke the provided callback.
+//
+// NOTE: This is "1 shot".  i.e. - you can't use them with multiple fetches.
+- (instancetype)initWithBlockedTimeout:(NSUInteger)seconds
+                        userAgentBlock:(UserAgentBlock)userAgentBlock;
+- (void)unblock;
+
 @end
 
 NS_ASSUME_NONNULL_END
