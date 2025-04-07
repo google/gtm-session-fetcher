@@ -29,6 +29,7 @@
 #import <GTMSessionFetcher/GTMSessionFetcherService.h>
 #import "GTMSessionFetcherService+Internal.h"
 
+#import "GTMSessionFetcherFetchingTest.h"
 #import "GTMSessionFetcherTestServer.h"
 
 // Helper macro to create fetcher start/stop notification expectations. These use alloc/init
@@ -147,36 +148,6 @@ typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
       handler();
     });
   }
-}
-
-@end
-
-typedef NSString * (^GTMUserAgentBlock)(void);
-
-@interface GTMUserAgentBlockProvider : NSObject <GTMUserAgentProvider>
-
-@property(atomic, copy) NSString *cachedUserAgent;
-@property(atomic) GTMUserAgentBlock userAgentBlock;
-
-- (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithUserAgentBlock:(GTMUserAgentBlock)userAgentBlock NS_DESIGNATED_INITIALIZER;
-
-@end
-
-@implementation GTMUserAgentBlockProvider
-
-@synthesize cachedUserAgent = _cachedUserAgent;
-
-- (instancetype)initWithUserAgentBlock:(GTMUserAgentBlock)userAgentBlock {
-  self = [super init];
-  if (self) {
-    _userAgentBlock = userAgentBlock;
-  }
-  return self;
-}
-
-- (NSString *)userAgent {
-  return _userAgentBlock();
 }
 
 @end
@@ -1171,7 +1142,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
 - (void)testUserAgentFromProviderShouldFetchFromProviderOffMainQueueWhenNotCached {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
-  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+  service.userAgentProvider = [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
     dispatch_assert_queue_not(dispatch_get_main_queue());
     return @"NotMainQueue";
   }];
@@ -1188,8 +1159,8 @@ static bool IsCurrentProcessBeingDebugged(void) {
 - (void)testUserAgentFromProviderShouldFetchFromProviderOnMainQueueWhenCached {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
-  GTMUserAgentBlockProvider *userAgentProvider =
-      [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+  TestUserAgentBlockProvider *userAgentProvider =
+      [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
         dispatch_assert_queue(dispatch_get_main_queue());
         return @"MainQueue";
       }];
@@ -1211,7 +1182,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *userAgentProvidedExpectation =
       [self expectationWithDescription:@"User agent provided"];
-  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+  service.userAgentProvider = [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
     intptr_t wait_result = dispatch_semaphore_wait(
         fetcherStoppedSemaphore, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC));
     XCTAssertEqual(0, wait_result);
@@ -1235,7 +1206,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
   dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *userAgentProvidedExpectation =
       [self expectationWithDescription:@"User agent provided"];
-  service.userAgentProvider = [[GTMUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+  service.userAgentProvider = [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
     dispatch_semaphore_wait(fetcherStoppedSemaphore, DISPATCH_TIME_FOREVER);
     [userAgentProvidedExpectation fulfill];
     return @"NotUsed";

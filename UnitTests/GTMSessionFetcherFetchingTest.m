@@ -2316,12 +2316,14 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   if (expectedNotificationCount) {
     // The FetcherNotificationsCounter is used to validate things, but these ensure we wait for
     // the notifications so there are no races on the counts.
-    fetcherStartedExpectation = [self expectationForNotification:kGTMSessionFetcherStartedNotification
-                                                          object:nil
-                                                         handler:nil];
-    fetcherStoppedExpectation = [self expectationForNotification:kGTMSessionFetcherStoppedNotification
-                                                          object:nil
-                                                         handler:nil];
+    fetcherStartedExpectation =
+        [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                  object:nil
+                                 handler:nil];
+    fetcherStoppedExpectation =
+        [self expectationForNotification:kGTMSessionFetcherStoppedNotification
+                                  object:nil
+                                 handler:nil];
   }
 
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
@@ -3401,6 +3403,24 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (void)authorizeRequest:(NSMutableURLRequest *)request
        completionHandler:(void (^)(NSError *_Nullable))handler {
   XCTFail(@"%@", _failureMessage);
+}
+
+@end
+
+@implementation TestUserAgentBlockProvider
+
+@synthesize cachedUserAgent = _cachedUserAgent;
+
+- (instancetype)initWithUserAgentBlock:(UserAgentBlock)userAgentBlock {
+  self = [super init];
+  if (self) {
+    _userAgentBlock = userAgentBlock;
+  }
+  return self;
+}
+
+- (NSString *)userAgent {
+  return _userAgentBlock();
 }
 
 @end
