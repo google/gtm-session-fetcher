@@ -1179,23 +1179,21 @@ static bool IsCurrentProcessBeingDebugged(void) {
 - (void)testStoppingFetchWhileUserAgentProviderInProgressShouldNotInvokeCompletionHandler {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
-  dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *userAgentProvidedExpectation =
       [self expectationWithDescription:@"User agent provided"];
-  service.userAgentProvider = [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
-    intptr_t wait_result = dispatch_semaphore_wait(
-        fetcherStoppedSemaphore, dispatch_time(DISPATCH_TIME_NOW, 1 * NSEC_PER_SEC));
-    XCTAssertEqual(0, wait_result);
-    [userAgentProvidedExpectation fulfill];
-    return @"NotUsed";
-  }];
+  service.userAgentProvider =
+      [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
+                                                  userAgentBlock:^{
+                                                    [userAgentProvidedExpectation fulfill];
+                                                    return @"NotUsed";
+                                                  }];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
   [fetcher
       beginFetchWithCompletionHandler:^(__unused NSData *fetchData, __unused NSError *fetchError) {
         XCTFail(@"Completion handler should not be invoked");
       }];
   [fetcher stopFetching];
-  dispatch_semaphore_signal(fetcherStoppedSemaphore);
+  [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
@@ -1203,14 +1201,14 @@ static bool IsCurrentProcessBeingDebugged(void) {
     testStoppingFetchWhileUserAgentProviderInProgressShouldInvokeCompletionHandlerIfPropertySet {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
-  dispatch_semaphore_t fetcherStoppedSemaphore = dispatch_semaphore_create(0);
   XCTestExpectation *userAgentProvidedExpectation =
       [self expectationWithDescription:@"User agent provided"];
-  service.userAgentProvider = [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
-    dispatch_semaphore_wait(fetcherStoppedSemaphore, DISPATCH_TIME_FOREVER);
-    [userAgentProvidedExpectation fulfill];
-    return @"NotUsed";
-  }];
+  service.userAgentProvider =
+      [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:5
+                                                  userAgentBlock:^{
+                                                    [userAgentProvidedExpectation fulfill];
+                                                    return @"NotUsed";
+                                                  }];
   GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
   fetcher.stopFetchingTriggersCompletionHandler = YES;
   XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
@@ -1219,7 +1217,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
         [fetchCompleteExpectation fulfill];
       }];
   [fetcher stopFetching];
-  dispatch_semaphore_signal(fetcherStoppedSemaphore);
+  [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
