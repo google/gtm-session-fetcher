@@ -1156,13 +1156,13 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
-- (void)testUserAgentFromProviderShouldFetchFromProviderOnMainQueueWhenCached {
+- (void)testUserAgentFromProviderShouldNotBeCalledWhenAlreadyCached {
   GTMSessionFetcherService *service =
       [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
   TestUserAgentBlockProvider *userAgentProvider =
       [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
-        dispatch_assert_queue(dispatch_get_main_queue());
-        return @"MainQueue";
+        XCTFail(@"With a cached value, the provider should not be invoked.");
+        return @"NotUsed";
       }];
   userAgentProvider.cachedUserAgent = @"MainQueue";
   service.userAgentProvider = userAgentProvider;
