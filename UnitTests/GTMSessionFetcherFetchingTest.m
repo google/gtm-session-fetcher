@@ -2588,6 +2588,175 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   [self testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop];
 }
 
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreSleep {
+  // Using a UAProvider, trigger the provider after starting the fetch, then wait 1s before calling
+  // `-stopFetching`.
+
+  XCTSkip(@"not currently passing");
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider =
+            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
+                                                        userAgentBlock:^{
+                                                          [providerExpect fulfill];
+                                                          return @"TestUA";
+                                                        }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Trigger the provider to complete.
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        // And then delay the stop
+        sleep(1);
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreSleep_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_UAProviderPreSleep];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreStop {
+  // Using a UAProvider, wait 1s after starting the fetch, then trigger the provider and call
+  // `-stopFetching`.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
+            initWithBlockedTimeout:1 + 1  // Account for the sleep before completing
+                    userAgentBlock:^{
+                      [providerExpect fulfill];
+                      return @"TestUA";
+                    }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Delay
+        sleep(1);
+        // Trigger the provider to complete and stop.
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_UAProviderPreStop];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPostStop {
+  // Using a UAProvider, start the fetch and then wait 1s before calling `-stopFetching` and then
+  // triggering the UAProvider.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
+            initWithBlockedTimeout:1 + 1  // Account for the sleep before completing
+                    userAgentBlock:^{
+                      [providerExpect fulfill];
+                      return @"TestUA";
+                    }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Delay
+        sleep(1);
+        // Stop the fetch and then allow the provider to complete.
+        [fetcher stopFetching];
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_UAProviderPostStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop_UAProviderPostStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPreStop {
+  // Using a UAProvider, start the fetch and then immediately triggering the UAProvider and call
+  // `-stopFetching`.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider =
+            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
+                                                        userAgentBlock:^{
+                                                          [providerExpect fulfill];
+                                                          return @"TestUA";
+                                                        }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPreStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop_UAProviderPreStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPostStop {
+  // Using a UAProvider, start the fetch and then immediately call `-stopFetching` and triggering
+  // the UAProvider.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider =
+            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
+                                                        userAgentBlock:^{
+                                                          [providerExpect fulfill];
+                                                          return @"TestUA";
+                                                        }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [fetcher stopFetching];
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPostStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop_UAProviderPostStop];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled {
+  // When stopping the fetch before it is begun, no UAProvider should get called as the stop
+  // should be handled before the UAProvider is invoked.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.userAgentProvider =
+                                                  [[TestUserAgentBlockProvider alloc]
+                                                      initWithUserAgentBlock:^{
+                                                        XCTFail(
+                                                            @"stopFetching called before begin "
+                                                            @"should have prevented the authorizer "
+                                                            @"from ever being called.");
+                                                        return @"NotUsed";
+                                                      }];
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled];
+}
+
 #pragma mark - TestBlock Tests
 
 - (void)testFetcherTestBlock {
