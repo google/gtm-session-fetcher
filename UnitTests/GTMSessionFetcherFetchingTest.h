@@ -81,7 +81,8 @@ extern NSString *const kGTMGettysburgFileName;
 - (nullable NSMutableURLRequest *)mutableRequestForTesting;
 @end
 
-// Authorization testing.
+#pragma mark - Authorization testing helper
+
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
 @property(atomic, readonly, getter=isAsync) BOOL async;
@@ -117,6 +118,20 @@ extern NSString *const kGTMGettysburgFileName;
 @interface TestFailingAuthorizer : TestAuthorizer
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithFailureMessage:(NSString *)failureMessage NS_DESIGNATED_INITIALIZER;
+@end
+
+#pragma mark - User Agent Caching testing helper
+
+typedef NSString *_Nonnull (^UserAgentBlock)(void);
+
+@interface TestUserAgentBlockProvider : NSObject <GTMUserAgentProvider>
+
+@property(atomic, copy) NSString *cachedUserAgent;
+@property(atomic, copy) UserAgentBlock userAgentBlock;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithUserAgentBlock:(UserAgentBlock)userAgentBlock NS_DESIGNATED_INITIALIZER;
+
 @end
 
 NS_ASSUME_NONNULL_END
