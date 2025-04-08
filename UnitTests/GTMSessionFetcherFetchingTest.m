@@ -3460,7 +3460,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (void)unblock {
   NSAssert(_waitSeconds, @"This was not a blocked authorizer");
   dispatch_semaphore_signal(_semaphore);
-  _waitSeconds = 0;
 }
 
 + (instancetype)expiredSyncAuthorizer {
@@ -3608,7 +3607,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (void)unblock {
   NSAssert(_waitSeconds, @"This was not a blocked UAProvider");
   dispatch_semaphore_signal(_semaphore);
-  _waitSeconds = 0;
 }
 
 - (NSString *)userAgent {
