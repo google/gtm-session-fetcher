@@ -254,6 +254,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   BOOL _hasAttemptedAuthRefresh;   // accessed only in shouldRetryNowForStatus:
 
   GTMSessionFetcherDelayState _delayState;
+  NSUInteger _pendingNotifications;
 
   NSString *_comment;  // comment for log
   NSString *_log;
@@ -2954,22 +2955,49 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
 - (void)postNotificationOnMainThreadWithName:(NSString *)noteName
                                     userInfo:(nullable NSDictionary *)userInfo {
-  dispatch_block_t postBlock = ^{
+  // Historically, the notification has been posted immediately when on the main thread already, so
+  // that is continued to not break any existing code. However, if a notification gets deferred to
+  // be posted on the main thread, then even if some other code is one the main thread, it can't
+  // post it's notification before the deferred one is posted, otherwise you could get a stop and/or
+  // callback notification *before* the start notification. So if anything gets deferred to the main
+  // thread, an immediated post on the main thread also has to get delayed to maintain the order.
+  //
+  // This could get revisited to defer all notifications, but that should probably go out in a
+  // major version bump as it could be breaking to some usages who were dependent on the ordering.
+
+  GTMSessionCheckNotSynchronized(self);
+
+  BOOL canPostNow = NO;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    if (_pendingNotifications == 0 && [NSThread isMainThread]) {
+      canPostNow = YES;
+    } else {
+      // This one will get deferred, so increase the counter for deferred notifications.
+      _pendingNotifications++;
+    }
+  }
+  if (canPostNow) {
     [[NSNotificationCenter defaultCenter] postNotificationName:noteName
                                                         object:self
                                                       userInfo:userInfo];
-  };
-
-  if ([NSThread isMainThread]) {
-    // Post synchronously for compatibility with older code using the fetcher.
-
-    // Avoid calling out to other code from inside a sync block to avoid risk
-    // of a deadlock or of recursive sync.
-    GTMSessionCheckNotSynchronized(self);
-
-    postBlock();
   } else {
-    dispatch_async(dispatch_get_main_queue(), postBlock);
+    dispatch_async(dispatch_get_main_queue(), ^{
+      @synchronized(self) {
+        GTMSessionMonitorSynchronized(self);
+
+        GTMSESSION_ASSERT_DEBUG(
+            self->_pendingNotifications > 0,
+            @"Internal error: firing pending notification when wasn't tracked: %lu",
+            (unsigned long)self->_pendingNotifications);
+        self->_pendingNotifications--;
+      }
+
+      [[NSNotificationCenter defaultCenter] postNotificationName:noteName
+                                                          object:self
+                                                        userInfo:userInfo];
+    });
   }
 }
 
