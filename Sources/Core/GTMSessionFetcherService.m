@@ -489,7 +489,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
   [self fetcherDidStop:fetcher callbacksPending:false];
 }
 
-- (void)fetcherDidStop:(GTMSessionFetcher *)fetcher callbacksPending:(BOOL) callbacksPending {
+- (void)fetcherDidStop:(GTMSessionFetcher *)fetcher callbacksPending:(BOOL)callbacksPending {
   // Entry point from the fetcher
   NSString *host = fetcher.serviceHost;
   if (!host) {
@@ -501,7 +501,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
   // map when the task completes.
   if (!callbacksPending) {
     GTMSessionFetcherSessionDelegateDispatcher *delegateDispatcher =
-    [self delegateDispatcherForFetcher:fetcher];
+        [self delegateDispatcherForFetcher:fetcher];
     [delegateDispatcher removeFetcher:fetcher];
   }
 
