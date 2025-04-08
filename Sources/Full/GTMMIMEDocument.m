@@ -449,7 +449,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
             numberOfPartsWithHeaders++;
 #endif
           }  // crlfOffsets.count == 0
-        }    // hasAnotherCRLF
+        }  // hasAnotherCRLF
 
         // bodyData being nil reflects malformed data; if so provide an empty
         // NSData object rather than pass nil to a nonnull parameter.
