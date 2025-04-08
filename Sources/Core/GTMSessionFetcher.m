@@ -1003,9 +1003,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 
   [self setStopNotificationNeeded:YES];
 
-  [self postNotificationOnMainThreadWithName:kGTMSessionFetcherStartedNotification
-                                    userInfo:nil
-                                requireAsync:NO];
+  [self postNotificationOnMainThreadWithName:kGTMSessionFetcherStartedNotification userInfo:nil];
 
   // The service needs to know our task if it is serving as NSURLSession delegate.
   [_service fetcherDidBeginFetching:self];
@@ -2368,9 +2366,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }  // @synchronized(self)
 
   if (sendNow) {
-    [self postNotificationOnMainThreadWithName:kGTMSessionFetcherStoppedNotification
-                                      userInfo:nil
-                                  requireAsync:NO];
+    [self postNotificationOnMainThreadWithName:kGTMSessionFetcherStoppedNotification userInfo:nil];
   }
 }
 
@@ -2951,22 +2947,20 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                             }
                             [self postNotificationOnMainThreadWithName:
                                       kGTMSessionFetcherCompletionInvokedNotification
-                                                              userInfo:userInfo
-                                                          requireAsync:NO];
+                                                              userInfo:userInfo];
                           }];
   }
 }
 
 - (void)postNotificationOnMainThreadWithName:(NSString *)noteName
-                                    userInfo:(nullable NSDictionary *)userInfo
-                                requireAsync:(BOOL)requireAsync {
+                                    userInfo:(nullable NSDictionary *)userInfo {
   dispatch_block_t postBlock = ^{
     [[NSNotificationCenter defaultCenter] postNotificationName:noteName
                                                         object:self
                                                       userInfo:userInfo];
   };
 
-  if ([NSThread isMainThread] && !requireAsync) {
+  if ([NSThread isMainThread]) {
     // Post synchronously for compatibility with older code using the fetcher.
 
     // Avoid calling out to other code from inside a sync block to avoid risk
@@ -3703,8 +3697,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   }  // @synchronized(self)
 
   [self postNotificationOnMainThreadWithName:kGTMSessionFetcherRetryDelayStartedNotification
-                                    userInfo:nil
-                                requireAsync:NO];
+                                    userInfo:nil];
 }
 
 - (void)retryTimerFired:(NSTimer *)timer {
@@ -3737,8 +3730,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
 
   if (shouldNotify) {
     [self postNotificationOnMainThreadWithName:kGTMSessionFetcherRetryDelayStoppedNotification
-                                      userInfo:nil
-                                  requireAsync:NO];
+                                      userInfo:nil];
   }
 }
 
