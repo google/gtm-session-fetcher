@@ -2407,7 +2407,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 }
 
 - (void)testStopFetchWithCallback_PreBeginStop_WithoutFetcherService {
-  XCTSkip(@"not currently passing");
   _fetcherService = nil;
   [self testStopFetchWithCallback_PreBeginStop];
 }
