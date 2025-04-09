@@ -399,8 +399,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 
     NSMutableArray *runningForHost = [_runningFetchersByHost objectForKey:host];
     if (runningForHost != nil && [runningForHost indexOfObjectIdenticalTo:fetcher] != NSNotFound) {
-      // It was already running, this can be caused by a fetch that needed to do authorization,
-      // invoke a UserAgent provider or decorators.
+      GTMSESSION_ASSERT_DEBUG(NO, @"%@ was already running", fetcher);
       return YES;
     }
 

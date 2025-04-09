@@ -789,7 +789,6 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       // The User-Agent is not cached in memory. Fetch it asynchronously.
       [self updateUserAgentAsynchronouslyForRequest:fetchRequest
                                   userAgentProvider:userAgentProvider
-                                           mayDelay:mayDelay
                                        mayAuthorize:mayAuthorize
                                         mayDecorate:mayDecorate];
       // This method can't continue until the User-Agent header is fetched. The above
@@ -1092,7 +1091,6 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
 // sets it in |fetchRequest| and continues the request.
 - (void)updateUserAgentAsynchronouslyForRequest:(NSMutableURLRequest *)fetchRequest
                               userAgentProvider:(id<GTMUserAgentProvider>)userAgentProvider
-                                       mayDelay:(BOOL)mayDelay
                                    mayAuthorize:(BOOL)mayAuthorize
                                     mayDecorate:(BOOL)mayDecorate {
   GTMSESSION_LOG_DEBUG_VERBOSE(
@@ -1125,7 +1123,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       }
       [strongSelf->_request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
     }
-    [strongSelf beginFetchMayDelay:mayDelay mayAuthorize:mayAuthorize mayDecorate:mayDecorate];
+    [strongSelf beginFetchMayDelay:NO mayAuthorize:mayAuthorize mayDecorate:mayDecorate];
   });
 }
 
