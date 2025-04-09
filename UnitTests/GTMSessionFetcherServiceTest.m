@@ -1824,42 +1824,97 @@ static bool IsCurrentProcessBeingDebugged(void) {
 - (void)testFetcherUsesStopFetchingTriggersCompletionHandlerFromFetcherService {
   if (!_isServerRunning) return;
 
-  // TODO(thomasvl): Revisit this to make it more targeted in handling cancels with delays
-  // correctly.
-  NSUInteger numberOfFetches = 2;
-
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   service.allowLocalhostRequest = YES;
   service.stopFetchingTriggersCompletionHandler = YES;
   service.maxRunningFetchersPerHost = 1;
 
-  // Use a URL that will timeout, so the fetch takes a long time so we can cancel it.
-  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName parameters:@{@"sleep" : @"5"}];
-  NSMutableArray<GTMSessionFetcher *> *fetchers =
-      [NSMutableArray arrayWithCapacity:numberOfFetches];
-  for (NSUInteger i = numberOfFetches; i; --i) {
-    GTMSessionFetcher *fetcher = [service fetcherWithURL:fetchURL];
-    [fetchers addObject:fetcher];
-  }
-  XCTAssertEqual(fetchers.count, numberOfFetches);
+  NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
 
-  XCTestExpectation *expectation = [self expectationWithDescription:@"Completion expection"];
-  expectation.expectedFulfillmentCount = numberOfFetches;
+  // Use 3 fetchers:
+  //  1. Blocking auth, will complete successfully. When it completes, it will stop the 4th fetcher.
+  //  2. Uses an auth failing helper, will be stopped, so it shouldn't get to auth.
+  //  3. No auth, just complete successfully.
+  //  4. No auth, just a complete, but will be stopped.
+  // This ensure they get started after each other and get to the point they should.
 
-  for (GTMSessionFetcher *fetcher in fetchers) {
-    [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
-      XCTAssertNil(fetchData);
-      XCTAssertNotNil(fetchError);
-      XCTAssertEqual(fetchError.domain, kGTMSessionFetcherErrorDomain);
-      XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
-      [expectation fulfill];
-    }];
-  }
+  GTMSessionFetcher *fetcher1 = [service fetcherWithURL:fetchURL];
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  fetcher1.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
 
-  for (GTMSessionFetcher *fetcher in fetchers) {
-    [fetcher stopFetching];
-  }
-  fetchers = nil;
+  GTMSessionFetcher *fetcher2 = [service fetcherWithURL:fetchURL];
+  fetcher2.authorizer = [[TestFailingAuthorizer alloc]
+      initWithFailureMessage:@"Should not get here since it was canceled"];
+
+  GTMSessionFetcher *fetcher3 = [service fetcherWithURL:fetchURL];
+
+  GTMSessionFetcher *fetcher4 = [service fetcherWithURL:fetchURL];
+
+  // Fetchers 1 and 3 will actually run, 2 and 4 should never fully start, so there should be two
+  // started/stopped notifications, but all 4 should get completion invoked.
+  XCTestExpectation *fetcherStartedExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                object:nil
+                               handler:nil];
+  fetcherStartedExpectation.expectedFulfillmentCount = 2;
+  XCTestExpectation *fetcherStoppedExpectation =
+      [self expectationForNotification:kGTMSessionFetcherStoppedNotification
+                                object:nil
+                               handler:nil];
+  fetcherStoppedExpectation.expectedFulfillmentCount = 2;
+  XCTestExpectation *fetcherCompletionInvokedExpecation =
+      [self expectationForNotification:kGTMSessionFetcherCompletionInvokedNotification
+                                object:nil
+                               handler:nil];
+  fetcherCompletionInvokedExpecation.expectedFulfillmentCount = 4;
+
+  // Nothing started
+  XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)0);
+  XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)0);
+
+  XCTestExpectation *completionExpectation =
+      [self expectationWithDescription:@"Completion expection"];
+  completionExpectation.expectedFulfillmentCount = 4;
+
+  [fetcher1 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+    XCTAssertNotNil(data);
+    XCTAssertNil(error);
+    // and stop the 4th one.
+    [fetcher4 stopFetching];
+    [completionExpectation fulfill];
+  }];
+
+  [fetcher2 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+    XCTAssertNil(data);
+    XCTAssertNotNil(error);
+    XCTAssertEqual(error.domain, kGTMSessionFetcherErrorDomain);
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    [completionExpectation fulfill];
+  }];
+
+  [fetcher3 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+    XCTAssertNotNil(data);
+    XCTAssertNil(error);
+    [completionExpectation fulfill];
+  }];
+
+  [fetcher4 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+    XCTAssertNil(data);
+    XCTAssertNotNil(error);
+    XCTAssertEqual(error.domain, kGTMSessionFetcherErrorDomain);
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    [completionExpectation fulfill];
+  }];
+
+  // There should be one running for localhost, and three delayed for localhost.
+  XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)1);
+  XCTAssertEqual(service.runningFetchersByHost[@"localhost"].count, 1);
+  XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)1, );
+  XCTAssertEqual(service.delayedFetchersByHost[@"localhost"].count, 3);
+
+  // Stop the first, and then unblock the authorizer to let the rest happen.
+  [fetcher2 stopFetching];
+  [(TestAuthorizer *)fetcher1.authorizer unblock];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
