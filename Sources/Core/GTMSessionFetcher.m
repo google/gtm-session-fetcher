@@ -871,6 +871,26 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
   }
 
+  BOOL stopped;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    stopped = _userStoppedFetching;
+  }
+  if (stopped) {
+    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                            @"Unexpected internal state: %lu", (unsigned long)_delayState);
+    // We end up here if someone calls `stopFetching` from another thread/queue while
+    // the fetch was being started up, so while `stopFetching` did the needed shutdown
+    // we have to ensure the requested callback was triggered.
+    if (self.stopFetchingTriggersCompletionHandler) {
+      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                           code:GTMSessionFetcherErrorUserCancelled
+                                       userInfo:nil];
+      [self finishWithError:error shouldRetry:NO];
+    }
+    return;  // The fetch was stopped, go no further.
+  }
+
   // finally, start the connection
   NSURLSessionTask *newSessionTask;
   BOOL needsDataAccumulator = NO;
