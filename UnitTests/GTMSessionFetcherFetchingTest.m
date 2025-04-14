@@ -2280,8 +2280,37 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 }
 
 #pragma mark - Test StopFetching Triggers Callbacks
+// -----------------------------------------------------------------------------------------------
 // This is a suite of tests that try to ensure that canceling at different points during the
 // starting flow of `-beginFetch...` all properly get caught and trigger the callback.
+//
+// NOTE: There is no need to test Authorizer and UAProvider *together*, instead the tests target
+// using `-stopFetching` around the handling of each thing to ensure all cases are covered. If
+// combined, handling the inbetween states becomes a race to trying to get calls perfectly timed,
+// which is basically impossible.
+
+// Shorthand to run a block on the main queue a little in the future.
+static void AsyncOnMainQueueDelayed(dispatch_block_t block) {
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), block);
+}
+
+// Helper that reused a notification test expectation to trigger the fetcher stop call.
+- (nonnull XCTestExpectation *)expectationForStartFetchThatStopsFetching:
+    (nonnull GTMSessionFetcher *)fetcher {
+  GTMSessionFetcher *__weak weakFetcher = fetcher;
+  XCTestExpectation *expectation =
+      [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                object:fetcher
+                               handler:^BOOL(NSNotification *_Nonnull notification) {
+                                 XCTAssert(notification.object == weakFetcher);
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                   [weakFetcher stopFetching];
+                                 });
+                                 return YES;
+                               }];
+  return expectation;
+}
 
 typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 
@@ -2368,14 +2397,24 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 #endif
 }
 
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages, but without the any customization that could
+// delay the initial beginning of the fetch.
+//
+// These are done with and without a service as the early part of the fetch will consult the service
+// for doing per host throttling, etc.
+
 - (void)testStopFetchWithCallback_DelayedStop {
-  // Wait 1s after the fetch is started and then stop it.
-  [self runStopFetchingCallbackTestWithNotifications:YES
-                                            preBegin:nil
-                                           postBegin:^(GTMSessionFetcher *fetcher) {
-                                             sleep(1);
-                                             [fetcher stopFetching];
-                                           }];
+  // Wait after the fetch is started and then stop it.
+  __block XCTestExpectation *stoppingExpectation;
+  [self
+      runStopFetchingCallbackTestWithNotifications:YES
+                                          preBegin:^(GTMSessionFetcher *fetcher) {
+                                            stoppingExpectation = [self
+                                                expectationForStartFetchThatStopsFetching:fetcher];
+                                          }
+                                         postBegin:nil];
 }
 
 - (void)testStopFetchWithCallback_DelayedStop_WithoutFetcherService {
@@ -2411,67 +2450,132 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   [self testStopFetchWithCallback_PreBeginStop];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_SyncAuth {
-  // Using an Authorizer that calls the completion synchronously, wait 1s after the fetch is
-  // started and then stop it.
-  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
-  [self runStopFetchingCallbackTestWithNotifications:YES
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        sleep(1);
-        [fetcher stopFetching];
-      }];
-}
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` when using an authorizer but doing the stop *before* the fetch
+// is started. This should never result in the authorizer being called no matter how it would have
+// actually completed.
+// different checks for canceling a fetch could come in during the authorization process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
 
-- (void)testStopFetchWithCallback_DelayedStop_SyncAuth_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_SyncAuth];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_SyncAuth {
-  // Using an Authorizer that calls the completion synchronously, stop immediately after starting
-  // the fetch.
-  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
-  [self runStopFetchingCallbackTestWithNotifications:YES
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        [fetcher stopFetching];
-      }];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_SyncAuth_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_ImmediateStop_SyncAuth];
-}
-
-- (void)testStopFetchWithCallback_PreBeginStop_AuthNotCalled {
+- (void)testStopFetchWithCallback_AuthNotCalled_PreBeginStop {
   // When stopping the fetch before it is begun, no authenticator should get called as the stop
   // should be handled before the authenticator is invoked.
   [self runStopFetchingCallbackTestWithNotifications:NO
                                             preBegin:^(GTMSessionFetcher *fetcher) {
-                                              fetcher.authorizer = [[TestFailingAuthorizer alloc]
-                                                  initWithFailureMessage:
-                                                      @"stopFetching called before begin should "
-                                                      @"have prevented the authorizer from ever "
-                                                      @"being called."];
+                                              fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+                                              ((TestAuthorizer *)fetcher.authorizer).workBlock = ^{
+                                                XCTFail(@"stopFetching called before begin should "
+                                                        @"have prevented the authorizer from ever "
+                                                        @"being called.");
+                                              };
 
                                               [fetcher stopFetching];
                                             }
                                            postBegin:nil];
 }
 
-- (void)testStopFetchWithCallback_PreBeginStop_AuthNotCalled_WithoutFetcherService {
+- (void)testStopFetchWithCallback_AuthNotCalled_PreBeginStop_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_PreBeginStop_AuthNotCalled];
+  [self testStopFetchWithCallback_AuthNotCalled_PreBeginStop];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep {
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages around a synchronous Authorizer to test all the
+// different checks for canceling a fetch could come in during the authorization process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterStarted {
+  // Using an Authorizer that calls the completion synchronously, wait after the fetch is started
+  // and then stop it.
+
+  // NOTE: This is the same as if there was no authorizer, as the fetch fully starts up before it is
+  // stopped.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  __block XCTestExpectation *stoppingExpectation;
+  [self
+      runStopFetchingCallbackTestWithNotifications:YES
+                                          preBegin:^(GTMSessionFetcher *fetcher) {
+                                            fetcher.authorizer = [TestAuthorizer
+                                                syncAuthorizerWithTestExpectation:authExpect];
+                                            stoppingExpectation = [self
+                                                expectationForStartFetchThatStopsFetching:fetcher];
+                                          }
+                                         postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterStarted_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopAfterStarted];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterBegin {
+  // Using an Authorizer that calls the completion synchronously, stop immediately after starting
+  // the fetch.
+
+  // NOTE: For SyncAuth, this is the same as the StopAfterStarted case because with SyncAuth, the
+  // auth has completed and the fetch as completed by the time things return from beginFetch...
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:YES
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterBegin_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopAfterBegin];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopWithinAuth {
+  // Using an Authorizer that calls the completion synchronously, stop within the authorizer to
+  // test handling that while continuing the authorization.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.authorizer = [TestAuthorizer
+                                                  syncAuthorizerWithTestExpectation:authExpect];
+                                              // As part of authorizing, stop the fetch to it will
+                                              // be see as it resumes the fetch.
+                                              GTMSessionFetcher *__weak weakFetcher = fetcher;
+                                              ((TestAuthorizer *)fetcher.authorizer).workBlock = ^{
+                                                [weakFetcher stopFetching];
+                                              };
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopWithinAuth_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopWithinAuth];
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// When using an async authorizer, stopping before authorization starts and/or after authorization
+// completes is the same as the no authorizer or sync authorizer case, so no need to repeat those
+// tests.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_AsyncAuth_StopWithAuthPending {
   // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
-  // starting the fetch, then wait 1s before calling `-stopFetching`.
+  // starting the fetch, then wait the fetch to start before calling `-stopFetching`.
 
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
@@ -2480,74 +2584,22 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
         fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
-        // Trigger the auth to complete.
-        [(TestAuthorizer *)fetcher.authorizer unblock];
-        // And then delay the stop
-        sleep(1);
-        [fetcher stopFetching];
-      }];
-}
-
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPreSleep];
-}
-
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop {
-  // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
-  // before triggering the authorization and calling `-stopFetching`.
-
-  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
-
-  [self runStopFetchingCallbackTestWithNotifications:NO
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer
-            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
-                    testExpectation:authExpect];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        // Delay
-        sleep(1);
-        // Trigger the auth to complete and then the stop.
-        [(TestAuthorizer *)fetcher.authorizer unblock];
-        [fetcher stopFetching];
-      }];
-}
-
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPreStop];
-}
-
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop {
-  // Using an Authorizer that calls the completion asynchronously, start the fetch and then wait 1s
-  // before calling `-stopFetching` and then triggering the authorization.
-
-  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
-
-  [self runStopFetchingCallbackTestWithNotifications:NO
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer
-            asyncWithBlockedTimeout:1 + 1  // Account for the sleep before allowing auth
-                    testExpectation:authExpect];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        // Delay
-        sleep(1);
-        // Stop the fetch and then allow the auth to happen.
+        // NOTE: There is no value in testing these two in reverse order, all that does is open a
+        // race within the test to see if the unblocked authorizer could finish before the stop call
+        // making the notifications non-deterministic.
         [fetcher stopFetching];
         [(TestAuthorizer *)fetcher.authorizer unblock];
       }];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop_WithoutFetcherService {
+- (void)testStopFetchWithCallback_AsyncAuth_StopWithAuthPending_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_AsyncAuthPostStop];
+  [self testStopFetchWithCallback_AsyncAuth_StopWithAuthPending];
 }
 
-- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop {
-  // Using an Authorizer that calls the completion asynchronously, start the fetch and then
-  // immediately triggering the authorization and call `-stopFetching`.
+- (void)testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending {
+  // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
+  // starting the fetch, then wait the fetch to start before calling `-stopFetching`.
 
   XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
 
@@ -2556,45 +2608,42 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
         fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
-        [(TestAuthorizer *)fetcher.authorizer unblock];
-        [fetcher stopFetching];
+        AsyncOnMainQueueDelayed(^{
+          // NOTE: There is no value in testing these two in reverse order, all that does is open a
+          // race within the test to see if the unblocked authorizer could finish before the stop
+          // call making the notifications non-deterministic.
+          [fetcher stopFetching];
+          [(TestAuthorizer *)fetcher.authorizer unblock];
+        });
       }];
 }
 
-- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop_WithoutFetcherService {
+- (void)testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_ImmediateStop_AsyncAuthPreStop];
+  [self testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending];
 }
 
-- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop {
-  // Using an Authorizer that calls the completion asynchronously, start the fetch and then
-  // immediately call `-stopFetching` and then triggering the authorization.
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages around a UAProvider to test all the different
+// checks for canceling a fetch could come in during the delayed UA process process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
 
-  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+- (void)testStopFetchWithCallback_UAProvider_StopAfterStarted {
+  // Using a UAProvider, trigger the provider after starting the fetch, then wait for the fetch
+  // to start before calling `-stopFetching`.
 
-  [self runStopFetchingCallbackTestWithNotifications:NO
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        [fetcher stopFetching];
-        [(TestAuthorizer *)fetcher.authorizer unblock];
-      }];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_ImmediateStop_AsyncAuthPostStop];
-}
-
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreSleep {
-  // Using a UAProvider, trigger the provider after starting the fetch, then wait 1s before calling
-  // `-stopFetching`.
+  // NOTE: This is the same as if there was no UAProvider, as the fetch fully starts up before it is
+  // stopped.
 
   XCTestExpectation *providerExpect =
       [self expectationWithDescription:@"Expect for UAProvider block"];
+  __block XCTestExpectation *stoppingExpectation;
 
-  // The notifications will fire because after unblocking, the sleep allows the fetch to start.
+  // The notifications will fire because after unblocking, the delay allows the fetch to start.
   [self runStopFetchingCallbackTestWithNotifications:YES
       preBegin:^(GTMSessionFetcher *fetcher) {
         fetcher.userAgentProvider =
@@ -2603,24 +2652,21 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
                                                           [providerExpect fulfill];
                                                           return @"TestUA";
                                                         }];
+        stoppingExpectation = [self expectationForStartFetchThatStopsFetching:fetcher];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
         // Trigger the provider to complete.
         [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
-        // And then delay the stop
-        sleep(1);
-        [fetcher stopFetching];
       }];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreSleep_WithoutFetcherService {
+- (void)testStopFetchWithCallback_UAProvider_StopAfterStarted_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_UAProviderPreSleep];
+  [self testStopFetchWithCallback_UAProvider_StopAfterStarted];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreStop {
-  // Using a UAProvider, wait 1s after starting the fetch, then trigger the provider and call
-  // `-stopFetching`.
+- (void)testStopFetchWithCallback_UAProvider_StopWithProviderPending {
+  // Using a UAProvider, stop the fetch before allowing the provider to finish.
 
   XCTestExpectation *providerExpect =
       [self expectationWithDescription:@"Expect for UAProvider block"];
@@ -2628,29 +2674,28 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
         fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
-            initWithBlockedTimeout:1 + 1  // Account for the sleep before completing
+            initWithBlockedTimeout:1 + 1  // Account for the delay before completing
                     userAgentBlock:^{
                       [providerExpect fulfill];
                       return @"TestUA";
                     }];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
-        // Delay
-        sleep(1);
-        // Trigger the provider to complete and stop.
-        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        // NOTE: There is no value in testing these two in reverse order, all that does is open a
+        // race within the test to see if the unblocked authorizer could finish before the stop call
+        // making the notifications non-deterministic.
         [fetcher stopFetching];
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
       }];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPreStop_WithoutFetcherService {
+- (void)testStopFetchWithCallback_UAProvider_StopWithProviderPending_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_UAProviderPreStop];
+  [self testStopFetchWithCallback_UAProvider_StopWithProviderPending];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPostStop {
-  // Using a UAProvider, start the fetch and then wait 1s before calling `-stopFetching` and then
-  // triggering the UAProvider.
+- (void)testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending {
+  // Using a UAProvider, stop the fetch before allowing the provider to finish.
 
   XCTestExpectation *providerExpect =
       [self expectationWithDescription:@"Expect for UAProvider block"];
@@ -2658,81 +2703,29 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   [self runStopFetchingCallbackTestWithNotifications:NO
       preBegin:^(GTMSessionFetcher *fetcher) {
         fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
-            initWithBlockedTimeout:1 + 1  // Account for the sleep before completing
+            initWithBlockedTimeout:1 + 1  // Account for the delay before completing
                     userAgentBlock:^{
                       [providerExpect fulfill];
                       return @"TestUA";
                     }];
       }
       postBegin:^(GTMSessionFetcher *fetcher) {
-        // Delay
-        sleep(1);
-        // Stop the fetch and then allow the provider to complete.
-        [fetcher stopFetching];
-        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        AsyncOnMainQueueDelayed(^{
+          // NOTE: There is no value in testing these two in reverse order, all that does is open a
+          // race within the test to see if the unblocked authorizer could finish before the stop
+          // call making the notifications non-deterministic.
+          [fetcher stopFetching];
+          [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        });
       }];
 }
 
-- (void)testStopFetchWithCallback_DelayedStop_UAProviderPostStop_WithoutFetcherService {
+- (void)testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_DelayedStop_UAProviderPostStop];
+  [self testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending];
 }
 
-- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPreStop {
-  // Using a UAProvider, start the fetch and then immediately triggering the UAProvider and call
-  // `-stopFetching`.
-
-  XCTestExpectation *providerExpect =
-      [self expectationWithDescription:@"Expect for UAProvider block"];
-
-  [self runStopFetchingCallbackTestWithNotifications:NO
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.userAgentProvider =
-            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
-                                                        userAgentBlock:^{
-                                                          [providerExpect fulfill];
-                                                          return @"TestUA";
-                                                        }];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
-        [fetcher stopFetching];
-      }];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPreStop_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_ImmediateStop_UAProviderPreStop];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPostStop {
-  // Using a UAProvider, start the fetch and then immediately call `-stopFetching` and triggering
-  // the UAProvider.
-
-  XCTestExpectation *providerExpect =
-      [self expectationWithDescription:@"Expect for UAProvider block"];
-
-  [self runStopFetchingCallbackTestWithNotifications:NO
-      preBegin:^(GTMSessionFetcher *fetcher) {
-        fetcher.userAgentProvider =
-            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
-                                                        userAgentBlock:^{
-                                                          [providerExpect fulfill];
-                                                          return @"TestUA";
-                                                        }];
-      }
-      postBegin:^(GTMSessionFetcher *fetcher) {
-        [fetcher stopFetching];
-        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
-      }];
-}
-
-- (void)testStopFetchWithCallback_ImmediateStop_UAProviderPostStop_WithoutFetcherService {
-  _fetcherService = nil;
-  [self testStopFetchWithCallback_ImmediateStop_UAProviderPostStop];
-}
-
-- (void)testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled {
+- (void)testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin {
   // When stopping the fetch before it is begun, no UAProvider should get called as the stop
   // should be handled before the UAProvider is invoked.
   [self runStopFetchingCallbackTestWithNotifications:NO
@@ -2751,9 +2744,9 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
                                            postBegin:nil];
 }
 
-- (void)testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled_WithoutFetcherService {
+- (void)testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin_WithoutFetcherService {
   _fetcherService = nil;
-  [self testStopFetchWithCallback_PreBeginStop_UAProviderNotCalled];
+  [self testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin];
 }
 
 #pragma mark - TestBlock Tests
@@ -3413,7 +3406,7 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 }
 
 @synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError,
-            testExpectation = _testExpectation;
+            testExpectation = _testExpectation, workBlock = _workBlock;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
@@ -3450,9 +3443,9 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 }
 
 + (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
-                        testExpectation:(XCTestExpectation *)testExpecation {
+                        testExpectation:(XCTestExpectation *)testExpectation {
   TestAuthorizer *authorizor = [self asyncWithBlockedTimeout:seconds];
-  authorizor.testExpectation = testExpecation;
+  authorizor.testExpectation = testExpectation;
   return authorizor;
 }
 
@@ -3471,6 +3464,14 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   TestAuthorizer *authorizer = [self asyncAuthorizer];
   authorizer.expired = YES;
   return authorizer;
+}
+
+- (void)internalComplete:(void (^)(NSError *_Nullable))handler error:(nullable NSError *)error {
+  if (self.workBlock) {
+    self.workBlock();
+  }
+  handler(error);
+  [self.testExpectation fulfill];
 }
 
 - (void)authorizeRequest:(NSMutableURLRequest *)request
@@ -3493,18 +3494,15 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
       XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds",
                      (unsigned long)self->_waitSeconds);
       dispatch_async(dispatch_get_main_queue(), ^{
-        handler(error);
-        [self.testExpectation fulfill];
+        [self internalComplete:handler error:error];
       });
     });
   } else if (self.isAsync) {
     dispatch_async(dispatch_get_main_queue(), ^{
-      handler(error);
-      [self.testExpectation fulfill];
+      [self internalComplete:handler error:error];
     });
   } else {
-    handler(error);
-    [self.testExpectation fulfill];
+    [self internalComplete:handler error:error];
   }
 }
 
@@ -3552,25 +3550,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 - (BOOL)primeForRefresh {
   self.expired = NO;
   return YES;
-}
-
-@end
-
-@implementation TestFailingAuthorizer {
-  NSString *_failureMessage;
-}
-
-- (instancetype)initWithFailureMessage:(NSString *)failureMessage {
-  self = [super init];
-  if (self) {
-    _failureMessage = failureMessage;
-  }
-  return self;
-}
-
-- (void)authorizeRequest:(NSMutableURLRequest *)request
-       completionHandler:(void (^)(NSError *_Nullable))handler {
-  XCTFail(@"%@", _failureMessage);
 }
 
 @end

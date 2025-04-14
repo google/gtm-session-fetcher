@@ -83,12 +83,18 @@ extern NSString *const kGTMGettysburgFileName;
 
 #pragma mark - Authorization testing helper
 
+typedef void (^TestAuthorizerBlock)(void);
+
 @interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
 
 @property(atomic, readonly, getter=isAsync) BOOL async;
 
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
+
+// And extra block that will be invoked before the authorizer returns, this can do any extra
+// validations desired. It is called on the main thread, so it should *not* delay things.
+@property(atomic, copy) TestAuthorizerBlock workBlock;
 
 // An expectation to `-fulfill` after completing the authorization.
 @property(atomic, nullable) XCTestExpectation *testExpectation;
@@ -111,13 +117,6 @@ extern NSString *const kGTMGettysburgFileName;
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
-@end
-
-// This authorizer will call XCTFail with the given message, the inherrited properties change
-// nothing about it's behavior.
-@interface TestFailingAuthorizer : TestAuthorizer
-- (instancetype)init NS_UNAVAILABLE;
-- (instancetype)initWithFailureMessage:(NSString *)failureMessage NS_DESIGNATED_INITIALIZER;
 @end
 
 #pragma mark - User Agent Caching testing helper
