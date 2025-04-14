@@ -1843,8 +1843,10 @@ static bool IsCurrentProcessBeingDebugged(void) {
   fetcher1.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
 
   GTMSessionFetcher *fetcher2 = [service fetcherWithURL:fetchURL];
-  fetcher2.authorizer = [[TestFailingAuthorizer alloc]
-      initWithFailureMessage:@"Should not get here since it was canceled"];
+  fetcher2.authorizer = [TestAuthorizer syncAuthorizer];
+  ((TestAuthorizer *)fetcher2.authorizer).workBlock = ^{
+    XCTFail(@"Should not get here since it was stopped.");
+  };
 
   GTMSessionFetcher *fetcher3 = [service fetcherWithURL:fetchURL];
 
