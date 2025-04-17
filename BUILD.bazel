@@ -130,3 +130,4 @@ swift_test(
 )
 
 # ObjCImportTest is omitted from bazel build because it currently fails to build.
+# See https://github.com/bazelbuild/rules_apple/issues/2690 for details.
