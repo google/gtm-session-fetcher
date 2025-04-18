@@ -133,8 +133,7 @@ typedef NS_ENUM(NSUInteger, GTMSessionFetcherDelayState) {
   kDelayStateServiceDelayed,
   kDelayStateCalculatingUA,
   kDelayStateAuthorizing,
-  // TODO(thomasvl): More to be added as needed.
-  // ApplyingDecorators?
+  kDelayStateApplyingDecorators,
 };
 
 @interface GTMSessionFetcher ()
@@ -877,8 +876,8 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     stopped = _userStoppedFetching;
   }
   if (stopped) {
-    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                            @"Unexpected internal state: %lu", (unsigned long)_delayState);
+    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed, @"Unexpected internal state: %lu",
+                            (unsigned long)_delayState);
     // We end up here if someone calls `stopFetching` from another thread/queue while
     // the fetch was being started up, so while `stopFetching` did the needed shutdown
     // we have to ensure the requested callback was triggered.
@@ -1995,6 +1994,12 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     return;
   }
 
+  if (index == 0) {
+    if (![self startDelayState:kDelayStateApplyingDecorators]) {
+      return;
+    }
+  }
+
   __weak __typeof__(self) weakSelf = self;
   id<GTMFetcherDecoratorProtocol> decorator = decorators[index];
   GTMSESSION_LOG_DEBUG_VERBOSE(
@@ -2013,8 +2018,37 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                                @"decorators completed, ignoring.");
           return;
         }
+
+        BOOL shouldStop;
+        @synchronized(strongSelf) {
+          GTMSessionMonitorSynchronized(strongSelf);
+
+          shouldStop = strongSelf->_userStoppedFetching;
+          if (shouldStop) {
+            if (strongSelf->_stopFetchingTriggersCompletionHandler) {
+              // Override any error with the cancel error and then trigger the callbacks below.
+              //
+              // The callback for a cancel is sent from here instead of from within `-stopFetching`
+              // like is done for all the other pending states because if `-stopFetching` directly
+              // triggered the callbacks, the decorators would also get triggered and in a
+              // multithreaded case it would be possible for this current decorartor to have
+              // didFinish invoked at the same time but on a different thread; so triggering the
+              // failure completion here will avoid that.
+              error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                          code:GTMSessionFetcherErrorUserCancelled
+                                      userInfo:nil];
+            } else {
+              // Suppress any error from being sent due to the `-stopFetching`.
+              error = nil;
+            }
+          }
+        }
+
         if (error) {
-          [self failToBeginFetchWithError:(NSError *_Nonnull)error];
+          [strongSelf failToBeginFetchWithError:(NSError *_Nonnull)error];
+          return;
+        }
+        if (shouldStop) {
           return;
         }
         if (newRequest) {
@@ -2033,6 +2067,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                           startingAtIndex:(NSUInteger)index
                    shouldReleaseCallbacks:(BOOL)shouldReleaseCallbacks {
   GTMSessionCheckNotSynchronized(self);
+
+  // NOTE: At this point, the fetch is done, so if `-stopFetching` comes in now, it does not stop
+  // these from getting called as the completion is currently being invoked with the results of
+  // the fetch.
+
   if (index >= decorators.count) {
     GTMSESSION_LOG_DEBUG_VERBOSE(
         @"GTMSessionFetcher decorate requestDidFinish %zu decorators complete", decorators.count);
@@ -2224,13 +2263,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     // the property `stopFetchingTriggersCompletionHandler` is `YES`.
     _userStoppedFetching = YES;
 
-    // `stopFetchReleasingCallbacks:` will dequeue it if there is a sevice throttled
-    // delay, so the canceled callback needs to be directly triggered since the serivce
-    // won't attempt to restart it.
-    //
-    // And the authorization delay assumes all stop notifications needed will be done
-    // from here.
-    // TODO(thomasvl): Should it just check that _delayState != kDelayStateNotDelayed?
+    // Some of the delayed states want the complition to be triggered from here so they don't have
+    // to do it during their flows for async work.
     triggerCallback =
         (_delayState == kDelayStateServiceDelayed || _delayState == kDelayStateAuthorizing ||
          _delayState == kDelayStateCalculatingUA) &&

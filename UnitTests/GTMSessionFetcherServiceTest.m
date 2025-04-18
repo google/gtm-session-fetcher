@@ -1731,6 +1731,131 @@ static bool IsCurrentProcessBeingDebugged(void) {
   XCTAssertEqualObjects(decoratorB.fetchError, error);
 }
 
+- (void)testSingleDecoderStopFetchingBeforeBeginNeverInvoked {
+  // Note: This test actually results if the per host limits enforcement first noticing the
+  // `-stopFetching`, to really trigger the check when entering the delayed state for decorators
+  // would take multiple threads and there is no way to synchronize things to set the flag at just
+  // the right point.
+  GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        XCTFail(@"Should not have been invoked");
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  [fetcher stopFetching];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertNil(decorator.fetchedData);
+  XCTAssertEqual(decorator.fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  XCTAssertEqualObjects(decorator.fetchError.domain, kGTMSessionFetcherErrorDomain);
+}
+
+- (void)testSingleDecoderStopFetchingTriggersCallback {
+  GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        [fetcher stopFetching];
+        completion(/*request=*/nil, /*error*/ nil);
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertNil(decorator.fetchedData);
+  XCTAssertEqual(decorator.fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  XCTAssertEqualObjects(decorator.fetchError.domain, kGTMSessionFetcherErrorDomain);
+}
+
+- (void)testMultipleDecodersStopFetchingInFirstPreventsRestTriggersCallback {
+  GTMSessionFetcherTestDecorator *decoratorA = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        [fetcher stopFetching];
+        completion(/*request=*/nil, /*error*/ nil);
+      }
+                        synchronous:YES];
+  GTMSessionFetcherTestDecorator *decoratorB = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        XCTFail(@"Subsequent decorator should not be invoked");
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decoratorA];
+  [service addDecorator:decoratorB];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertNil(decoratorA.fetchedData);
+  XCTAssertNil(decoratorB.fetchedData);
+  XCTAssertEqual(decoratorA.fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  XCTAssertEqualObjects(decoratorA.fetchError.domain, kGTMSessionFetcherErrorDomain);
+  XCTAssertEqual(decoratorB.fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  XCTAssertEqualObjects(decoratorB.fetchError.domain, kGTMSessionFetcherErrorDomain);
+}
+
+- (void)testSingleDecoderStopFetchingAndContinueErrorTriggersCallbackWithRightError {
+  NSError *error = [NSError errorWithDomain:@"TestDomain" code:12345 userInfo:nil];
+  GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
+      initWithFetcherWillStartBlock:^(
+          GTMSessionFetcher *fetcher,
+          GTMFetcherDecoratorFetcherWillStartCompletionHandler completion) {
+        [fetcher stopFetching];
+        completion(/*request=*/nil, error);
+      }
+                        synchronous:YES];
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  [service addDecorator:decorator];
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  fetcher.userAgentProvider = [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"Lynx"];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+  [fetcher beginFetchWithCompletionHandler:^(__unused NSData *fetchData, NSError *fetchError) {
+    XCTAssertEqual(fetchError.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(fetchError.domain, kGTMSessionFetcherErrorDomain);
+    [fetchCompleteExpectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertNil(decorator.fetchedData);
+  XCTAssertNotEqualObjects(decorator.fetchError, error);
+  XCTAssertEqual(decorator.fetchError.code, GTMSessionFetcherErrorUserCancelled);
+  XCTAssertEqualObjects(decorator.fetchError.domain, kGTMSessionFetcherErrorDomain);
+}
+
 - (void)testDelegateDispatcherForFetcher {
   GTMSessionFetcherService *service = [[GTMSessionFetcherService alloc] init];
   GTMSessionFetcher *fetcher;
