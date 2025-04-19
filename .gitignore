@@ -36,3 +36,4 @@ gen/
 
 # Bazel
 bazel-*
+MODULE.bazel.lock
