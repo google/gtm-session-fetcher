@@ -1,0 +1,37 @@
+name: Bazel
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Sources/**'
+      - 'UnitTests/**'
+      - '.github/workflows/bazel.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Sources/**'
+      - 'UnitTests/**'
+      - '.github/workflows/bazel.yml'
+  schedule:
+    # Run the first and fifteenth of every month at 5:12 UTC
+    - cron:  '12 5 1,15 * *'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
+
+jobs:
+  bazel:
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        MODE: ["dbg", "opt"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+      - name: bazel test
+        run:  |
+          bazelisk test --build_tests_only -c "${{ matrix.MODE }}"  --test_output=all --verbose_failures --flaky_test_attempts=3 //...
