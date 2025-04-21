@@ -21,6 +21,7 @@ import sys
 
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 _PODSPEC_PATH = os.path.join(_PROJECT_ROOT, 'GTMSessionFetcher.podspec')
+_MODULE_bazel_PATH = os.path.join(_PROJECT_ROOT, 'MODULE.bazel')
 
 
 def main(args):
@@ -40,6 +41,15 @@ def main(args):
                        pod_content)
   assert ver_str in pod_content
   open(_PODSPEC_PATH, 'w').write(pod_content)
+
+  # Module.bazel
+  module_content = open(_MODULE_bazel_PATH).read()
+  module_content = re.sub(
+      r'module\(name = "gtm_session_fetcher", version = "\d+\.\d+\.\d+"\)',
+      'module(name = "gtm_session_fetcher", version = "%s")' % (ver_str,),
+      module_content)
+  assert ver_str in module_content
+  open(_MODULE_bazel_PATH, 'w').write(module_content)
 
   return 0
 
