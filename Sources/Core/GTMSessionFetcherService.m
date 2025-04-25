@@ -37,9 +37,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 
 #if !GTMSESSION_BUILD_COMBINED_SOURCES
 @interface GTMSessionFetcher (ServiceMethods)
-- (BOOL)beginFetchMayDelay:(BOOL)mayDelay
-              mayAuthorize:(BOOL)mayAuthorize
-               mayDecorate:(BOOL)mayDecorate;
+- (void)serviceRestartingFetcher;
 @end
 #endif  // !GTMSESSION_BUILD_COMBINED_SOURCES
 
@@ -423,10 +421,6 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
   return shouldBeginResult;
 }
 
-- (void)startFetcher:(GTMSessionFetcher *)fetcher {
-  [fetcher beginFetchMayDelay:NO mayAuthorize:YES mayDecorate:YES];
-}
-
 // Internal utility. Returns a fetcher's delegate if it's a dispatcher, or nil if the fetcher
 // is its own delegate (possibly via proxy) and has no dispatcher.
 - (GTMSessionFetcherSessionDelegateDispatcher *)delegateDispatcherForFetcher:
@@ -556,7 +550,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
 
   // Start fetchers outside of the synchronized block to avoid a deadlock.
   for (GTMSessionFetcher *nextFetcher in fetchersToStart) {
-    [self startFetcher:nextFetcher];
+    [nextFetcher serviceRestartingFetcher];
   }
 
   // The fetcher is no longer in the running or the delayed array,

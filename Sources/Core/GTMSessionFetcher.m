@@ -504,11 +504,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
+                            @"Unexpected internal state: %lu", (unsigned long)_delayState);
+
     if (_userStoppedFetching) {
       stopped = YES;
     } else {
-      GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                              @"Unexpected internal state: %lu", (unsigned long)_delayState);
       _delayState = delayState;
     }
   }
@@ -527,18 +528,22 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   return YES;
 }
 
+// This is a private callback from the service to restart the fetcher after it was delayed
+// due to the per host throttling.
+- (void)serviceRestartingFetcher {
+  // Reset the delayed state since the fetch is getting restarted.
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    _delayState = kDelayStateNotDelayed;
+  }
+  [self beginFetchMayDelay:NO mayAuthorize:YES mayDecorate:YES];
+}
+
 - (void)beginFetchMayDelay:(BOOL)mayDelay
               mayAuthorize:(BOOL)mayAuthorize
                mayDecorate:(BOOL)mayDecorate {
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
-
-  // Reset the delayed state since things are starting over.
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-
-    _delayState = kDelayStateNotDelayed;
-  }
 
   NSMutableURLRequest *fetchRequest =
       _request;  // The request property is now externally immutable.
@@ -1141,6 +1146,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
         return;
       }
       [strongSelf->_request setValue:userAgent forHTTPHeaderField:@"User-Agent"];
+      strongSelf->_delayState = kDelayStateNotDelayed;
     }
     [strongSelf beginFetchMayDelay:NO mayAuthorize:mayAuthorize mayDecorate:mayDecorate];
   });
@@ -1946,6 +1952,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     GTMSESSION_ASSERT_DEBUG(authorizer == nil, @"invalid authorizer for fetch");
     // Should really never get here the main flow shouldn't have called here if there
     // wasn't an authorizer, but for safety sake, continue on through the starting process.
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+      _delayState = kDelayStateNotDelayed;
+    }
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:YES];
   }
 }
@@ -1968,12 +1978,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     }
     if (error == nil) {
       _request = authorizedRequest;
-
-      // If `stopFetching` wasn't called, clear the `_delayState`, so a call after this
-      // point will trigger a callback as needed. This also ensure if this is going to
-      // error below a cancel callback couldn't also trigger.
-      _delayState = kDelayStateNotDelayed;
     }
+    _delayState = kDelayStateNotDelayed;
   }
 
   if (error != nil) {
@@ -1990,6 +1996,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   if (index >= decorators.count) {
     GTMSESSION_LOG_DEBUG_VERBOSE(
         @"GTMSessionFetcher decorate requestWillStart %zu decorators complete", decorators.count);
+    @synchronized(self) {
+      GTMSessionMonitorSynchronized(self);
+      _delayState = kDelayStateNotDelayed;
+    }
     [self beginFetchMayDelay:NO mayAuthorize:NO mayDecorate:NO];
     return;
   }
