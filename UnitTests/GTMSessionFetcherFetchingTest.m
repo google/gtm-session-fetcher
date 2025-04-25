@@ -2340,21 +2340,6 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   // a start notification (and thus stop notification). Likewise, if the fetch is stopped before
   // it even starts, there won't be a notification.
   int expectedNotificationCount = triggersNotifications ? 1 : 0;
-  XCTestExpectation *fetcherStartedExpectation = nil;
-  XCTestExpectation *fetcherStoppedExpectation = nil;
-  if (expectedNotificationCount) {
-    // The FetcherNotificationsCounter is used to validate things, but these ensure we wait for
-    // the notifications so there are no races on the counts.
-    fetcherStartedExpectation =
-        [self expectationForNotification:kGTMSessionFetcherStartedNotification
-                                  object:nil
-                                 handler:nil];
-    fetcherStoppedExpectation =
-        [self expectationForNotification:kGTMSessionFetcherStoppedNotification
-                                  object:nil
-                                 handler:nil];
-  }
-
   FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
 
   // Use a URL that will timeout, so the fetch takes a while so it can always be cancelled.
@@ -2362,6 +2347,13 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
                                                            parameters:@{@"sleep" : @"5"}];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
   fetcher.stopFetchingTriggersCompletionHandler = YES;
+
+  // Have an expecation to track the notification on the call back as to help ensure the test has
+  // waited for any start/stop notifications to have shown up.
+  NS_VALID_UNTIL_END_OF_SCOPE XCTestExpectation *fetcherCallbackNotificationExpectation =
+      [self expectationForNotification:kGTMSessionFetcherCompletionInvokedNotification
+                                object:nil
+                               handler:nil];
 
   if (preBegin) {
     preBegin(fetcher);
@@ -2386,6 +2378,7 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
   [self assertCallbacksReleasedForFetcher:fetcher];
 
   // Check the notifications.
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1, @"%@", fnctr.fetchersStoppedDescriptions);
   XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@",
                  fnctr.fetchersStartedDescriptions);
   XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
