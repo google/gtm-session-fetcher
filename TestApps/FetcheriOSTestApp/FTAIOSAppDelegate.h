@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#import <UIKit/UIKit.h>
+
 @interface FTAIOSAppDelegate : UIResponder <UIApplicationDelegate>
 
 @property(strong, nonatomic) UIWindow *window;

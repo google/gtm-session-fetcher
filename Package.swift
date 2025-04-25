@@ -4,6 +4,12 @@ import PackageDescription
 
 let package = Package(
     name: "GTMSessionFetcher",
+    platforms: [
+        .iOS(.v12),
+        .macOS(.v10_15),
+        .tvOS(.v13),
+        .watchOS(.v7)
+    ],
     products: [
         .library(
             name: "GTMSessionFetcher",
@@ -25,85 +31,66 @@ let package = Package(
     targets: [
         .target(
             name: "GTMSessionFetcherCore",
-            path: "Source",
-            exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
-                "GTMGatherInputStream.m",
-                "GTMMIMEDocument.m",
-                "GTMReadMonitorInputStream.m",
-                "GTMSessionFetcherLogViewController.m",
+            path: "Sources/Core",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
             ],
-            sources:[
-                "GTMSessionFetcher.h",
-                "GTMSessionFetcher.m",
-                "GTMSessionFetcherLogging.h",
-                "GTMSessionFetcherLogging.m",
-                "GTMSessionFetcherService.h",
-                "GTMSessionFetcherService.m",
-                "GTMSessionUploadFetcher.h",
-                "GTMSessionUploadFetcher.m"
-            ],
-            publicHeadersPath: "SwiftPackage"
+            publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherFull",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source",
-            exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
-                "GTMSessionFetcher.m",
-                "GTMSessionFetcherLogging.m",
-                "GTMSessionFetcherLogViewController.m",
-                "GTMSessionFetcherService.m",
-                "GTMSessionUploadFetcher.m",
+            path: "Sources/Full",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
             ],
-            sources: [
-                "GTMGatherInputStream.h",
-                "GTMGatherInputStream.m",
-                "GTMMIMEDocument.h",
-                "GTMMIMEDocument.m",
-                "GTMReadMonitorInputStream.h",
-                "GTMReadMonitorInputStream.m",
-            ],
-            publicHeadersPath: "SwiftPackage"
+            publicHeadersPath: "Public"
         ),
         .target(
             name: "GTMSessionFetcherLogView",
             dependencies: ["GTMSessionFetcherCore"],
-            path: "Source",
-            exclude:[
-                "GTMSessionFetcherIOS",
-                "GTMSessionFetcherOSX",
-                "GTMSessionFetchertvOS",
-                "GTMSessionFetcherwatchOS",
-                "GTMGatherInputStream.m",
-                "GTMMIMEDocument.m",
-                "GTMReadMonitorInputStream.m",
-                "GTMSessionFetcherService.m",
-                "GTMSessionFetcher.m",
-                "GTMSessionFetcherLogging.m",
-                "GTMSessionUploadFetcher.m",
+            path: "Sources/LogView",
+            resources: [
+                .process("Resources/PrivacyInfo.xcprivacy")
             ],
-            sources: [
-                "GTMSessionFetcherLogViewController.h",
-                "GTMSessionFetcherLogViewController.m"
-            ],
-            publicHeadersPath: "SwiftPackage"
+            publicHeadersPath: "Public"
         ),
         .testTarget(
             name: "GTMSessionFetcherCoreTests",
             dependencies: ["GTMSessionFetcherFull", "GTMSessionFetcherCore"],
             path: "UnitTests",
-            // Resources not working as of Swfit 5.3
-            // - https://forums.swift.org/t/5-3-resources-support-not-working-on-with-swift-test/40381
-            // - https://bugs.swift.org/browse/SR-13560
-            exclude: ["Data", "SupportingFiles"]
-        )
+            exclude: ["GTMSessionFetcherUserAgentTest.m"],
+            cSettings: [
+                .headerSearchPath("../Sources/Core")
+            ]
+        ),
+        // This runs in its own target since it exercises global variable initialization.
+        .testTarget(
+            name: "GTMSessionFetcherUserAgentTests",
+            dependencies: ["GTMSessionFetcherCore"],
+            path: "UnitTests",
+            sources: ["GTMSessionFetcherUserAgentTest.m"],
+            cSettings: [
+                .headerSearchPath("../Sources/Core")
+            ]
+        ),
+        .testTarget(
+            name: "swift-test",
+            dependencies: [
+                "GTMSessionFetcherCore",
+                "GTMSessionFetcherFull",
+                "GTMSessionFetcherLogView",
+            ],
+            path: "SwiftPMTests/SwiftImportTest"
+        ),
+        .testTarget(
+            name: "objc-import-test",
+            dependencies: [
+                "GTMSessionFetcherCore",
+                "GTMSessionFetcherFull",
+                "GTMSessionFetcherLogView",
+            ],
+            path: "SwiftPMTests/ObjCImportTest"
+        ),
     ]
 )

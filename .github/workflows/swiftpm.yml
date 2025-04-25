@@ -1,0 +1,78 @@
+name: SwiftPM
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'SwiftPMTests/**'
+    - 'UnitTests/**'
+    - 'Package*.swift'
+    - '.github/workflows/swiftpm.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'SwiftPMTests/**'
+    - 'UnitTests/**'
+    - 'Package*.swift'
+    - '.github/workflows/swiftpm.yml'
+  schedule:
+    # Run the first and fifteenth of every month at 5:12 UTC
+    - cron:  '12 5 1,15 * *'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
+
+jobs:
+  swift:
+    # The swift command line only support build/testing for macOS on.
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        CONFIGURATION: ["debug", "release"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build and Test
+      run:  |
+        set -eu
+        swift build --configuration ${{ matrix.CONFIGURATION }}
+        swift test --configuration ${{ matrix.CONFIGURATION }}
+
+  xcodebuild:
+    # Job(s) to build for all the platforms to ensure that is working and the
+    # tests are passing.
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos"]
+        CONFIGURATION: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build and Test
+      run:  |
+        set -eu
+        case "${{matrix.PLATFORM}}" in
+          ios)
+            DESTINATION="platform=iOS Simulator,name=iPhone 16,OS=latest"
+            ;;
+          macos)
+            DESTINATION="platform=macOS"
+            ;;
+          tvos)
+            DESTINATION="platform=tvOS Simulator,name=Apple TV,OS=latest"
+            ;;
+          visionos)
+            DESTINATION="platform=visionOS Simulator,name=Apple Vision Pro,OS=latest"
+            ;;
+          watchos)
+            DESTINATION="platform=WatchOS Simulator,name=Apple Watch Series 10 (46mm),OS=latest"
+            ;;
+        esac
+
+        xcodebuild \
+            -scheme GTMSessionFetcher-Package \
+            -configuration ${{ matrix.CONFIGURATION }} \
+            -destination "${DESTINATION}" \
+            build test

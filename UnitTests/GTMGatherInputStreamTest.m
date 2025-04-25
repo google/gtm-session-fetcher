@@ -21,11 +21,7 @@
 
 #import <XCTest/XCTest.h>
 
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherFull;
-#else
-#import "GTMGatherInputStream.h"
-#endif
+#import <GTMSessionFetcher/GTMGatherInputStream.h>
 
 @interface GTMGatherInputStreamTest : XCTestCase
 @end

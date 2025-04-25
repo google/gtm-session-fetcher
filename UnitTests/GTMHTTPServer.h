@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 //
 //  GTMHTTPServer.h
 //
@@ -110,6 +114,9 @@ enum {
 @property(nonatomic, readonly) int statusCode;
 @property(nonatomic, copy) NSData *body;
 
+// If non zero, the response will be queued tobe sent after this amount of time.
+@property(nonatomic) double delaySeconds;
+
 + (instancetype)responseWithString:(NSString *)plainText;
 + (instancetype)responseWithHTMLString:(NSString *)htmlString;
 + (instancetype)responseWithBody:(NSData *)body
@@ -123,3 +130,5 @@ enum {
 - (void)setHeaderValuesFromDictionary:(NSDictionary *)dict;
 
 @end
+
+#endif  // !TARGET_OS_WATCH

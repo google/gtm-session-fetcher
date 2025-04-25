@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #import <Foundation/Foundation.h>
 
 typedef enum {
@@ -21,16 +25,12 @@ typedef enum {
   kGTMHTTPAuthenticationTypeDigest
 } GTMHTTPAuthenticationType;
 
-// This is a HTTP Server that responsd to requests by returning the requested file.
+// This is a HTTP Server that responds to requests by returning the requested file.
 // It takes extra url arguments to tell it what to return for testing the code using it.
 @interface GTMSessionFetcherTestServer : NSObject
 
 // Returns the most recent GTMHTTPAuthenticationType checked, whether it passed or not.
 @property(nonatomic, readonly) GTMHTTPAuthenticationType lastHTTPAuthenticationType;
-
-// Any url that isn't a specific server request (login, etc.), will be fetched
-// off |docRoot| (to allow canned repsonses).
-- (instancetype)initWithDocRoot:(NSString *)docRoot;
 
 - (BOOL)isRedirectEnabled;
 - (void)setRedirectEnabled:(BOOL)isRedirectEnabled;
@@ -44,12 +44,14 @@ typedef enum {
 @property(atomic, copy) NSString *defaultContentType;
 
 // Utilities for users.
-- (NSURL *)localURLForFile:(NSString *)name;             // http://localhost:port/filename
-- (NSURL *)localURLForFileUsingAppend:(NSString *)name;  // http://localhost:port/filename
-- (NSURL *)localv6URLForFile:(NSString *)name;           // http://[::1]:port/filename
-- (NSString *)localPathForFile:(NSString *)name;         // docRoot/filename
+- (NSURL *)localURLForFile:(NSString *)name;    // http://localhost:port/filename
+- (NSURL *)localv6URLForFile:(NSString *)name;  // http://[::1]:port/filename
+- (NSURL *)localURLForFile:(NSString *)name parameters:(NSDictionary *)params;
+- (NSData *)documentDataAtPath:(NSString *)requestPath;
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code;
 + (NSData *)generatedBodyDataWithLength:(NSUInteger)length;
 
 @end
+
+#endif  // !TARGET_OS_WATCH

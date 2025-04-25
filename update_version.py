@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # update_version.py.py - Helper for the library's version number
 #
 # Copyright 2017 Google Inc. All rights reserved.
@@ -21,10 +21,7 @@ import sys
 
 _PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 _PODSPEC_PATH = os.path.join(_PROJECT_ROOT, 'GTMSessionFetcher.podspec')
-_XCODE_PROJECT_PATH = os.path.join(_PROJECT_ROOT,
-                                   'Source',
-                                   'GTMSessionFetcherCore.xcodeproj',
-                                   'project.pbxproj')
+_MODULE_bazel_PATH = os.path.join(_PROJECT_ROOT, 'MODULE.bazel')
 
 
 def main(args):
@@ -45,13 +42,14 @@ def main(args):
   assert ver_str in pod_content
   open(_PODSPEC_PATH, 'w').write(pod_content)
 
-  # Xcode project
-  xcode_project_content = open(_XCODE_PROJECT_PATH).read()
-  xcode_project_content = re.sub(r'CURRENT_PROJECT_VERSION = \d+\.\d+\.\d+',
-                                 'CURRENT_PROJECT_VERSION = %s' % (ver_str,),
-                                 xcode_project_content)
-  assert ver_str in xcode_project_content
-  open(_XCODE_PROJECT_PATH, 'w').write(xcode_project_content)
+  # Module.bazel
+  module_content = open(_MODULE_bazel_PATH).read()
+  module_content = re.sub(
+      r'module\(name = "gtm_session_fetcher", version = "\d+\.\d+\.\d+"\)',
+      'module(name = "gtm_session_fetcher", version = "%s")' % (ver_str,),
+      module_content)
+  assert ver_str in module_content
+  open(_MODULE_bazel_PATH, 'w').write(module_content)
 
   return 0
 

@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -22,9 +26,9 @@
 //  http://developer.apple.com/samplecode/CocoaHTTPServer/index.html
 //
 
-#import <netinet/in.h>
-#import <sys/socket.h>
-#import <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #define GTMHTTPSERVER_DEFINE_GLOBALS
 #import "GTMHTTPServer.h"
@@ -368,7 +372,7 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
       NSInputStream *inputStream = connDict[kInputStream];
       NSAssert(aStream == inputStream, @"Unexpected output stream has bytes");
 
-      enum EnumType : NSUInteger {kMaxReadDataChunkSize = 32768};
+      enum EnumType : NSUInteger { kMaxReadDataChunkSize = 32768 };
       NSMutableData *readData = [[NSMutableData alloc] init];
       uint8_t readDataBytes[kMaxReadDataChunkSize];
       NSInteger readDataSize = [inputStream read:readDataBytes maxLength:kMaxReadDataChunkSize];
@@ -412,7 +416,20 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
             NSOutputStream *outputStream = connDict[kOutputStream];
             [outputStream scheduleInRunLoop:[NSRunLoop currentRunLoop]
                                     forMode:NSDefaultRunLoopMode];
-            [outputStream open];
+            if (response.delaySeconds) {
+              dispatch_time_t delayTime =
+                  dispatch_time(DISPATCH_TIME_NOW, (int64_t)(response.delaySeconds * NSEC_PER_SEC));
+              dispatch_after(delayTime, dispatch_get_main_queue(), ^{
+                @try {
+                  [outputStream open];
+                } @catch (NSException *e) {
+                  NSLog(@"Exception while doing a delayed response open: %@", e);
+                }  // COV_NF_LINE - radar 5851992 only reachable w/ an uncaught exception,
+                   // un-testable
+              });
+            } else {
+              [outputStream open];
+            }
           }
         }
       } @catch (NSException *e) {  // COV_NF_START
@@ -647,6 +664,8 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
   CFHTTPMessageRef _message;
 }
 
+@synthesize delaySeconds = _delaySeconds;
+
 - (instancetype)init {
   return [self initWithBody:nil contentType:nil statusCode:0];
 }
@@ -757,3 +776,5 @@ static void AcceptCallback(CFSocketRef socket, CFSocketCallBackType callBackType
 }
 
 @end
+
+#endif  // !TARGET_OS_WATCH

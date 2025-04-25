@@ -13,6 +13,10 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
@@ -139,11 +143,11 @@ static NSString *const kEtag = @"GoodETag";
 @end
 
 @implementation GTMSessionFetcherTestServer {
-  NSString *_docRoot;
   GTMHTTPServer *_server;
   GTMHTTPServer *_redirectServer;
   GTMHTTPAuthenticationType _httpAuthenticationType;
   GTMHTTPAuthenticationType _lastHTTPAuthenticationType;
+  NSDictionary<NSString *, NSData *> *_resourceMap;
   NSString *_username;
   NSString *_password;
   NSString *_nonce;
@@ -154,22 +158,27 @@ static NSString *const kEtag = @"GoodETag";
 @synthesize defaultContentType = _defaultContentType,
             lastHTTPAuthenticationType = _lastHTTPAuthenticationType;
 
-- (instancetype)initWithDocRoot:(NSString *)docRoot {
+- (instancetype)init {
   self = [super init];
   if (self) {
-    if (docRoot == nil) {
-      NSLog(@"Failed to supply docRoot to GTMSessionFetcherTestServer");
-      return nil;
-    }
     _server = [GTMHTTPServer startedServerWithDelegate:self];
     if (!_server) return nil;
 
     _defaultContentType = @"text/plain";
 
-    _docRoot = [docRoot copy];
+    NSString *gettysburg =
+        @"Four score and seven years ago our fathers brought forth on this continent, a"
+         " new nation, conceived in liberty, and dedicated to the proposition that all men"
+         " are created equal.";
+    NSString *empty = [[NSString alloc] init];
+    _resourceMap = @{
+      @"gettysburgaddress.txt" : (NSData *)[gettysburg dataUsingEncoding:NSUTF8StringEncoding],
+      @"empty.txt" : (NSData *)[empty dataUsingEncoding:NSUTF8StringEncoding]
+    };
+
     _uploadBytesExpected = -1;
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Started GTMSessionFetcherTestServer for docRoot='%@'", _docRoot);
+    NSLog(@"Started GTMSessionFetcherTestServer");
 #endif
   }
   return self;
@@ -191,7 +200,7 @@ static NSString *const kEtag = @"GoodETag";
       _redirectServer = [GTMHTTPServer startedServerWithDelegate:self];
       if (_redirectServer) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-        NSLog(@"Started redirect target server for docRoot='%@'", _docRoot);
+        NSLog(@"Started redirect target server");
 #endif
       }
     }
@@ -213,37 +222,36 @@ static NSString *const kEtag = @"GoodETag";
 }
 
 - (NSURL *)localURLForFile:(NSString *)name {
-  // We need to create http URLs referring to the desired
-  // resource to be found by the http server running locally.
-
-  // Return a localhost:port URL for the test file
   NSString *urlString = [NSString stringWithFormat:@"http://localhost:%d/%@", _server.port, name];
   return [NSURL URLWithString:urlString];
 }
 
-- (NSURL *)localURLForFileUsingAppend:(NSString *)name {
-  // We need to create http URLs referring to the desired
-  // resource to be found by the http server running locally.
-  // Return a localhost:port URL for the test file
-
-  NSString *urlString = [NSString stringWithFormat:@"http://localhost:%d", _server.port];
-  return [[NSURL URLWithString:urlString] URLByAppendingPathComponent:name];
-}
-
 - (NSURL *)localv6URLForFile:(NSString *)name {
-  // Return an IPv6-style localhost URL, useful for testing changes in host.
   NSString *urlString = [NSString stringWithFormat:@"http://[::1]:%d/%@", _server.port, name];
   return [NSURL URLWithString:urlString];
 }
 
-- (NSString *)localPathForFile:(NSString *)name {
-  // we exclude parameters
-  NSRange range = [name rangeOfString:@"?"];
-  if (range.location != NSNotFound) {
-    name = [name substringToIndex:range.location];
+- (NSURL *)localURLForFile:(NSString *)name parameters:(NSDictionary *)params {
+  NSURL *url = [self localURLForFile:name];
+  if (!params.count) {
+    return url;
   }
-  NSString *filePath = [_docRoot stringByAppendingPathComponent:name];
-  return filePath;
+  NSString *urlString = [url absoluteString];
+  NSMutableArray *array = [NSMutableArray array];
+  for (NSString *key in params) {
+    [array addObject:[NSString
+                         stringWithFormat:@"%@=%@", key, [[params objectForKey:key] description]]];
+  }
+  NSString *paramsStr = [array componentsJoinedByString:@"&"];
+  urlString = [urlString stringByAppendingFormat:@"?%@", paramsStr];
+  return [NSURL URLWithString:urlString];
+}
+
+- (NSData *)documentDataAtPath:(NSString *)requestPath {
+  if ([requestPath hasPrefix:@"/"]) {
+    requestPath = [requestPath substringFromIndex:1];
+  }
+  return _resourceMap[requestPath];
 }
 
 + (NSString *)JSONBodyStringForStatus:(NSInteger)code {
@@ -384,8 +392,9 @@ static NSString *const kEtag = @"GoodETag";
     BOOL isCancelingUpload = [xUploadCommand isEqual:@"cancel"];
     BOOL isUploadingChunk = ([xUploadCommand rangeOfString:@"upload"].location != NSNotFound);
     BOOL isFinalizeRequest = ([xUploadCommand rangeOfString:@"finalize"].location != NSNotFound);
+    NSString *uploadStatus = [[self class] valueForParameter:@"uploadStatus" query:query];
 
-    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload) {
+    if (!isQueryingOffset && !isUploadingChunk && !isCancelingUpload && !isFinalizeRequest) {
       // This shouldn't happen.
       NSLog(@"Unexpected command: %@", xUploadCommand);
       return sendResponse(503, nil, nil);
@@ -422,13 +431,17 @@ static NSString *const kEtag = @"GoodETag";
       return sendResponse(200, nil, nil);
     }
 
-    if (isUploadingChunk) {
+    if (isUploadingChunk || isFinalizeRequest) {
       BOOL isProperOffset = (_uploadBytesReceived == [xUploadOffset longLongValue]);
       if (!isProperOffset) {
         // This shouldn't happen; a good offset should always be provided.
         NSLog(@"Unexpected offset (specified %@, expected %lld)", xUploadOffset,
               _uploadBytesReceived);
         return sendResponse(503, nil, nil);
+      }
+      if (uploadStatus != nil) {
+        int _uploadStatus = [uploadStatus intValue];
+        return sendResponse(_uploadStatus, nil, nil);
       }
 
       long long contentLength = [contentLengthStr longLongValue];
@@ -492,9 +505,9 @@ static NSString *const kEtag = @"GoodETag";
 
   NSString *sleepStr = [[self class] valueForParameter:@"sleep" query:query];
   if (sleepStr) {
-    NSTimeInterval interval = [sleepStr doubleValue];
-    [NSThread sleepForTimeInterval:interval];
-    return sendResponse(408, nil, nil);  // request timeout
+    GTMHTTPResponseMessage *response = sendResponse(408, nil, nil);  // request timeout
+    response.delaySeconds = [sleepStr doubleValue];
+    return response;
   }
   if (ifMatch != nil && ![ifMatch isEqual:kEtag]) {
     // there is no match, hence this is an inconsistent PUT or DELETE
@@ -513,49 +526,6 @@ static NSString *const kEtag = @"GoodETag";
   if ([requestMethod isEqual:@"DELETE"]) {
     // it's an object delete; return empty data
     return sendResponse(200, nil, nil);
-  }
-
-  if ([requestPathExtension isEqual:@"rpc"]) {
-    // JSON-RPC tests
-    //
-    // the fetch file name is like Foo.rpc; there should be local files
-    // with the expected JSON request body, and the response body
-    //
-    // replace the .rpc suffix with .request.txt and .response.txt
-    NSString *withoutRpcExtn = [requestPath stringByDeletingPathExtension];
-    NSString *requestName = [withoutRpcExtn stringByAppendingPathExtension:@"request.txt"];
-    NSString *responseName = [withoutRpcExtn stringByAppendingPathExtension:@"response.txt"];
-
-    // read the expected request body from disk
-    NSData *requestData = [self documentDataAtPath:requestName];
-    if (!requestData) {
-      // we need a query request file for rpc tests
-      NSLog(@"Cannot find query request file \"%@\"", requestPath);
-    } else {
-      // verify that the RPC request body is as expected
-      NSDictionary *expectedJSON = [self JSONFromData:requestData];
-      NSDictionary *requestJSON = [self JSONFromData:requestBodyData];
-
-      if (expectedJSON && requestJSON && [requestJSON isEqual:expectedJSON]) {
-        // the request body matches
-        //
-        // for rpc, the response file ought to be here;
-        // 404s shouldn't happen
-        NSString *responsePath = [self localPathForFile:responseName];
-        if ([[NSFileManager defaultManager] fileExistsAtPath:responsePath]) {
-          requestPath = responseName;
-        } else {
-          NSLog(@"Cannot find query response file \"%@\"", responsePath);
-        }
-      } else {
-        // the actual request did not match the expected request
-        //
-        // note that the requests may be dictionaries or arrays
-        NSLog(@"Mismatched request body for \"%@\"", requestPath);
-        NSLog(@"\n--------\nExpected request:\n%@", expectedJSON);
-        NSLog(@"\n--------\nActual request:\n%@", requestJSON);
-      }
-    }
   }
 
   // Verify that the expected body data was present.
@@ -619,16 +589,6 @@ static NSString *const kEtag = @"GoodETag";
 
 #pragma mark - Private
 
-- (NSData *)documentDataAtPath:(NSString *)requestPath {
-  NSError *readError;
-  NSString *docPath = [self localPathForFile:requestPath];
-  NSData *data = [NSData dataWithContentsOfFile:docPath options:0 error:&readError];
-  if (!data) {
-    NSLog(@"Failed to read %@: %@", requestPath, readError);
-  }
-  return data;
-}
-
 + (NSString *)valueForParameter:(NSString *)paramName query:(NSString *)query {
   if (!query) return nil;
 
@@ -661,18 +621,16 @@ static NSString *const kEtag = @"GoodETag";
 - (void)stopServers {
   if (_server) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Stopped GTMSessionFetcherTestServer on port %d (docRoot='%@')", _server.port, _docRoot);
+    NSLog(@"Stopped GTMSessionFetcherTestServer on port %d", _server.port);
 #endif
     _server = nil;
   }
   if (_redirectServer) {
 #if GTMHTTPSERVER_LOG_VERBOSE
-    NSLog(@"Stopped redirect target server on port %d (docRoot='%@')", _redirectServer.port,
-          _docRoot);
+    NSLog(@"Stopped redirect target server on port %d", _redirectServer.port);
 #endif
     _redirectServer = nil;
   }
-  _docRoot = nil;
 }
 
 - (NSURL *)redirectURLForRequest:(GTMHTTPRequestMessage *)request
@@ -833,3 +791,5 @@ static NSString *const kEtag = @"GoodETag";
 }
 
 @end
+
+#endif  // !TARGET_OS_WATCH

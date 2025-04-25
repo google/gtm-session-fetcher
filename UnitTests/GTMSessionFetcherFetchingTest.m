@@ -13,11 +13,17 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
 #endif
 
+#import "FetcherNotificationsCounter.h"
 #import "GTMSessionFetcherFetchingTest.h"
+#import "SubstituteUIApplication.h"
 
 static bool IsCurrentProcessBeingDebugged(void);
 
@@ -43,11 +49,23 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 // Using -[XCTestCase waitForExpectations...] methods will NOT wait for them.
 #define WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS()                                   \
   [self waitForExpectations:@[ fetcherStartedExpectation__, fetcherStoppedExpectation__ ] \
-                    timeout:5.0];
+                    timeout:10.0];
 
 @interface GTMSessionFetcher (ExposedForTesting)
 + (nullable NSURL *)redirectURLWithOriginalRequestURL:(nullable NSURL *)originalRequestURL
                                    redirectRequestURL:(nullable NSURL *)redirectRequestURL;
+- (NSString *)createSessionIdentifierWithMetadata:(NSDictionary *)metadata;
+- (BOOL)userStoppedFetching;
+@end
+
+@interface TestIdentifierMetadataFecher : GTMSessionFetcher
+@property(strong, nullable) NSDictionary *testIdentifierMetadata;
+@end
+
+@implementation TestIdentifierMetadataFecher
+- (nullable NSDictionary *)sessionIdentifierMetadataUnsynchronized {
+  return self.testIdentifierMetadata;
+}
 @end
 
 // Base class for fetcher and chunked upload tests.
@@ -76,13 +94,13 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   // During debugging of the unit tests, we want to avoid timeouts.
   _timeoutInterval = IsCurrentProcessBeingDebugged() ? 3600.0 : 30.0;
 
-  NSString *docRoot = [self docRootPath];
-
   // For tests that create fetchers without a fetcher service, _fetcherService will
   // be set to nil by the test.
   _fetcherService = [[GTMSessionFetcherService alloc] init];
+  _fetcherService.userAgentProvider =
+      [[GTMUserAgentStringProvider alloc] initWithUserAgentString:@"GTMSessionFetcher"];
 
-  _testServer = [[GTMSessionFetcherTestServer alloc] initWithDocRoot:docRoot];
+  _testServer = [[GTMSessionFetcherTestServer alloc] init];
   _isServerRunning = (_testServer != nil);
   XCTAssertTrue(_isServerRunning,
                 @">>> http test server failed to launch; skipping fetcher tests\n");
@@ -104,56 +122,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 #pragma mark -
 
-- (NSString *)docRootPath {
-  // Make a path to the test folder containing documents to be returned by the http server.
-  NSBundle *testBundle = [NSBundle bundleForClass:[self class]];
-  XCTAssertNotNil(testBundle);
-
-#if SWIFT_PACKAGE
-  // Swift Pacage Manager does not support resources distribution currently,
-  // therefore the "gettysburgaddress.txt" file must be copied manually to the test bundle.
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    NSString *gettysburg =
-        @""
-         "Four score and seven years ago our fathers brought forth on this continent, a"
-         "new nation, conceived in liberty, and dedicated to the proposition that all men"
-         "are created equal.";
-
-    NSString *resourcePath = [testBundle resourcePath];
-    XCTAssertNotNil(resourcePath);
-
-    if (![[NSFileManager defaultManager] fileExistsAtPath:resourcePath]) {
-      NSError *createDirectoryError = nil;
-      if (![[NSFileManager defaultManager] createDirectoryAtPath:resourcePath
-                                     withIntermediateDirectories:true
-                                                      attributes:nil
-                                                           error:&createDirectoryError]) {
-        XCTFail("Failed to create the Resources directory, error: %@", createDirectoryError);
-      }
-    }
-
-    NSString *gettysburgPath =
-        [resourcePath stringByAppendingPathComponent:@"gettysburgaddress.txt"];
-    NSError *writeError = nil;
-    if (![gettysburg writeToFile:gettysburgPath
-                      atomically:true
-                        encoding:NSUTF8StringEncoding
-                           error:&writeError]) {
-      XCTFail("Failed to write `gettysburgaddress.txt` bundle Resource, error: %@", writeError);
-    }
-  });
-#endif
-
-  NSString *docFolder = [testBundle resourcePath];
-  return docFolder;
-}
-
 - (NSData *)gettysburgAddress {
-  // Return the raw data of our test file.
-  NSString *gettysburgPath = [_testServer localPathForFile:kGTMGettysburgFileName];
-  NSData *gettysburgAddress = [NSData dataWithContentsOfFile:gettysburgPath];
-  return gettysburgAddress;
+  return [_testServer documentDataAtPath:kGTMGettysburgFileName];
 }
 
 - (NSURL *)temporaryFileURLWithBaseName:(NSString *)baseName {
@@ -173,37 +143,11 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 - (NSString *)localURLStringToTestFileName:(NSString *)name {
   NSString *localURLString = [[_testServer localURLForFile:name] absoluteString];
-
-  // Just for sanity, let's make sure we see the file locally, so
-  // we can expect the http server to find it too.
-  //
-  // We exclude parameters when looking for the file name locally.
-  NSRange range = [name rangeOfString:@"?"];
-  if (range.location != NSNotFound) {
-    name = [name substringToIndex:range.location];
-  }
-
-  NSString *filePath = [_testServer localPathForFile:name];
-
-  BOOL doesExist = [[NSFileManager defaultManager] fileExistsAtPath:filePath];
-  XCTAssertTrue(doesExist, @"Missing test file %@", filePath);
-
   return localURLString;
 }
 
 - (NSString *)localURLStringToTestFileName:(NSString *)name parameters:(NSDictionary *)params {
-  NSString *localURLString = [self localURLStringToTestFileName:name];
-
-  // Add any parameters from the dictionary.
-  if (params.count) {
-    NSMutableArray *array = [NSMutableArray array];
-    for (NSString *key in params) {
-      [array addObject:[NSString stringWithFormat:@"%@=%@", key,
-                                                  [[params objectForKey:key] description]]];
-    }
-    NSString *paramsStr = [array componentsJoinedByString:@"&"];
-    localURLString = [localURLString stringByAppendingFormat:@"?%@", paramsStr];
-  }
+  NSString *localURLString = [[_testServer localURLForFile:name parameters:params] absoluteString];
   return localURLString;
 }
 
@@ -247,9 +191,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(fetcher.downloadProgressBlock);
   XCTAssertNil(fetcher.willCacheURLResponseBlock);
   XCTAssertNil(fetcher.retryBlock);
-  if (@available(iOS 10.0, *)) {
-    XCTAssertNil(fetcher.metricsCollectionBlock);
-  }
+  XCTAssertNil(fetcher.metricsCollectionBlock);
   XCTAssertNil(fetcher.testBlock);
 
   if ([fetcher isKindOfClass:[GTMSessionUploadFetcher class]]) {
@@ -259,12 +201,188 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }
 }
 
+- (NSString *)currentTestName {
+  NSInvocation *currentTestInvocation = self.invocation;
+  NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
+  return testCaseName;
+}
+
+- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
+  NSURLRequest *request = [self requestWithURLString:urlString];
+  GTMSessionFetcher *fetcher;
+  if (_fetcherService) {
+    fetcher = [_fetcherService fetcherWithRequest:request];
+  } else {
+    fetcher = [GTMSessionFetcher fetcherWithRequest:request];
+  }
+  XCTAssertNotNil(fetcher);
+  fetcher.allowLocalhostRequest = YES;
+  fetcher.allowedInsecureSchemes = @[ @"http" ];
+  fetcher.comment = [self currentTestName];
+  return fetcher;
+}
+
+- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url {
+  return [self fetcherWithURLString:url.absoluteString];
+}
+
+// Utility method for making a fetcher to test for retries.
+- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
+                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
+                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
+                                           userData:(id)userData {
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:urlString];
+
+  fetcher.retryEnabled = YES;
+  fetcher.retryBlock = retryBlock;
+  fetcher.maxRetryInterval = maxRetryInterval;
+  fetcher.userData = userData;
+
+  // We force a minimum retry interval for unit testing; otherwise,
+  // we'd have no idea how many retries will occur before the max
+  // retry interval occurs, since the minimum would be random
+  [fetcher setMinRetryInterval:1.0];
+  return fetcher;
+}
+
+- (void)waitForBackgroundTaskEndedNotifications:(FetcherNotificationsCounter *)fnctr {
+#if GTM_BACKGROUND_TASK_FETCHING
+  // The callback group does not include the main thread dispatch of notifications, so
+  // we need to explicitly wait for those.
+  NSMutableArray *remainingNotificationObjects = [fnctr.backgroundTasksStarted mutableCopy];
+  [remainingNotificationObjects removeObjectsInArray:fnctr.backgroundTasksEnded];
+  if (remainingNotificationObjects.count == 0) return;
+
+  NSMutableArray *expectations NS_VALID_UNTIL_END_OF_SCOPE = [NSMutableArray array];
+  for (id obj in remainingNotificationObjects) {
+    [expectations addObject:[self expectationForNotification:kSubUIAppBackgroundTaskEnded
+                                                      object:obj
+                                                     handler:nil]];
+  }
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+#endif
+}
+
 @end
 
 @interface GTMSessionFetcherFetchingTest : GTMSessionFetcherBaseTest
 @end
 
 @implementation GTMSessionFetcherFetchingTest
+
+#pragma mark - SessionUserInfo Tests
+
+- (void)testSetSessionUserInfo {
+  GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+
+  @try {
+    NSDictionary *dict = @{@1 : @"invalid non string key"};
+    fetcher.sessionUserInfo = dict;
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason, @"sessionUserInfo keys must be NSStrings: 1");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  // Key with a leading underscore
+  @try {
+    fetcher.sessionUserInfo = @{@"_invalidUnderscore" : @"value"};
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason, @"sessionUserInfo keys starting with an underscore are "
+                                            @"reserved for the library: _invalidUnderscore");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  @try {
+    NSDictionary *dict = @{@"InvalidNonStringValue" : @1};
+    fetcher.sessionUserInfo = dict;
+    XCTFail(@"Shouldn't get here");
+  } @catch (NSException *exception) {
+    XCTAssertEqualObjects(exception.name, NSInvalidArgumentException);
+    XCTAssertEqualObjects(exception.reason,
+                          @"Values in sessionUserInfo must be NSStrings: InvalidNonStringValue: 1");
+  }
+  XCTAssertNil(fetcher.sessionUserInfo);
+
+  NSDictionary *validDict = @{@"key" : @"value"};
+  @try {
+    fetcher.sessionUserInfo = validDict;
+  } @catch (NSException *exception) {
+    XCTFail(@"Shouldn't have gotten here: %@", exception);
+  }
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, validDict);
+  XCTAssertTrue(fetcher.sessionUserInfo == validDict);  // Ptr equality, property is strong.
+}
+
+- (void)testCreateSessionIdentifierWithMetadata {
+  // Since `sessionUserInfo` is a `strong` property, the value can be modified after being set
+  // and thus `createSessionIdentifierWithMetadata:` has to deal with late arriving invalide
+  // values. Everything else should get encoded into the identifier.
+
+  GTMSessionFetcher *fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithObject:@"GoodValue"
+                                                                 forKey:@"GoodKey"];
+  fetcher.sessionUserInfo = dict;
+
+  // Values that make it through end up in the identifier
+  NSString *identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertTrue([identifier containsString:@"{\"GoodKey\":\"GoodValue\"}"], @"%@", identifier);
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@"NonStringKey" forKey:@2];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"NonStringKey"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@"KeysCantHaveLeadingUnderscore" forKey:@"_InvalidKey"];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"InvalidKey"], @"%@", identifier);
+  XCTAssertFalse([identifier containsString:@"KeysCantHaveLeadingUnderscore"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+
+  [dict removeAllObjects];
+  fetcher = [GTMSessionFetcher fetcherWithURLString:@"file://not_needed"];
+  fetcher.sessionUserInfo = dict;
+  [dict setObject:@1 forKey:@"ValuesMustBeStrings"];
+  identifier = [fetcher createSessionIdentifierWithMetadata:nil];
+  XCTAssertFalse([identifier containsString:@"ValuesMustBeStrings"], @"%@", identifier);
+  XCTAssertTrue(fetcher.sessionUserInfo == dict);  // Ptr compared, dict still set.
+}
+
+- (void)testSessionUserInfoFromSessionIdentifierMetadata {
+  NSDictionary *expected = @{@"GoodKey" : @"GoodValue"};
+  NSMutableDictionary *dict = [expected mutableCopy];
+
+  TestIdentifierMetadataFecher *fetcher =
+      [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  // Add these additions will get dropped
+
+  [dict setObject:@"NonStringKey" forKey:@1];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  [dict setObject:@"InvalidKey" forKey:@"_UnderscorePrefixedKey"];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+
+  [dict setObject:@5 forKey:@"NonStringValue"];
+  fetcher = [TestIdentifierMetadataFecher fetcherWithURLString:@"file://not_needed"];
+  fetcher.testIdentifierMetadata = dict;
+  XCTAssertEqualObjects(fetcher.sessionUserInfo, expected);
+}
 
 #pragma mark - Fetcher Tests
 
@@ -1531,6 +1649,40 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testRetryFetches];
 }
 
+- (void)testCancelFetchWithoutCallback {
+  if (!_isServerRunning) return;
+
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  __block GTMSessionFetcher *fetcher;
+
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"10"}];
+  fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCompletionHandler = NO;  // default
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTFail("Callback should not be called after stopFetching");
+  }];
+  sleep(1);
+  [fetcher stopFetching];
+
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, 1, @"%@", fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, 1, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 0);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)1);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
 - (void)testFetchToFile {
   if (!_isServerRunning) return;
 
@@ -1928,9 +2080,8 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 - (void)testInsecureRequests {
   if (![GTMSessionFetcher appAllowsInsecureRequests]) return;
 
-  // file:///Users/.../Resources/gettysburgaddress.txt
-  NSString *fileURLString = [[NSURL
-      fileURLWithPath:[_testServer localPathForFile:kGTMGettysburgFileName]] absoluteString];
+  // file:///var/folders/...
+  NSString *fileURLString = [[NSURL fileURLWithPath:NSTemporaryDirectory()] absoluteString];
 
   // http://localhost:59757/gettysburgaddress.txt
   NSString *localhostURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
@@ -1965,7 +2116,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         testResponse(nil, [NSData data], nil);
       };
 
-  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(10, 10);
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(6, 6);
 
   for (int i = 0; records[i].urlString; i++) {
     NSString *urlString = records[i].urlString;
@@ -2001,8 +2152,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testInsecureRequests];
 }
 
-- (void)testCollectingMetrics_WithSuccessfulFetch API_AVAILABLE(ios(10.0), macosx(10.12),
-                                                                tvos(10.0), watchos(6.0)) {
+- (void)testCollectingMetrics_WithSuccessfulFetch {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2036,15 +2186,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseEndDate);
 }
 
-- (void)testCollectingMetrics_WithSuccessfulFetch_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
+- (void)testCollectingMetrics_WithSuccessfulFetch_WithoutFetcherService {
   _fetcherService = nil;
   [self testCollectingMetrics_WithSuccessfulFetch];
 }
 
-- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect API_AVAILABLE(ios(10.0), macosx(10.12),
-                                                                          tvos(10.0),
-                                                                          watchos(6.0)) {
+- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2082,14 +2229,12 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNil(collectedMetrics.transactionMetrics[0].responseEndDate);
 }
 
-- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
+- (void)testCollectingMetrics_WithWrongFetch_FaildToConnect_WithoutFetcherService {
   _fetcherService = nil;
   [self testCollectingMetrics_WithWrongFetch_FaildToConnect];
 }
 
-- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode API_AVAILABLE(ios(10.0), macosx(10.12),
-                                                                         tvos(10.0), watchos(6.0)) {
+- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode {
   if (!_isServerRunning) return;
 
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
@@ -2129,10 +2274,479 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   XCTAssertNotNil(collectedMetrics.transactionMetrics[0].responseEndDate);
 }
 
-- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode_WithoutFetcherService API_AVAILABLE(
-    ios(10.0), macosx(10.12), tvos(10.0), watchos(6.0)) {
+- (void)testCollectingMetrics_WithWrongFetch_BadStatusCode_WithoutFetcherService {
   _fetcherService = nil;
   [self testCollectingMetrics_WithWrongFetch_BadStatusCode];
+}
+
+#pragma mark - Test StopFetching Triggers Callbacks
+// -----------------------------------------------------------------------------------------------
+// This is a suite of tests that try to ensure that canceling at different points during the
+// starting flow of `-beginFetch...` all properly get caught and trigger the callback.
+//
+// NOTE: There is no need to test Authorizer and UAProvider *together*, instead the tests target
+// using `-stopFetching` around the handling of each thing to ensure all cases are covered. If
+// combined, handling the inbetween states becomes a race to trying to get calls perfectly timed,
+// which is basically impossible.
+
+// Shorthand to run a block on the main queue a little in the future.
+static void AsyncOnMainQueueDelayed(dispatch_block_t block) {
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), block);
+}
+
+// Helper that reused a notification test expectation to trigger the fetcher stop call.
+- (nonnull XCTestExpectation *)expectationForStartFetchThatStopsFetching:
+    (nonnull GTMSessionFetcher *)fetcher {
+  GTMSessionFetcher *__weak weakFetcher = fetcher;
+  XCTestExpectation *expectation =
+      [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                object:fetcher
+                               handler:^BOOL(NSNotification *_Nonnull notification) {
+                                 XCTAssert(notification.object == weakFetcher);
+                                 dispatch_async(dispatch_get_main_queue(), ^{
+                                   [weakFetcher stopFetching];
+                                 });
+                                 return YES;
+                               }];
+  return expectation;
+}
+
+typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
+
+// Helper that runs the tests that test `-stopFetching` at different points in the fetcher internal
+// startup. This is to remove some of the boilerplate from the test cases and hopefully make those
+// more clear.
+//
+// @note At least `preBegin` or `postBegin` _must_ be provided (both can also be), and _one_ of them
+//       is expected to call `-stopFetching` on the fetcher for the helper to work.
+//
+// @param triggersNotifications  If the test should trigger the start/stop notifications.
+// @param preBegin               An optional block to run before the `-beginFetch...` call to do
+//                               extra work/configuration.
+// @param postBegin              An optional block to run right after the `-beginFetch...` call.
+//
+- (void)
+    runStopFetchingCallbackTestWithNotifications:(BOOL)triggersNotifications
+                                        preBegin:(nullable StopFetchingCallbackTestBlock)preBegin
+                                       postBegin:(nullable StopFetchingCallbackTestBlock)postBegin {
+  if (!_isServerRunning) return;
+
+  XCTAssertTrue(preBegin != nil || postBegin != nil,
+                @"preBegin and postBegin can't both be nil, you must provide at least one, and one "
+                @"of them has to call `-stopFetching`");
+
+  // If the authorizer is async, then the fetch won't fully begin, and there won't ever be
+  // a start notification (and thus stop notification). Likewise, if the fetch is stopped before
+  // it even starts, there won't be a notification.
+  int expectedNotificationCount = triggersNotifications ? 1 : 0;
+  XCTestExpectation *fetcherStartedExpectation = nil;
+  XCTestExpectation *fetcherStoppedExpectation = nil;
+  if (expectedNotificationCount) {
+    // The FetcherNotificationsCounter is used to validate things, but these ensure we wait for
+    // the notifications so there are no races on the counts.
+    fetcherStartedExpectation =
+        [self expectationForNotification:kGTMSessionFetcherStartedNotification
+                                  object:nil
+                                 handler:nil];
+    fetcherStoppedExpectation =
+        [self expectationForNotification:kGTMSessionFetcherStoppedNotification
+                                  object:nil
+                                 handler:nil];
+  }
+
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  // Use a URL that will timeout, so the fetch takes a while so it can always be cancelled.
+  NSString *timeoutFileURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName
+                                                           parameters:@{@"sleep" : @"5"}];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:timeoutFileURLString];
+  fetcher.stopFetchingTriggersCompletionHandler = YES;
+
+  if (preBegin) {
+    preBegin(fetcher);
+  }
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"Expect to call callback"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data, @"error data unexpected");
+    XCTAssertEqual(error.code, GTMSessionFetcherErrorUserCancelled);
+    XCTAssertEqualObjects(error.domain, kGTMSessionFetcherErrorDomain);
+    [expectation fulfill];
+  }];
+
+  if (postBegin) {
+    postBegin(fetcher);
+  }
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertTrue(
+      [fetcher userStoppedFetching],
+      @"Test case error: `preBegin`/`postBegin` didn't appear to have cause `-stopFetching`");
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  // Check the notifications.
+  XCTAssertEqual(fnctr.fetchStarted, expectedNotificationCount, @"%@",
+                 fnctr.fetchersStartedDescriptions);
+  XCTAssertEqual(fnctr.fetchStopped, fnctr.fetchStarted, @"%@", fnctr.fetchersStoppedDescriptions);
+  XCTAssertEqual(fnctr.fetchCompletionInvoked, 1);
+#if GTM_BACKGROUND_TASK_FETCHING
+  [self waitForBackgroundTaskEndedNotifications:fnctr];
+  XCTAssertEqual(fnctr.backgroundTasksStarted.count, (NSUInteger)expectedNotificationCount);
+  XCTAssertEqualObjects(fnctr.backgroundTasksStarted, fnctr.backgroundTasksEnded);
+#endif
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages, but without the any customization that could
+// delay the initial beginning of the fetch.
+//
+// These are done with and without a service as the early part of the fetch will consult the service
+// for doing per host throttling, etc.
+
+- (void)testStopFetchWithCallback_DelayedStop {
+  // Wait after the fetch is started and then stop it.
+  __block XCTestExpectation *stoppingExpectation;
+  [self
+      runStopFetchingCallbackTestWithNotifications:YES
+                                          preBegin:^(GTMSessionFetcher *fetcher) {
+                                            stoppingExpectation = [self
+                                                expectationForStartFetchThatStopsFetching:fetcher];
+                                          }
+                                         postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_DelayedStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_DelayedStop];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop {
+  // Stop immediately after starting the fetch.
+  [self runStopFetchingCallbackTestWithNotifications:YES
+                                            preBegin:nil
+                                           postBegin:^(GTMSessionFetcher *fetcher) {
+                                             [fetcher stopFetching];
+                                           }];
+}
+
+- (void)testStopFetchWithCallback_ImmediateStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_ImmediateStop];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop {
+  // Call to `-stopFetching` before even starting the fetch.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_PreBeginStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_PreBeginStop];
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` when using an authorizer but doing the stop *before* the fetch
+// is started. This should never result in the authorizer being called no matter how it would have
+// actually completed.
+// different checks for canceling a fetch could come in during the authorization process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_AuthNotCalled_PreBeginStop {
+  // When stopping the fetch before it is begun, no authenticator should get called as the stop
+  // should be handled before the authenticator is invoked.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.authorizer = [TestAuthorizer syncAuthorizer];
+                                              ((TestAuthorizer *)fetcher.authorizer).workBlock = ^{
+                                                XCTFail(@"stopFetching called before begin should "
+                                                        @"have prevented the authorizer from ever "
+                                                        @"being called.");
+                                              };
+
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_AuthNotCalled_PreBeginStop_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_AuthNotCalled_PreBeginStop];
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages around a synchronous Authorizer to test all the
+// different checks for canceling a fetch could come in during the authorization process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterStarted {
+  // Using an Authorizer that calls the completion synchronously, wait after the fetch is started
+  // and then stop it.
+
+  // NOTE: This is the same as if there was no authorizer, as the fetch fully starts up before it is
+  // stopped.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  __block XCTestExpectation *stoppingExpectation;
+  [self
+      runStopFetchingCallbackTestWithNotifications:YES
+                                          preBegin:^(GTMSessionFetcher *fetcher) {
+                                            fetcher.authorizer = [TestAuthorizer
+                                                syncAuthorizerWithTestExpectation:authExpect];
+                                            stoppingExpectation = [self
+                                                expectationForStartFetchThatStopsFetching:fetcher];
+                                          }
+                                         postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterStarted_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopAfterStarted];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterBegin {
+  // Using an Authorizer that calls the completion synchronously, stop immediately after starting
+  // the fetch.
+
+  // NOTE: For SyncAuth, this is the same as the StopAfterStarted case because with SyncAuth, the
+  // auth has completed and the fetch as completed by the time things return from beginFetch...
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:YES
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer syncAuthorizerWithTestExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        [fetcher stopFetching];
+      }];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopAfterBegin_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopAfterBegin];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopWithinAuth {
+  // Using an Authorizer that calls the completion synchronously, stop within the authorizer to
+  // test handling that while continuing the authorization.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.authorizer = [TestAuthorizer
+                                                  syncAuthorizerWithTestExpectation:authExpect];
+                                              // As part of authorizing, stop the fetch to it will
+                                              // be see as it resumes the fetch.
+                                              GTMSessionFetcher *__weak weakFetcher = fetcher;
+                                              ((TestAuthorizer *)fetcher.authorizer).workBlock = ^{
+                                                [weakFetcher stopFetching];
+                                              };
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_SyncAuth_StopWithinAuth_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_SyncAuth_StopWithinAuth];
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// When using an async authorizer, stopping before authorization starts and/or after authorization
+// completes is the same as the no authorizer or sync authorizer case, so no need to repeat those
+// tests.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_AsyncAuth_StopWithAuthPending {
+  // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
+  // starting the fetch, then wait the fetch to start before calling `-stopFetching`.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // NOTE: There is no value in testing these two in reverse order, all that does is open a
+        // race within the test to see if the unblocked authorizer could finish before the stop call
+        // making the notifications non-deterministic.
+        [fetcher stopFetching];
+        [(TestAuthorizer *)fetcher.authorizer unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_AsyncAuth_StopWithAuthPending_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_AsyncAuth_StopWithAuthPending];
+}
+
+- (void)testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending {
+  // Using an Authorizer that calls the completion asynchronously, trigger the authorization after
+  // starting the fetch, then wait the fetch to start before calling `-stopFetching`.
+
+  XCTestExpectation *authExpect = [self expectationWithDescription:@"Expect for auth block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.authorizer = [TestAuthorizer asyncWithBlockedTimeout:1 testExpectation:authExpect];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        AsyncOnMainQueueDelayed(^{
+          // NOTE: There is no value in testing these two in reverse order, all that does is open a
+          // race within the test to see if the unblocked authorizer could finish before the stop
+          // call making the notifications non-deterministic.
+          [fetcher stopFetching];
+          [(TestAuthorizer *)fetcher.authorizer unblock];
+        });
+      }];
+}
+
+- (void)testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_AsyncAuth_DelayedStopWithAuthPending];
+}
+
+#pragma mark -
+// -----------------------------------------------------------------------------------------------
+// Tests calling `-stopFetching` at different stages around a UAProvider to test all the different
+// checks for canceling a fetch could come in during the delayed UA process process.
+//
+// Note: There is *no* need for versions with and without a service, because the service version
+// would just added an extra spot where the stop could get detected, but we keep both for
+// completeness.
+
+- (void)testStopFetchWithCallback_UAProvider_StopAfterStarted {
+  // Using a UAProvider, trigger the provider after starting the fetch, then wait for the fetch
+  // to start before calling `-stopFetching`.
+
+  // NOTE: This is the same as if there was no UAProvider, as the fetch fully starts up before it is
+  // stopped.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+  __block XCTestExpectation *stoppingExpectation;
+
+  // The notifications will fire because after unblocking, the delay allows the fetch to start.
+  [self runStopFetchingCallbackTestWithNotifications:YES
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider =
+            [[TestUserAgentBlockProvider alloc] initWithBlockedTimeout:1
+                                                        userAgentBlock:^{
+                                                          [providerExpect fulfill];
+                                                          return @"TestUA";
+                                                        }];
+        stoppingExpectation = [self expectationForStartFetchThatStopsFetching:fetcher];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // Trigger the provider to complete.
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_UAProvider_StopAfterStarted_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_UAProvider_StopAfterStarted];
+}
+
+- (void)testStopFetchWithCallback_UAProvider_StopWithProviderPending {
+  // Using a UAProvider, stop the fetch before allowing the provider to finish.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
+            initWithBlockedTimeout:1 + 1  // Account for the delay before completing
+                    userAgentBlock:^{
+                      [providerExpect fulfill];
+                      return @"TestUA";
+                    }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        // NOTE: There is no value in testing these two in reverse order, all that does is open a
+        // race within the test to see if the unblocked authorizer could finish before the stop call
+        // making the notifications non-deterministic.
+        [fetcher stopFetching];
+        [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+      }];
+}
+
+- (void)testStopFetchWithCallback_UAProvider_StopWithProviderPending_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_UAProvider_StopWithProviderPending];
+}
+
+- (void)testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending {
+  // Using a UAProvider, stop the fetch before allowing the provider to finish.
+
+  XCTestExpectation *providerExpect =
+      [self expectationWithDescription:@"Expect for UAProvider block"];
+
+  [self runStopFetchingCallbackTestWithNotifications:NO
+      preBegin:^(GTMSessionFetcher *fetcher) {
+        fetcher.userAgentProvider = [[TestUserAgentBlockProvider alloc]
+            initWithBlockedTimeout:1 + 1  // Account for the delay before completing
+                    userAgentBlock:^{
+                      [providerExpect fulfill];
+                      return @"TestUA";
+                    }];
+      }
+      postBegin:^(GTMSessionFetcher *fetcher) {
+        AsyncOnMainQueueDelayed(^{
+          // NOTE: There is no value in testing these two in reverse order, all that does is open a
+          // race within the test to see if the unblocked authorizer could finish before the stop
+          // call making the notifications non-deterministic.
+          [fetcher stopFetching];
+          [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
+        });
+      }];
+}
+
+- (void)testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_UAProvider_DelayedStopWithProviderPending];
+}
+
+- (void)testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin {
+  // When stopping the fetch before it is begun, no UAProvider should get called as the stop
+  // should be handled before the UAProvider is invoked.
+  [self runStopFetchingCallbackTestWithNotifications:NO
+                                            preBegin:^(GTMSessionFetcher *fetcher) {
+                                              fetcher.userAgentProvider =
+                                                  [[TestUserAgentBlockProvider alloc]
+                                                      initWithUserAgentBlock:^{
+                                                        XCTFail(
+                                                            @"stopFetching called before begin "
+                                                            @"should have prevented the authorizer "
+                                                            @"from ever being called.");
+                                                        return @"NotUsed";
+                                                      }];
+                                              [fetcher stopFetching];
+                                            }
+                                           postBegin:nil];
+}
+
+- (void)testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin_WithoutFetcherService {
+  _fetcherService = nil;
+  [self testStopFetchWithCallback_UAProviderNotCalled_StopBeforeBegin];
 }
 
 #pragma mark - TestBlock Tests
@@ -2754,101 +3368,90 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     @[ @"http://original_host/", @"https://redirect_host/", @"https://redirect_host/" ],
     // Secure to insecure = disallowed.
     @[ @"https://original_host/", @"http://redirect_host/", @"https://redirect_host/" ],
-    // Arbitrary change = disallowed.
+    // Arbitrary change = disallowed. This really shouldn't happen since there
+    // would be a redirect from a server to a different protocol.
     @[ @"http://original_host/", @"fake://redirect_host/", @"http://redirect_host/" ],
     // Validate the behavior of nil URLs in the redirect. This should not happen under
-    // real conditions, but if one of the redirect URLs are nil, the other one should
-    // always be returned. For these tests, use a string that will not parse to a URL
-    // due to invalid characters (the backslash \).
-    @[ @"invalid:\\url", @"https://redirect_host/", @"https://redirect_host/" ],
-    @[ @"http://original_host/", @"invalid:\\url", @"http://original_host/" ],
+    // real conditions, but iOS 17 (and the related OSes) changes their behavior for
+    // +[NSURL URLWithString:] for invalid characters, and what used to be a otherwise
+    // malformed URL now gets the characters encoded. This maintains the testing of
+    // the internal helper for these cases, but since the helper is only calls from
+    // an NSURLSession redirect handing, that path should never really see these
+    // sort of cases.
+    @[ @"[nil]", @"https://redirect_host/", @"https://redirect_host/" ],
+    @[ @"http://original_host/", @"[nil]", @"http://original_host/" ],
   ];
 
+  NSURL * (^toNSURL)(NSString *) = ^NSURL *(NSString *s) {
+    return [s isEqual:@"[nil]"] ? nil : [NSURL URLWithString:s];
+  };
+
   for (NSArray<NSString *> *testCase in testCases) {
-    NSURL *redirectURL =
-        [GTMSessionFetcher redirectURLWithOriginalRequestURL:[NSURL URLWithString:testCase[0]]
-                                          redirectRequestURL:[NSURL URLWithString:testCase[1]]];
+    NSURL *redirectURL = [GTMSessionFetcher redirectURLWithOriginalRequestURL:toNSURL(testCase[0])
+                                                           redirectRequestURL:toNSURL(testCase[1])];
     XCTAssertEqualObjects(redirectURL, [NSURL URLWithString:testCase[2]]);
   }
 }
 
-#pragma mark - Utilities
-
-- (NSString *)currentTestName {
-  NSInvocation *currentTestInvocation = self.invocation;
-  NSString *testCaseName = NSStringFromSelector(currentTestInvocation.selector);
-  return testCaseName;
-}
-
-- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString {
-  NSURLRequest *request = [self requestWithURLString:urlString];
-  GTMSessionFetcher *fetcher;
-  if (_fetcherService) {
-    fetcher = [_fetcherService fetcherWithRequest:request];
-  } else {
-    fetcher = [GTMSessionFetcher fetcherWithRequest:request];
-  }
-  XCTAssertNotNil(fetcher);
-  fetcher.allowLocalhostRequest = YES;
-  fetcher.allowedInsecureSchemes = @[ @"http" ];
-  fetcher.comment = [self currentTestName];
-  return fetcher;
-}
-
-- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url {
-  return [self fetcherWithURLString:url.absoluteString];
-}
-
-// Utility method for making a fetcher to test for retries.
-- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
-                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
-                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
-                                           userData:(id)userData {
-  GTMSessionFetcher *fetcher = [self fetcherWithURLString:urlString];
-
-  fetcher.retryEnabled = YES;
-  fetcher.retryBlock = retryBlock;
-  fetcher.maxRetryInterval = maxRetryInterval;
-  fetcher.userData = userData;
-
-  // We force a minimum retry interval for unit testing; otherwise,
-  // we'd have no idea how many retries will occur before the max
-  // retry interval occurs, since the minimum would be random
-  [fetcher setMinRetryInterval:1.0];
-  return fetcher;
-}
-
-- (void)waitForBackgroundTaskEndedNotifications:(FetcherNotificationsCounter *)fnctr {
-#if GTM_BACKGROUND_TASK_FETCHING
-  // The callback group does not include the main thread dispatch of notifications, so
-  // we need to explicitly wait for those.
-  NSMutableArray *remainingNotificationObjects = [fnctr.backgroundTasksStarted mutableCopy];
-  [remainingNotificationObjects removeObjectsInArray:fnctr.backgroundTasksEnded];
-  if (remainingNotificationObjects.count == 0) return;
-
-  NSMutableArray *expectations NS_VALID_UNTIL_END_OF_SCOPE = [NSMutableArray array];
-  for (id obj in remainingNotificationObjects) {
-    [expectations addObject:[self expectationForNotification:kSubUIAppBackgroundTaskEnded
-                                                      object:obj
-                                                     handler:nil]];
-  }
-  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
-#endif
-}
-
 @end
 
-@implementation TestAuthorizer
-@synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError;
+@interface TestAuthorizer ()
+@property(atomic, assign, getter=isAsync) BOOL async;
+@end
+
+@implementation TestAuthorizer {
+  // Support block mode.
+  NSUInteger _waitSeconds;
+  dispatch_semaphore_t _semaphore;
+}
+
+@synthesize async = _async, expired = _expired, willFailWithError = _willFailWithError,
+            testExpectation = _testExpectation, workBlock = _workBlock;
 
 + (instancetype)syncAuthorizer {
   return [[self alloc] init];
+}
+
++ (instancetype)syncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self syncAuthorizer];
+  authorizer.testExpectation = testExpectation;
+  return authorizer;
 }
 
 + (instancetype)asyncAuthorizer {
   TestAuthorizer *authorizer = [self syncAuthorizer];
   authorizer.async = YES;
   return authorizer;
+}
+
++ (instancetype)asyncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizer = [self asyncAuthorizer];
+  authorizer.testExpectation = testExpectation;
+  return authorizer;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds {
+  if (!seconds) {
+    [NSException raise:NSInvalidArgumentException format:@"You must use a nonzero time to wait"];
+  }
+  TestAuthorizer *authorizor = [self asyncAuthorizer];
+  if (authorizor) {
+    authorizor->_waitSeconds = seconds;
+    authorizor->_semaphore = dispatch_semaphore_create(0);
+  }
+  return authorizor;
+}
+
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
+                        testExpectation:(XCTestExpectation *)testExpectation {
+  TestAuthorizer *authorizor = [self asyncWithBlockedTimeout:seconds];
+  authorizor.testExpectation = testExpectation;
+  return authorizor;
+}
+
+- (void)unblock {
+  NSAssert(_waitSeconds, @"This was not a blocked authorizer");
+  dispatch_semaphore_signal(_semaphore);
 }
 
 + (instancetype)expiredSyncAuthorizer {
@@ -2863,9 +3466,16 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   return authorizer;
 }
 
+- (void)internalComplete:(void (^)(NSError *_Nullable))handler error:(nullable NSError *)error {
+  if (self.workBlock) {
+    self.workBlock();
+  }
+  handler(error);
+  [self.testExpectation fulfill];
+}
+
 - (void)authorizeRequest:(NSMutableURLRequest *)request
-                delegate:(id)delegate
-       didFinishSelector:(SEL)sel {
+       completionHandler:(void (^)(NSError *_Nullable))handler {
   NSError *error = nil;
   if (self.willFailWithError) {
     error = [NSError errorWithDomain:NSURLErrorDomain
@@ -2876,23 +3486,44 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
     [request setValue:value forHTTPHeaderField:@"Authorization"];
   }
 
-  if (delegate && sel) {
-    id selfParam = self;
-    NSMethodSignature *sig = [delegate methodSignatureForSelector:sel];
-    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
-    [invocation setSelector:sel];
-    [invocation setTarget:delegate];
-    [invocation setArgument:&selfParam atIndex:2];
-    [invocation setArgument:&request atIndex:3];
-    [invocation setArgument:&error atIndex:4];
-    if (self.async) {
-      [invocation retainArguments];
+  if (_waitSeconds) {
+    // Move to a work queue and block for the semaphore to be signaled.
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      intptr_t waitResult = dispatch_semaphore_wait(
+          self->_semaphore, dispatch_time(DISPATCH_TIME_NOW, self->_waitSeconds * NSEC_PER_SEC));
+      XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds",
+                     (unsigned long)self->_waitSeconds);
       dispatch_async(dispatch_get_main_queue(), ^{
-        [invocation invoke];
+        [self internalComplete:handler error:error];
       });
-    } else {
-      [invocation invoke];
-    }
+    });
+  } else if (self.isAsync) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self internalComplete:handler error:error];
+    });
+  } else {
+    [self internalComplete:handler error:error];
+  }
+}
+
+- (void)authorizeRequest:(NSMutableURLRequest *)request
+                delegate:(id)delegate
+       didFinishSelector:(SEL)sel {
+  if (delegate && sel) {
+    __weak __typeof__(self) weakSelf = self;
+    [self authorizeRequest:request
+         completionHandler:^(NSError *_Nullable error) {
+           id selfParam = weakSelf;
+           NSMutableURLRequest *requestParam = request;
+           NSMethodSignature *sig = [delegate methodSignatureForSelector:sel];
+           NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:sig];
+           [invocation setSelector:sel];
+           [invocation setTarget:delegate];
+           [invocation setArgument:&selfParam atIndex:2];
+           [invocation setArgument:&requestParam atIndex:3];
+           [invocation setArgument:&error atIndex:4];
+           [invocation invoke];
+         }];
   }
 }
 
@@ -2923,306 +3554,49 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
 
 @end
 
-#if GTM_BACKGROUND_TASK_FETCHING
-@interface SubstituteUIApplicationTaskInfo : NSObject
-@property(atomic, assign) UIBackgroundTaskIdentifier taskIdentifier;
-@property(atomic, copy) NSString *taskName;
-@property(atomic, copy) dispatch_block_t expirationHandler;
-@end
-
-NSString *const kSubUIAppBackgroundTaskBegan = @"kSubUIAppBackgroundTaskBegan";
-NSString *const kSubUIAppBackgroundTaskEnded = @"kSubUIAppBackgroundTaskEnded";
-
-@implementation SubstituteUIApplication {
-  UIBackgroundTaskIdentifier _identifier;
-  NSMutableDictionary<NSNumber *, SubstituteUIApplicationTaskInfo *> *_identifierToTaskInfoMap;
+@implementation TestUserAgentBlockProvider {
+  // Support block mode.
+  NSUInteger _waitSeconds;
+  dispatch_semaphore_t _semaphore;
 }
 
-UIBackgroundTaskIdentifier gTaskID = 1000;
+@synthesize cachedUserAgent = _cachedUserAgent;
 
-+ (UIBackgroundTaskIdentifier)lastTaskID {
-  @synchronized(self) {
-    return gTaskID;
-  }
-}
-
-+ (UIBackgroundTaskIdentifier)reserveTaskID {
-  @synchronized(self) {
-    return ++gTaskID;
-  }
-}
-
-- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(NSString *)taskName
-                                        expirationHandler:(dispatch_block_t)handler {
-  // Threading stress is tested in [GTMSessionFetcherServiceTest testThreadingStress].
-  // For the simple fetcher tests, the fetchers start on the main thread, so the background
-  // tasks start on the main thread. Since moving the NSURLSession delegate queue to default
-  // to a background queue, this SubstituteUIApplication, gTaskID access, and
-  // FetcherNotificationsCounter must be safe from arbitrary threads.
-  UIBackgroundTaskIdentifier taskID = [SubstituteUIApplication reserveTaskID];
-
-  SubstituteUIApplicationTaskInfo *taskInfo = [[SubstituteUIApplicationTaskInfo alloc] init];
-  taskInfo.taskIdentifier = taskID;
-  taskInfo.taskName = taskName;
-  taskInfo.expirationHandler = handler;
-
-  @synchronized(self) {
-    if (!_identifierToTaskInfoMap) _identifierToTaskInfoMap = [[NSMutableDictionary alloc] init];
-    _identifierToTaskInfoMap[@(taskID)] = taskInfo;
-  }
-
-  // Post the notification synchronously from the current thread.
-  [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskBegan
-                                                      object:@(taskID)];
-  return taskID;
-}
-
-- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)taskID {
-  @synchronized(self) {
-    NSAssert(_identifierToTaskInfoMap[@(taskID)] != nil,
-             @"endBackgroundTask failed to find task: %lu", (unsigned long)taskID);
-
-    [_identifierToTaskInfoMap removeObjectForKey:@(taskID)];
-  }
-
-  // Post the notification synchronously from the current thread.
-  [[NSNotificationCenter defaultCenter] postNotificationName:kSubUIAppBackgroundTaskEnded
-                                                      object:@(taskID)];
-}
-
-- (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler {
-  NSUInteger count;
-  @synchronized([SubstituteUIApplication class]) {
-    count = _identifierToTaskInfoMap.count;
-  }
-  if (count == 0) {
-    handler(0, nil);
-    return;
-  }
-
-  @synchronized(self) {
-    for (NSNumber *taskID in _identifierToTaskInfoMap) {
-      SubstituteUIApplicationTaskInfo *taskInfo = _identifierToTaskInfoMap[taskID];
-      taskInfo.expirationHandler();
-    }
-  }
-  // We expect that all background tasks ended themselves soon after their handlers were called.
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
-                 dispatch_get_main_queue(), ^{
-                   NSArray<SubstituteUIApplicationTaskInfo *> *failedToExpire;
-                   @synchronized(self) {
-                     failedToExpire = self->_identifierToTaskInfoMap.allValues;
-                   }
-                   handler(count, failedToExpire);
-                 });
-}
-
-@end
-
-@implementation SubstituteUIApplicationTaskInfo
-@synthesize taskIdentifier = _taskIdentifier;
-@synthesize taskName = _taskName;
-@synthesize expirationHandler = _expirationHandler;
-
-- (NSString *)description {
-  return
-      [NSString stringWithFormat:@"<task %lu \"%@\">", (unsigned long)_taskIdentifier, _taskName];
-}
-
-@end
-
-#endif  // GTM_BACKGROUND_TASK_FETCHING
-
-@implementation FetcherNotificationsCounter {
-  NSDate *_counterCreationDate;
-#if GTM_BACKGROUND_TASK_FETCHING
-  UIBackgroundTaskIdentifier _priorTaskID;
-#endif
-}
-
-@synthesize fetchStarted = _fetchStarted, fetchStopped = _fetchStopped,
-            fetchCompletionInvoked = _fetchCompletionInvoked,
-            uploadChunkFetchStarted = _uploadChunkFetchStarted,
-            uploadChunkFetchStopped = _uploadChunkFetchStopped,
-            retryDelayStarted = _retryDelayStarted, retryDelayStopped = _retryDelayStopped,
-            uploadLocationObtained = _uploadLocationObtained,
-            uploadChunkRequestPaths = _uploadChunkRequestPaths,
-            uploadChunkCommands = _uploadChunkCommands, uploadChunkOffsets = _uploadChunkOffsets,
-            uploadChunkLengths = _uploadChunkLengths,
-            fetchersStartedDescriptions = _fetchersStartedDescriptions,
-            fetchersStoppedDescriptions = _fetchersStoppedDescriptions,
-            backgroundTasksStarted = _backgroundTasksStarted,
-            backgroundTasksEnded = _backgroundTasksEnded;
-
-- (instancetype)init {
+- (instancetype)initWithUserAgentBlock:(UserAgentBlock)userAgentBlock {
   self = [super init];
   if (self) {
-    _counterCreationDate = [[NSDate alloc] init];
-
-    _uploadChunkRequestPaths = [[NSMutableArray alloc] init];
-    _uploadChunkCommands = [[NSMutableArray alloc] init];
-    _uploadChunkOffsets = [[NSMutableArray alloc] init];
-    _uploadChunkLengths = [[NSMutableArray alloc] init];
-    _fetchersStartedDescriptions = [[NSMutableArray alloc] init];
-    _fetchersStoppedDescriptions = [[NSMutableArray alloc] init];
-    _backgroundTasksStarted = [[NSMutableArray alloc] init];
-    _backgroundTasksEnded = [[NSMutableArray alloc] init];
-#if GTM_BACKGROUND_TASK_FETCHING
-    _priorTaskID = [SubstituteUIApplication lastTaskID];
-#endif
-
-    NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-    [nc addObserver:self
-           selector:@selector(fetchStateChanged:)
-               name:kGTMSessionFetcherStartedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(fetchStateChanged:)
-               name:kGTMSessionFetcherStoppedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(fetchCompletionInvoked:)
-               name:kGTMSessionFetcherCompletionInvokedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(retryDelayStateChanged:)
-               name:kGTMSessionFetcherRetryDelayStartedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(retryDelayStateChanged:)
-               name:kGTMSessionFetcherRetryDelayStoppedNotification
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(uploadLocationObtained:)
-               name:kGTMSessionFetcherUploadLocationObtainedNotification
-             object:nil];
-#if GTM_BACKGROUND_TASK_FETCHING
-    [nc addObserver:self
-           selector:@selector(backgroundTaskBegan:)
-               name:kSubUIAppBackgroundTaskBegan
-             object:nil];
-    [nc addObserver:self
-           selector:@selector(backgroundTaskEnded:)
-               name:kSubUIAppBackgroundTaskEnded
-             object:nil];
-#endif
+    _userAgentBlock = userAgentBlock;
   }
   return self;
 }
 
-- (void)dealloc {
-  [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
-- (BOOL)shouldIgnoreNotification:(NSNotification *)note {
-  GTMSessionFetcher *fetcher = note.object;
-  NSDate *fetcherBeginDate = fetcher.initialBeginFetchDate;
-  BOOL isTooOld =
-      (fetcherBeginDate && [fetcherBeginDate compare:_counterCreationDate] == NSOrderedAscending);
-  return isTooOld;
-}
-
-- (NSString *)descriptionForFetcher:(GTMSessionFetcher *)fetcher {
-  NSString *description =
-      [NSString stringWithFormat:@"fetcher %p %@ %@", fetcher, fetcher.comment ?: @"<no comment>",
-                                 fetcher.request.URL.absoluteString];
-  if (fetcher.retryCount > 0) {
-    description =
-        [description stringByAppendingFormat:@" retry %lu", (unsigned long)fetcher.retryCount];
+- (instancetype)initWithBlockedTimeout:(NSUInteger)seconds
+                        userAgentBlock:(nonnull UserAgentBlock)userAgentBlock {
+  if (!seconds) {
+    [NSException raise:NSInvalidArgumentException format:@"You must use a nonzero time to wait"];
   }
-  return description;
-}
-
-- (void)fetchStateChanged:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  GTMSessionFetcher *fetcher = note.object;
-  BOOL isUploadChunkFetcher = ([fetcher parentUploadFetcher] != nil);
-  BOOL isFetchStartedNotification = [note.name isEqual:kGTMSessionFetcherStartedNotification];
-
-  if (isFetchStartedNotification) {
-    ++_fetchStarted;
-    [_fetchersStartedDescriptions addObject:[self descriptionForFetcher:fetcher]];
-
-    if (isUploadChunkFetcher) {
-      ++_uploadChunkFetchStarted;
-
-      NSURLRequest *request = fetcher.request;
-      NSString *command = [request valueForHTTPHeaderField:@"X-Goog-Upload-Command"];
-      NSInteger offset = [[request valueForHTTPHeaderField:@"X-Goog-Upload-Offset"] integerValue];
-      NSInteger length = [[request valueForHTTPHeaderField:@"Content-Length"] integerValue];
-      NSString *path = request.URL.path;
-      [_uploadChunkRequestPaths addObject:path];
-      [_uploadChunkCommands addObject:command];
-      [_uploadChunkOffsets addObject:@(offset)];
-      [_uploadChunkLengths addObject:@(length)];
-
-      NSAssert([[fetcher parentUploadFetcher] isKindOfClass:[GTMSessionUploadFetcher class]],
-               @"Unexpected parent");
-    }
-  } else {
-    ++_fetchStopped;
-    [_fetchersStoppedDescriptions addObject:[self descriptionForFetcher:fetcher]];
-
-    if (isUploadChunkFetcher) {
-      ++_uploadChunkFetchStopped;
-    }
+  if (self = [self initWithUserAgentBlock:userAgentBlock]) {
+    _waitSeconds = seconds;
+    _semaphore = dispatch_semaphore_create(0);
   }
-
-  NSAssert(_fetchStopped <= _fetchStarted, @"fetch notification imbalance: starts=%d stops=%d",
-           (int)_fetchStarted, (int)_fetchStopped);
+  return self;
 }
 
-- (void)fetchCompletionInvoked:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  ++_fetchCompletionInvoked;
+- (void)unblock {
+  NSAssert(_waitSeconds, @"This was not a blocked UAProvider");
+  dispatch_semaphore_signal(_semaphore);
 }
 
-- (void)retryDelayStateChanged:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  if ([note.name isEqual:kGTMSessionFetcherRetryDelayStartedNotification]) {
-    ++_retryDelayStarted;
-  } else {
-    ++_retryDelayStopped;
+- (NSString *)userAgent {
+  if (_waitSeconds) {
+    intptr_t waitResult = dispatch_semaphore_wait(
+        _semaphore, dispatch_time(DISPATCH_TIME_NOW, _waitSeconds * NSEC_PER_SEC));
+    XCTAssertEqual(0, waitResult, @"Timed out after %lu seconds", (unsigned long)_waitSeconds);
   }
-  NSAssert(_retryDelayStopped <= _retryDelayStarted,
-           @"retry delay notification imbalance: starts=%d stops=%d", (int)_retryDelayStarted,
-           (int)_retryDelayStopped);
+  NSString *result = _userAgentBlock();
+  self.cachedUserAgent = result;
+  return result;
 }
-
-- (void)uploadLocationObtained:(NSNotification *)note {
-  if ([self shouldIgnoreNotification:note]) return;
-
-  GTMSessionUploadFetcher *fetcher = note.object;
-#pragma unused(fetcher)  // Unused when NS_BLOCK_ASSERTIONS
-
-  NSAssert(fetcher.uploadLocationURL != nil, @"missing upload location: %@", fetcher);
-
-  ++_uploadLocationObtained;
-}
-
-#if GTM_BACKGROUND_TASK_FETCHING
-- (void)backgroundTaskBegan:(NSNotification *)note {
-  // Ignore notifications that predate this object's existence.
-  if (((NSNumber *)note.object).unsignedLongLongValue <= _priorTaskID) {
-    return;
-  }
-  @synchronized(self) {
-    [_backgroundTasksStarted addObject:(id)note.object];
-  }
-}
-
-- (void)backgroundTaskEnded:(NSNotification *)note {
-  @synchronized(self) {
-    // Ignore notifications that were started prior to this object's existence.
-    if (![_backgroundTasksStarted containsObject:(NSNumber *)note.object]) return;
-
-    [_backgroundTasksEnded addObject:(id)note.object];
-  }
-}
-#endif  // GTM_BACKGROUND_TASK_FETCHING
 
 @end
 
@@ -3250,3 +3624,5 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   return result;
 }
+
+#endif  // !TARGET_OS_WATCH

@@ -1,0 +1,48 @@
+name: TestApps
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'TestApps/**'
+    - '.github/workflows/test_apps.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'TestApps/**'
+    - '.github/workflows/test_apps.yml'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
+
+jobs:
+  xcodebuild:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        # iOS runs into codesigning requirements to build applications, haven't
+        # found a good way to suppress that and just ensure things build.
+        #PLATFORM: ["iOS", "macOS"]
+        PLATFORM: ["macOS"]
+        CONFIGURATION: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run:  |
+        set -eu
+        case "${{matrix.PLATFORM}}" in
+          iOS)
+            XCODE_SCHEME="iOSTestApp"
+            ;;
+          macOS)
+            XCODE_SCHEME="OSXTestApp"
+            ;;
+        esac
+
+        xcodebuild \
+            -project TestApps/TestApps.xcodeproj \
+            -scheme "${XCODE_SCHEME}" \
+            -configuration ${{ matrix.CONFIGURATION }} \
+            build

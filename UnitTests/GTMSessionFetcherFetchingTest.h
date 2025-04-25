@@ -13,19 +13,20 @@
  * limitations under the License.
  */
 
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_WATCH
+
 #import <XCTest/XCTest.h>
-#import <stdlib.h>
-#import <sys/sysctl.h>
-#import <unistd.h>
+#include <stdlib.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
+
+#import <GTMSessionFetcher/GTMSessionFetcher.h>
+#import <GTMSessionFetcher/GTMSessionFetcherLogging.h>
+#import <GTMSessionFetcher/GTMSessionUploadFetcher.h>
 
 #import "GTMSessionFetcherTestServer.h"
-#if SWIFT_PACKAGE
-@import GTMSessionFetcherCore;
-#else
-#import "GTMSessionFetcher.h"
-#import "GTMSessionFetcherLogging.h"
-#import "GTMSessionUploadFetcher.h"
-#endif
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -38,9 +39,6 @@ extern NSString *const kGTMGettysburgFileName;
   NSTimeInterval _timeoutInterval;
   GTMSessionFetcherService *_fetcherService;
 }
-
-// A path to the test folder containing documents to be returned by the http server.
-- (NSString *)docRootPath;
 
 // Return the raw data of our test file.
 - (NSData *)gettysburgAddress;
@@ -64,6 +62,17 @@ extern NSString *const kGTMGettysburgFileName;
 // Utility method for making a request with the object's timeout.
 - (NSMutableURLRequest *)requestWithURLString:(NSString *)urlString;
 
+// Retrieves the name of the currently running test for logging.
+- (NSString *)currentTestName;
+
+// Utility methods for creating fetchers.
+- (GTMSessionFetcher *)fetcherWithURLString:(NSString *)urlString;
+- (GTMSessionFetcher *)fetcherWithURL:(NSURL *)url;
+- (GTMSessionFetcher *)fetcherForRetryWithURLString:(NSString *)urlString
+                                         retryBlock:(GTMSessionFetcherRetryBlock)retryBlock
+                                   maxRetryInterval:(NSTimeInterval)maxRetryInterval
+                                           userData:(id)userData;
+
 @end
 
 @interface GTMSessionFetcher (FetchingTest)
@@ -72,66 +81,66 @@ extern NSString *const kGTMGettysburgFileName;
 - (nullable NSMutableURLRequest *)mutableRequestForTesting;
 @end
 
-// Authorization testing.
-@interface TestAuthorizer : NSObject <GTMFetcherAuthorizationProtocol>
+#pragma mark - Authorization testing helper
 
-@property(atomic, assign, getter=isAsync) BOOL async;
+typedef void (^TestAuthorizerBlock)(void);
+
+@interface TestAuthorizer : NSObject <GTMSessionFetcherAuthorizer>
+
+@property(atomic, readonly, getter=isAsync) BOOL async;
+
 @property(atomic, assign, getter=isExpired) BOOL expired;
 @property(atomic, assign) BOOL willFailWithError;
 
+// And extra block that will be invoked before the authorizer returns, this can do any extra
+// validations desired. It is called on the main thread, so it should *not* delay things.
+@property(atomic, copy) TestAuthorizerBlock workBlock;
+
+// An expectation to `-fulfill` after completing the authorization.
+@property(atomic, nullable) XCTestExpectation *testExpectation;
+
 + (instancetype)syncAuthorizer;
++ (instancetype)syncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation;
+
 + (instancetype)asyncAuthorizer;
++ (instancetype)asyncAuthorizerWithTestExpectation:(XCTestExpectation *)testExpectation;
+
+// These will create an authorizor that will block the authorization call for the given timeout
+// until `-unblock` is called, at which point they will complete the authorization.
+//
+// NOTE: These are "1 shot" authorizers.  i.e. - you can't use them with multiple fetches.
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds;
++ (instancetype)asyncWithBlockedTimeout:(NSUInteger)seconds
+                        testExpectation:(XCTestExpectation *)testExpecation;
+- (void)unblock;
+
 + (instancetype)expiredSyncAuthorizer;
 + (instancetype)expiredAsyncAuthorizer;
 
 @end
 
-#if GTM_BACKGROUND_TASK_FETCHING
+#pragma mark - User Agent Caching testing helper
 
-// A fake of UIApplication that posts notifications when a background task begins
-// and ends.
-@class SubstituteUIApplicationTaskInfo;
+typedef NSString *_Nonnull (^UserAgentBlock)(void);
 
-typedef void (^SubstituteUIApplicationExpirationCallback)(
-    NSUInteger numberOfBackgroundTasksToExpire,
-    NSArray<SubstituteUIApplicationTaskInfo *> *_Nullable tasksFailingToExpire);
+@interface TestUserAgentBlockProvider : NSObject <GTMUserAgentProvider>
 
-@interface SubstituteUIApplication : NSObject <GTMUIApplicationProtocol>
+@property(atomic, copy) NSString *cachedUserAgent;
+@property(atomic, copy) UserAgentBlock userAgentBlock;
 
-- (UIBackgroundTaskIdentifier)beginBackgroundTaskWithName:(nullable NSString *)taskName
-                                        expirationHandler:(nullable dispatch_block_t)handler;
-- (void)endBackgroundTask:(UIBackgroundTaskIdentifier)identifier;
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithUserAgentBlock:(UserAgentBlock)userAgentBlock NS_DESIGNATED_INITIALIZER;
 
-- (void)expireAllBackgroundTasksWithCallback:(SubstituteUIApplicationExpirationCallback)handler;
-
-@end
-
-extern NSString *const kSubUIAppBackgroundTaskBegan;
-extern NSString *const kSubUIAppBackgroundTaskEnded;
-
-#endif  // GTM_BACKGROUND_TASK_FETCHING
-
-@interface FetcherNotificationsCounter : NSObject
-@property(nonatomic) int fetchStarted;
-@property(nonatomic) int fetchStopped;
-@property(nonatomic) int fetchCompletionInvoked;
-@property(nonatomic) int uploadChunkFetchStarted;  // Includes query fetches.
-@property(nonatomic) int uploadChunkFetchStopped;  // Includes query fetches.
-@property(nonatomic) int retryDelayStarted;
-@property(nonatomic) int retryDelayStopped;
-@property(nonatomic) int uploadLocationObtained;
-
-@property(nonatomic) NSMutableArray *uploadChunkRequestPaths;  // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkCommands;      // of NSString
-@property(nonatomic) NSMutableArray *uploadChunkOffsets;       // of NSUInteger
-@property(nonatomic) NSMutableArray *uploadChunkLengths;       // of NSUInteger
-
-@property(nonatomic) NSMutableArray *fetchersStartedDescriptions;  // of NSString
-@property(nonatomic) NSMutableArray *fetchersStoppedDescriptions;  // of NSString
-
-@property(nonatomic) NSMutableArray *backgroundTasksStarted;  // of boxed UIBackgroundTaskIdentifier
-@property(nonatomic) NSMutableArray *backgroundTasksEnded;    // of boxed UIBackgroundTaskIdentifier
+// When called, this provider will block for the given timeout until `-unblock` is called, at which
+// point it will invoke the provided callback.
+//
+// NOTE: This is "1 shot".  i.e. - you can't use them with multiple fetches.
+- (instancetype)initWithBlockedTimeout:(NSUInteger)seconds
+                        userAgentBlock:(UserAgentBlock)userAgentBlock;
+- (void)unblock;
 
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif  // !TARGET_OS_WATCH

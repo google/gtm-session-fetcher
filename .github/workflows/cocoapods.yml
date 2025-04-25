@@ -1,0 +1,48 @@
+name: CocoaPods
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'UnitTests/**'
+    - '*.podspec'
+    - '.github/workflows/cocoapods.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+    - 'Sources/**'
+    - 'UnitTests/**'
+    - '*.podspec'
+    - '.github/workflows/cocoapods.yml'
+  schedule:
+    # Run the first and fifteenth of every month at 5:12 UTC
+    - cron:  '12 5 1,15 * *'
+  # Also allow manual triggering from the github UX to revalidate things.
+  workflow_dispatch:
+
+jobs:
+  pod-lib-lint:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        # watchOS fails linting when there are test, wedge in --skip-tests for
+        # those runs.
+        PLATFORM: ["ios", "macos", "tvos", "visionos", "watchos --skip-tests"]
+        CONFIGURATION: ["Debug", "Release"]
+    steps:
+    - uses: actions/checkout@v4
+    # Manually expanding out static frameworks to avoid making to many jobs.
+    - name: Pod lib lint
+      run:  |
+        pod lib lint --verbose \
+          --configuration=${{ matrix.CONFIGURATION }} \
+          --platforms=${{ matrix.PLATFORM }} \
+          GTMSessionFetcher.podspec
+    - name: Pod lib lint - Use Static Frameworks
+      run:  |
+        pod lib lint --verbose --use-static-frameworks \
+          --configuration=${{ matrix.CONFIGURATION }} \
+          --platforms=${{ matrix.PLATFORM }} \
+          GTMSessionFetcher.podspec
