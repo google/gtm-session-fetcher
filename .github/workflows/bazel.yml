@@ -4,14 +4,22 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'BUILD.bazel'
       - 'Sources/**'
       - 'UnitTests/**'
+      - 'MODULE.bazel'
+      - '.bazelc'
+      - '.bazelversion'
       - '.github/workflows/bazel.yml'
   pull_request:
     branches: [ main ]
     paths:
+      - 'BUILD.bazel'
       - 'Sources/**'
       - 'UnitTests/**'
+      - 'MODULE.bazel'
+      - '.bazelc'
+      - '.bazelversion'
       - '.github/workflows/bazel.yml'
   schedule:
     # Run the first and fifteenth of every month at 5:12 UTC
