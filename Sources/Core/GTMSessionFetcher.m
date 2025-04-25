@@ -125,15 +125,17 @@ NS_ASSUME_NONNULL_END
 #endif
 
 // Internal tracking of the delayed state.
-//
-// This is currently not complete, it is being worked in to better track things
-// to ensure `stopFetching` always triggers callback when requested.
 typedef NS_ENUM(NSUInteger, GTMSessionFetcherDelayState) {
   kDelayStateNotDelayed = 0,
+
+  // Parts of startup that can result in the fetcher completing startup at some later time.
   kDelayStateServiceDelayed,
   kDelayStateCalculatingUA,
   kDelayStateAuthorizing,
   kDelayStateApplyingDecorators,
+
+  // State while actively in `-beginFetchMayDelay:mayAuthorize:mayDecorate:`.
+  kDelayStateStartingUp,
 };
 
 @interface GTMSessionFetcher ()
@@ -504,8 +506,9 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
-    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed,
-                            @"Unexpected internal state: %lu", (unsigned long)_delayState);
+    GTMSESSION_ASSERT_DEBUG(
+        (_delayState == kDelayStateNotDelayed || _delayState == kDelayStateStartingUp),
+        @"Unexpected internal state: %lu", (unsigned long)_delayState);
 
     if (_userStoppedFetching) {
       stopped = YES;
@@ -545,8 +548,13 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   // This is the internal entry point for re-starting fetches.
   GTMSessionCheckNotSynchronized(self);
 
-  NSMutableURLRequest *fetchRequest =
-      _request;  // The request property is now externally immutable.
+  if (![self startDelayState:kDelayStateStartingUp]) {
+    return;
+  }
+
+  // The request property is now externally immutable.
+  NSMutableURLRequest *fetchRequest = _request;
+
   NSURL *fetchRequestURL = fetchRequest.URL;
   NSString *priorSessionIdentifier = self.sessionIdentifier;
 
@@ -771,15 +779,15 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     @synchronized(self) {
       GTMSessionMonitorSynchronized(self);
 
-      // Per comment above, correct state since it wasn't delayed.
-      _delayState = kDelayStateNotDelayed;
-
       // If a `-stopFetching` came in while the service check was made, then the side effect of the
       // state setting caused the handler (if needed) to already be made, so there we want to just
       // exit and not continue the fetch.
       if (_userStoppedFetching) {
         return;
       }
+
+      // Per comment above, correct state since it wasn't delayed, go back to startup state.
+      _delayState = kDelayStateStartingUp;
     }
   }
 
@@ -881,7 +889,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     stopped = _userStoppedFetching;
   }
   if (stopped) {
-    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateNotDelayed, @"Unexpected internal state: %lu",
+    GTMSESSION_ASSERT_DEBUG(_delayState == kDelayStateStartingUp, @"Unexpected internal state: %lu",
                             (unsigned long)_delayState);
     // We end up here if someone calls `stopFetching` from another thread/queue while
     // the fetch was being started up, so while `stopFetching` did the needed shutdown
@@ -896,6 +904,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
   }
 
   // finally, start the connection
+
   NSURLSessionTask *newSessionTask;
   BOOL needsDataAccumulator = NO;
   if (_downloadResumeData) {
@@ -1043,6 +1052,26 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     // and we don't want to post a start notification after a premature finish
     // of the session task.
     [newSessionTask resume];
+  }
+
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    _delayState = kDelayStateNotDelayed;
+    stopped = _userStoppedFetching;
+  }
+  // If a `-stopFetching` came in between where the connection was finally started (see above), then
+  // `-stopFetching` itself didn't do anything because it would be a race, so we have to trigger
+  // the cleanup work here manually.
+  //
+  if (stopped) {
+    if (self.stopFetchingTriggersCompletionHandler) {
+      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                           code:GTMSessionFetcherErrorUserCancelled
+                                       userInfo:nil];
+      [self finishWithError:error shouldRetry:NO];
+    } else {
+      [self stopFetchReleasingCallbacks:YES];
+    }
   }
 }
 
@@ -1978,9 +2007,13 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     }
     if (error == nil) {
       _request = authorizedRequest;
+      // Clear the delay state only if things aren't about to fail. Don't want to have a race
+      // between clearing the state and when the error is posted because some other thread happened
+      // to get in a call to
+      // `-stopFetching`.
+      _delayState = kDelayStateNotDelayed;
     }
-    _delayState = kDelayStateNotDelayed;
-  }
+  }  // @synchronized(self)
 
   if (error != nil) {
     // We can't fetch without authorization
@@ -2266,6 +2299,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // External stop method
 - (void)stopFetching {
   BOOL triggerCallback;
+  BOOL inStartUp;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -2279,6 +2313,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
         (_delayState == kDelayStateServiceDelayed || _delayState == kDelayStateAuthorizing ||
          _delayState == kDelayStateCalculatingUA) &&
         self.stopFetchingTriggersCompletionHandler;
+
+    // If literally in ``-beginFetchMayDelay:mayAuthorize:mayDecorate:`, it will handle the work to
+    // stop.
+    inStartUp = _delayState == kDelayStateStartingUp;
+
   }  // @synchronized(self)
 
   if (triggerCallback) {
@@ -2286,7 +2325,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                                          code:GTMSessionFetcherErrorUserCancelled
                                      userInfo:nil];
     [self finishWithError:error shouldRetry:NO];
-  } else {
+  } else if (!inStartUp) {
     [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
   }
 }
