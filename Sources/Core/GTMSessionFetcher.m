@@ -2300,7 +2300,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [self removePersistedBackgroundSessionFromDefaults];
 
   GTMSessionFetcherService *service;
-  NSMutableURLRequest *request;
+  NSMutableURLRequest *requestForStopAuth;
 
   // If the task or the retry timer is all that's retaining the fetcher,
   // we want to be sure this instance survives stopping at least long enough for
@@ -2319,7 +2319,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     _hasStoppedFetching = YES;
 
     service = _service;
-    request = _request;
+    // Only will need to stop authorization if in an authorizing state.
+    requestForStopAuth = (_delayState == kDelayStateAuthorizing) ? _request : nil;
 
     if (_sessionTask) {
       // In case cancelling the task or session calls this recursively, we want
@@ -2394,7 +2395,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     [self sendStopNotificationIfNeeded];
   }
 
-  [_authorizer stopAuthorizationForRequest:request];
+  if (requestForStopAuth) {
+    [_authorizer stopAuthorizationForRequest:requestForStopAuth];
+  }
 
   if (shouldReleaseCallbacks) {
     [self releaseCallbacks];
