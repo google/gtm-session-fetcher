@@ -1775,7 +1775,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 }
 
-- (nullable NSDictionary *)sessionIdentifierMetadata {
+- (nullable NSDictionary<NSString *, id> *)sessionIdentifierMetadata {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
@@ -1783,7 +1783,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   }
 }
 
-- (nullable NSDictionary *)sessionIdentifierMetadataUnsynchronized {
+- (nullable NSDictionary<NSString *, id> *)sessionIdentifierMetadataUnsynchronized {
   GTMSessionCheckSynchronized(self);
 
   // Session Identifier format: "com.google.<ClassName>_<UUID>_<Metadata in JSON format>
