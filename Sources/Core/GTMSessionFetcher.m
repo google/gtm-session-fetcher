@@ -525,7 +525,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                            code:GTMSessionFetcherErrorUserCancelled
                                        userInfo:nil];
-      [self finishWithError:error shouldRetry:NO];
+      [self failToBeginFetchWithError:error];
+    } else {
+      // In the edge case where the fetch was stopped before it even began, the call backs still
+      // need to get cleared as at least the completion will have been just set in calling
+      // beginFetch...
+      [self stopFetchReleasingCallbacks:YES];
     }
     return NO;  // Caller to stop.
   }
@@ -884,24 +889,12 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     }
   }
 
-  BOOL stopped;
-  @synchronized(self) {
-    GTMSessionMonitorSynchronized(self);
-    stopped = _userStoppedFetching;
-  }
-  if (stopped) {
-    GTMSESSION_ASSERT_DEBUG(_startingState == kStartingStateStartingUp,
-                            @"Unexpected internal state: %lu", (unsigned long)_startingState);
-    // We end up here if someone calls `stopFetching` from another thread/queue while
-    // the fetch was being started up, so while `stopFetching` did the needed shutdown
-    // we have to ensure the requested callback was triggered.
-    if (self.stopFetchingTriggersCompletionHandler) {
-      NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
-                                           code:GTMSessionFetcherErrorUserCancelled
-                                       userInfo:nil];
-      [self finishWithError:error shouldRetry:NO];
-    }
-    return;  // The fetch was stopped, go no further.
+  // Even though the StartingUp state was entered at the start of the function, we re-enter it here
+  // in case a call to `-stopFetcher` comes in on another thread while the above code was running,
+  // this lets
+  // `-startingState:` do the needed checks/callbacks/cleanups without repeating them here.
+  if (![self startingState:kStartingStateStartingUp]) {
+    return;
   }
 
   // finally, start the connection
@@ -1055,10 +1048,13 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     [newSessionTask resume];
   }
 
+  BOOL stopped;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-    _startingState = kStartingStateNone;
     stopped = _userStoppedFetching;
+    if (!stopped) {
+      _startingState = kStartingStateNone;
+    }
   }
   // If a `-stopFetching` came in between where the connection was finally started (see above), then
   // `-stopFetching` itself didn't do anything because it would be a race, so we have to trigger
@@ -1069,6 +1065,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
       NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                            code:GTMSessionFetcherErrorUserCancelled
                                        userInfo:nil];
+      // Fetch started, can't use `-failToBeginFetchWithError:`.
       [self finishWithError:error shouldRetry:NO];
     } else {
       [self stopFetchReleasingCallbacks:YES];
@@ -2300,9 +2297,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 // External stop method
 - (void)stopFetching {
   BOOL triggerCallback;
-  BOOL inStartUp;
+  BOOL inBeginFetch;
+  BOOL stopTriggersHandler;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+    stopTriggersHandler = self.stopFetchingTriggersCompletionHandler;
 
     // Prevent enqueued callbacks from executing. The completion handler will still execute if
     // the property `stopFetchingTriggersCompletionHandler` is `YES`.
@@ -2313,11 +2312,11 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     triggerCallback = (_startingState == kStartingStateServiceDelayed ||
                        _startingState == kStartingStateAuthorizing ||
                        _startingState == kStartingStateCalculatingUA) &&
-                      self.stopFetchingTriggersCompletionHandler;
+                      stopTriggersHandler;
 
-    // If literally in ``-beginFetchMayDelay:mayAuthorize:mayDecorate:`, it will handle the work to
+    // If literally in `-beginFetchMayDelay:mayAuthorize:mayDecorate:`, it will handle the work to
     // stop.
-    inStartUp = _startingState == kStartingStateStartingUp;
+    inBeginFetch = _startingState == kStartingStateStartingUp;
 
   }  // @synchronized(self)
 
@@ -2325,9 +2324,9 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
     NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
                                          code:GTMSessionFetcherErrorUserCancelled
                                      userInfo:nil];
-    [self finishWithError:error shouldRetry:NO];
-  } else if (!inStartUp) {
-    [self stopFetchReleasingCallbacks:!self.stopFetchingTriggersCompletionHandler];
+    [self failToBeginFetchWithError:error];
+  } else if (!inBeginFetch) {
+    [self stopFetchReleasingCallbacks:!stopTriggersHandler];
   }
 }
 

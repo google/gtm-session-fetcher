@@ -1956,11 +1956,13 @@ static bool IsCurrentProcessBeingDebugged(void) {
 
   NSURL *fetchURL = [_testServer localURLForFile:kValidFileName];
 
-  // Use 3 fetchers:
+  // Use 5 fetchers:
   //  1. Blocking auth, will complete successfully. When it completes, it will stop the 4th fetcher.
   //  2. Uses an auth failing helper, will be stopped, so it shouldn't get to auth.
-  //  3. No auth, just complete successfully.
-  //  4. No auth, just a complete, but will be stopped.
+  //  3. Uses an auth failing helper, will be stopped, so it shouldn't get to auth, also don't
+  //  enable the callback.
+  //  4. No auth, just complete successfully.
+  //  5. No auth, just a complete, but will be stopped.
   // This ensure they get started after each other and get to the point they should.
 
   GTMSessionFetcher *fetcher1 = [service fetcherWithURL:fetchURL];
@@ -1970,12 +1972,19 @@ static bool IsCurrentProcessBeingDebugged(void) {
   GTMSessionFetcher *fetcher2 = [service fetcherWithURL:fetchURL];
   fetcher2.authorizer = [TestAuthorizer syncAuthorizer];
   ((TestAuthorizer *)fetcher2.authorizer).workBlock = ^{
-    XCTFail(@"Should not get here since it was stopped.");
+    XCTFail(@"Fetcher2: Should not get here since it was stopped.");
   };
 
   GTMSessionFetcher *fetcher3 = [service fetcherWithURL:fetchURL];
+  fetcher3.stopFetchingTriggersCompletionHandler = NO;  // Reset back to no
+  fetcher3.authorizer = [TestAuthorizer syncAuthorizer];
+  ((TestAuthorizer *)fetcher3.authorizer).workBlock = ^{
+    XCTFail(@"Fetcher3: Should not get here since it was stopped.");
+  };
 
   GTMSessionFetcher *fetcher4 = [service fetcherWithURL:fetchURL];
+
+  GTMSessionFetcher *fetcher5 = [service fetcherWithURL:fetchURL];
 
   // Fetchers 1 and 3 will actually run, 2 and 4 should never fully start, so there should be two
   // started/stopped notifications, but all 4 should get completion invoked.
@@ -2007,7 +2016,7 @@ static bool IsCurrentProcessBeingDebugged(void) {
     XCTAssertNotNil(data);
     XCTAssertNil(error);
     // and stop the 4th one.
-    [fetcher4 stopFetching];
+    [fetcher5 stopFetching];
     [completionExpectation fulfill];
   }];
 
@@ -2020,12 +2029,16 @@ static bool IsCurrentProcessBeingDebugged(void) {
   }];
 
   [fetcher3 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+    XCTFail(@"Should not get invoked for stopFetcher -- data: %@, error: %@", data, error);
+  }];
+
+  [fetcher4 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
     XCTAssertNotNil(data);
     XCTAssertNil(error);
     [completionExpectation fulfill];
   }];
 
-  [fetcher4 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
+  [fetcher5 beginFetchWithCompletionHandler:^(NSData *_Nullable data, NSError *_Nullable error) {
     XCTAssertNil(data);
     XCTAssertNotNil(error);
     XCTAssertEqual(error.domain, kGTMSessionFetcherErrorDomain);
@@ -2033,14 +2046,15 @@ static bool IsCurrentProcessBeingDebugged(void) {
     [completionExpectation fulfill];
   }];
 
-  // There should be one running for localhost, and three delayed for localhost.
+  // There should be one running for localhost, and four delayed for localhost.
   XCTAssertEqual(service.runningFetchersByHost.count, (NSUInteger)1);
   XCTAssertEqual(service.runningFetchersByHost[@"localhost"].count, 1);
   XCTAssertEqual(service.delayedFetchersByHost.count, (NSUInteger)1, );
-  XCTAssertEqual(service.delayedFetchersByHost[@"localhost"].count, 3);
+  XCTAssertEqual(service.delayedFetchersByHost[@"localhost"].count, 4);
 
-  // Stop the first, and then unblock the authorizer to let the rest happen.
+  // Stop first, and then unblock the authorizer to let the rest happen.
   [fetcher2 stopFetching];
+  [fetcher3 stopFetching];
   [(TestAuthorizer *)fetcher1.authorizer unblock];
 
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
