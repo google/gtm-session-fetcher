@@ -1,7 +1,7 @@
 module(name = "gtm_session_fetcher", version = "4.4.0")
 
 bazel_dep(name = "rules_cc", version = "0.1.1")
-bazel_dep(name = "rules_apple", version = "3.20.1")
+bazel_dep(name = "rules_apple", version = "3.21.0")
 bazel_dep(name = "rules_swift", version = "2.7.0")
 bazel_dep(name = "platforms", version = "0.0.11")
 bazel_dep(name = "apple_support", version = "1.21.1")
