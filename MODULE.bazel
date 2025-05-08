@@ -1,4 +1,4 @@
-module(name = "gtm_session_fetcher", version = "4.4.0")
+module(name = "gtm_session_fetcher", version = "4.5.0")
 
 bazel_dep(name = "rules_cc", version = "0.1.1")
 bazel_dep(name = "rules_apple", version = "3.21.0")
