@@ -5,6 +5,7 @@
 
 [![SwiftPM](https://github.com/google/gtm-session-fetcher/actions/workflows/swiftpm.yml/badge.svg?branch=main)](https://github.com/google/gtm-session-fetcher/actions/workflows/swiftpm.yml)
 [![CocoaPods](https://github.com/google/gtm-session-fetcher/actions/workflows/cocoapods.yml/badge.svg?branch=main)](https://github.com/google/gtm-session-fetcher/actions/workflows/cocoapods.yml)
+[![Bazel](https://github.com/google/gtm-session-fetcher/actions/workflows/bazel.yml/badge.svg?branch=main)](https://github.com/google/gtm-session-fetcher/actions/workflows/bazel.yml)
 
 `GTMSessionFetcher` makes it easy for Cocoa applications to perform http
 operations. The fetcher is implemented as a wrapper on `NSURLSession`, so its
