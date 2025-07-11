@@ -240,14 +240,16 @@ static NSString *gLoggingProcessName = nil;
 }
 
 + (NSString *)processNameLogPrefix {
-  @synchronized([GTMSessionFetcher class]) {
-    static NSString *gPrefix = nil;
-    if (!gPrefix) {
-      NSString *processName = [self loggingProcessName];
-      gPrefix = [[NSString alloc] initWithFormat:@"%@_log_", processName];
-    }
-    return gPrefix;
-  }  // @synchronized
+  // NOTE: this cache is odd. `+loggingProcessName` can be changed by the developer, so this
+  // but since they value is cached, this value "binds" the the first value. Changing it runs
+  // the risk of breaking existing behaviors.
+  static NSString *gPrefix = nil;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    NSString *processName = [self loggingProcessName];
+    gPrefix = [[NSString alloc] initWithFormat:@"%@_log_", processName];
+  });
+  return gPrefix;
 }
 
 + (NSString *)symlinkNameSuffix {
@@ -389,7 +391,7 @@ static NSString *gLoggingProcessName = nil;
   // we'll use a local variable since this routine may be reentered while waiting for formatting
   // to be completed.
   static atomic_int gResponseCounter = 0;
-  int responseCounter = atomic_fetch_add(&gResponseCounter, 1);
+  int responseCounter = ++gResponseCounter;
 
   NSURLResponse *response = [self response];
   NSDictionary *responseHeaders = [self responseHeaders];
