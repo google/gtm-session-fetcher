@@ -607,6 +607,10 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
 static NSUInteger FindBytes(const unsigned char *needle, NSUInteger needleLen,
                             const unsigned char *haystack, NSUInteger haystackLen,
                             NSUInteger *foundOffset) {
+  if (needleLen == 0) {
+    if (foundOffset) *foundOffset = 0;
+    return 0;
+  }
   const unsigned char *ptr = haystack;
   NSInteger remain = (NSInteger)haystackLen;
   // Assume memchr is an efficient way to find a match for the first
