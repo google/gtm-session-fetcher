@@ -1,10 +1,10 @@
 module(name = "gtm_session_fetcher", version = "5.0.0")
 
-bazel_dep(name = "rules_cc", version = "0.2.12")
+bazel_dep(name = "rules_cc", version = "0.2.13")
 bazel_dep(name = "rules_apple", version = "4.2.0")
-bazel_dep(name = "rules_swift", version = "3.1.2")
+bazel_dep(name = "rules_swift", version = "3.2.0")
 bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "apple_support", version = "1.24.1")
+bazel_dep(name = "apple_support", version = "1.24.3")
 
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc", "local_config_apple_cc_toolchains")
