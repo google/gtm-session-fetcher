@@ -28,7 +28,7 @@ jobs:
         PLATFORM: ["macOS"]
         CONFIGURATION: ["Debug", "Release"]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run:  |
         set -eu
