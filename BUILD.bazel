@@ -1,7 +1,7 @@
-load("@rules_apple//apple:ios.bzl", "ios_unit_test")
-load("@rules_apple//apple:macos.bzl", "macos_unit_test")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_unit_test")
+load("@build_bazel_rules_apple//apple:macos.bzl", "macos_unit_test")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_test")
 load("@rules_cc//cc:defs.bzl", "objc_library")
-load("@rules_swift//swift:swift.bzl", "swift_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -90,7 +90,7 @@ macos_unit_test(
 ios_unit_test(
     name = "GTMSessionFetcherCoreTests_iOS",
     minimum_os_version = "15.0",
-    runner = "@rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
+    runner = "@build_bazel_rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
     deps = [":GTMSessionFetcherCoreTestsLib"],
 )
 
@@ -114,7 +114,7 @@ macos_unit_test(
 ios_unit_test(
     name = "GTMSessionFetcherUserAgentTests_iOS",
     minimum_os_version = "15.0",
-    runner = "@rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
+    runner = "@build_bazel_rules_apple//apple/testing/default_runner:ios_xctestrun_ordered_runner",
     target_compatible_with = ["@platforms//os:ios"],
     deps = [":GTMSessionFetcherUserAgentTestsLib"],
 )
