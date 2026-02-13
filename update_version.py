@@ -45,8 +45,8 @@ def main(args):
   # Module.bazel
   module_content = open(_MODULE_bazel_PATH).read()
   module_content = re.sub(
-      r'module\(name = "gtm_session_fetcher", version = "\d+\.\d+\.\d+"\)',
-      'module(name = "gtm_session_fetcher", version = "%s")' % (ver_str,),
+      r'module\(\n    name = "gtm_session_fetcher",\n    version = "\d+\.\d+\.\d+",',
+      'module(\n    name = "gtm_session_fetcher",\n    version = "%s",' % (ver_str,),
       module_content)
   assert ver_str in module_content
   open(_MODULE_bazel_PATH, 'w').write(module_content)
