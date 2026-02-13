@@ -1,6 +1,6 @@
 module(
     name = "gtm_session_fetcher",
-    version = "5.0.0",
+    version = "5.1.0",
 )
 
 # Must come first before the others
