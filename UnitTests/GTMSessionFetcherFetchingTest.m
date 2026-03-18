@@ -2152,6 +2152,47 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testInsecureRequests];
 }
 
+// Verify that when a fetch fails in failToBeginFetchWithError: after a session has been created,
+// the session is properly invalidated and released. Without session invalidation in
+// failToBeginFetchWithError:, the NSURLSession created during beginFetch would leak because
+// NSURLSession retains its delegate (the fetcher) until the session is invalidated.
+//
+// This test uses authorization failure as the trigger because it occurs AFTER session creation
+// and calls failToBeginFetchWithError:.
+// The fetcher is created without a service so it creates its own session with delegate == self,
+// which sets _shouldInvalidateSession = YES.
+- (void)testFailToBeginFetchCleansUpSession {
+  if (!_isServerRunning) return;
+
+  // Create a fetcher WITHOUT a service so the fetcher creates its own non-shared session.
+  // When delegate == self in createSessionWithDelegate:, _shouldInvalidateSession is set to YES.
+  _fetcherService = nil;
+  NSString *localURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
+  GTMSessionFetcher *fetcher = [self fetcherWithURLString:localURLString];
+
+  // Set an authorizer that will fail, triggering failToBeginFetchWithError: after the session
+  // has already been created.
+  TestAuthorizer *authorizer = [TestAuthorizer syncAuthorizer];
+  authorizer.willFailWithError = YES;
+  fetcher.authorizer = authorizer;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    // The fetch should fail with an authorization error.
+    XCTAssertNil(data);
+    XCTAssertNotNil(error);
+    XCTAssertEqualObjects(error.domain, NSURLErrorDomain);
+    XCTAssertEqual(error.code, NSURLErrorNotConnectedToInternet);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+
+  XCTAssertNil(fetcher.session,
+               @"The session should be nil after failToBeginFetchWithError:; "
+               @"a non-nil session indicates the session was not invalidated, "
+               @"which would cause a retain cycle leak.");
+}
+
 - (void)testCollectingMetrics_WithSuccessfulFetch {
   if (!_isServerRunning) return;
 

@@ -1887,6 +1887,15 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
   [_service fetcherDidStop:self];
 
   self.authorizer = nil;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    NSURLSession *oldSession = _session;
+    _session = nil;
+    if (_shouldInvalidateSession) {
+      [oldSession finishTasksAndInvalidate];
+    }
+  }  // @synchronized(self)
 }
 
 + (GTMSessionCookieStorage *)staticCookieStorage {
