@@ -76,6 +76,54 @@ typedef void (^FetcherWillStartBlock)(GTMSessionFetcher *,
 
 @end
 
+#pragma mark - Shared session race test helper
+
+@interface TestBlockingUserAgentProvider : NSObject <GTMUserAgentProvider>
+
+@property(atomic, copy) NSString *cachedUserAgent;
+@property(nonatomic, readonly) XCTestExpectation *enteredExpectation;
+
+- (instancetype)init NS_UNAVAILABLE;
+- (instancetype)initWithEnteredExpectation:(XCTestExpectation *)enteredExpectation
+                                 userAgent:(NSString *)userAgent NS_DESIGNATED_INITIALIZER;
+- (void)unblock;
+
+@end
+
+@implementation TestBlockingUserAgentProvider {
+  dispatch_semaphore_t _semaphore;
+  NSString *_userAgent;
+}
+
+@synthesize cachedUserAgent = _cachedUserAgent, enteredExpectation = _enteredExpectation;
+
+- (instancetype)initWithEnteredExpectation:(XCTestExpectation *)enteredExpectation
+                                 userAgent:(NSString *)userAgent {
+  self = [super init];
+  if (self) {
+    _enteredExpectation = enteredExpectation;
+    _userAgent = [userAgent copy];
+    _semaphore = dispatch_semaphore_create(0);
+  }
+  return self;
+}
+
+- (void)unblock {
+  dispatch_semaphore_signal(_semaphore);
+}
+
+- (NSString *)userAgent {
+  [self.enteredExpectation fulfill];
+  intptr_t waitResult =
+      dispatch_semaphore_wait(_semaphore, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+  XCTAssertEqual(0, waitResult, @"Timed out waiting to unblock user agent provider");
+
+  self.cachedUserAgent = _userAgent;
+  return _userAgent;
+}
+
+@end
+
 @implementation GTMSessionFetcherTestDecorator
 
 @synthesize fetcherWillStartBlock = _fetcherWillStartBlock, synchronous = _synchronous,
@@ -1219,6 +1267,40 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [fetcher stopFetching];
   [(TestUserAgentBlockProvider *)fetcher.userAgentProvider unblock];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+}
+
+- (void)testResetSharedSessionWhileUserAgentProviderBlocked {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  service.reuseSession = YES;
+
+  XCTestExpectation *userAgentEnteredExpectation =
+      [self expectationWithDescription:@"User agent provider entered"];
+  TestBlockingUserAgentProvider *provider =
+      [[TestBlockingUserAgentProvider alloc] initWithEnteredExpectation:userAgentEnteredExpectation
+                                                             userAgent:@"BlockedUA"];
+  service.userAgentProvider = provider;
+
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+
+  __block NSError *completionError;
+  __block NSData *completionData;
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    completionData = fetchData;
+    completionError = fetchError;
+    [fetchCompleteExpectation fulfill];
+  }];
+
+  [self waitForExpectations:@[ userAgentEnteredExpectation ] timeout:_timeoutInterval];
+
+  [service resetSession];
+  [provider unblock];
+
+  [self waitForExpectations:@[ fetchCompleteExpectation ] timeout:_timeoutInterval];
+
+  XCTAssertNotNil(service.session);
+  XCTAssertNil(completionError);
 }
 
 - (void)testSingleDecoratorSynchronous {
