@@ -1221,6 +1221,45 @@ static bool IsCurrentProcessBeingDebugged(void) {
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 }
 
+- (void)testResetSharedSessionWhileUserAgentProviderBlocked {
+  GTMSessionFetcherService *service =
+      [GTMSessionFetcherService mockFetcherServiceWithFakedData:nil fakedError:nil];
+  service.reuseSession = YES;
+
+  XCTestExpectation *userAgentEnteredExpectation =
+      [self expectationWithDescription:@"User agent provider entered"];
+  dispatch_semaphore_t userAgentBlockSemaphore = dispatch_semaphore_create(0);
+  TestUserAgentBlockProvider *provider =
+      [[TestUserAgentBlockProvider alloc] initWithUserAgentBlock:^{
+        [userAgentEnteredExpectation fulfill];
+        intptr_t waitResult = dispatch_semaphore_wait(
+            userAgentBlockSemaphore, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+        XCTAssertEqual(0, waitResult, @"Timed out waiting to unblock user agent provider");
+        return @"BlockedUA";
+      }];
+  service.userAgentProvider = provider;
+
+  GTMSessionFetcher *fetcher = [service fetcherWithURLString:@"https://www.html5zombo.com"];
+  XCTestExpectation *fetchCompleteExpectation = [self expectationWithDescription:@"Fetch complete"];
+
+  __block NSError *completionError;
+  [fetcher beginFetchWithCompletionHandler:^(NSData *fetchData, NSError *fetchError) {
+    (void)fetchData;
+    completionError = fetchError;
+    [fetchCompleteExpectation fulfill];
+  }];
+
+  [self waitForExpectations:@[ userAgentEnteredExpectation ] timeout:_timeoutInterval];
+
+  [service resetSession];
+  dispatch_semaphore_signal(userAgentBlockSemaphore);
+
+  [self waitForExpectations:@[ fetchCompleteExpectation ] timeout:_timeoutInterval];
+
+  XCTAssertNotNil(service.session);
+  XCTAssertNil(completionError);
+}
+
 - (void)testSingleDecoratorSynchronous {
   GTMSessionFetcherTestDecorator *decorator = [[GTMSessionFetcherTestDecorator alloc]
       initWithHeadersSynchronous:@{@"foo" : @"bar", @"baz" : @"blech"}];
