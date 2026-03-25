@@ -1629,6 +1629,14 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   BOOL hasDestroyedOldChunkFetcher = NO;
   self.fetcherInFlight = nil;
 
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+    if (chunkFetcher.responseHeaders) {
+      _recentChunkReponseHeaders = chunkFetcher.responseHeaders;
+      _recentChunkStatusCode = chunkFetcher.statusCode;
+    }
+  }
+
   NSDictionary *responseHeaders = [chunkFetcher responseHeaders];
   GTMSessionUploadFetcherStatus uploadStatus =
       [[self class] uploadStatusFromResponseHeaders:responseHeaders];
@@ -1764,7 +1772,10 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
       }
     }
 
-    _recentChunkReponseHeaders = _chunkFetcher.responseHeaders;
+    if (_chunkFetcher.responseHeaders) {
+      _recentChunkReponseHeaders = _chunkFetcher.responseHeaders;
+      _recentChunkStatusCode = _chunkFetcher.statusCode;
+    }
 
     // To avoid retain cycles, remove all properties except the parent identifier.
     _chunkFetcher.properties =
