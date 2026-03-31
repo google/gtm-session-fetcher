@@ -1629,15 +1629,17 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   BOOL hasDestroyedOldChunkFetcher = NO;
   self.fetcherInFlight = nil;
 
+  NSDictionary *responseHeaders = chunkFetcher.responseHeaders;
+  NSInteger statusCode = chunkFetcher.statusCode;
+
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
-    if (chunkFetcher.responseHeaders) {
-      _recentChunkReponseHeaders = chunkFetcher.responseHeaders;
-      _recentChunkStatusCode = chunkFetcher.statusCode;
+    if (responseHeaders) {
+      _recentChunkReponseHeaders = responseHeaders;
+      _recentChunkStatusCode = statusCode;
     }
   }
 
-  NSDictionary *responseHeaders = [chunkFetcher responseHeaders];
   GTMSessionUploadFetcherStatus uploadStatus =
       [[self class] uploadStatusFromResponseHeaders:responseHeaders];
   GTMSESSION_ASSERT_DEBUG(
