@@ -24,8 +24,8 @@
 // To the client, the only fetcher that exists is this class; the subsidiary
 // fetchers needed for uploading chunks are not visible (though the most recent
 // chunk fetcher may be accessed via the -activeFetcher or -chunkFetcher methods, and
-// -responseHeaders and -statusCode reflect results from the most recent chunk
-// fetcher.)
+// -responseHeaders and -statusCode reflect results from the most recent
+// server response, regardless of how the upload completes or is interrupted.)
 //
 // Chunk fetchers are discarded as soon as they have completed.
 //

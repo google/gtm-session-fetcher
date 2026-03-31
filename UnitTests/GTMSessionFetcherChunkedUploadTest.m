@@ -844,6 +844,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(error.userInfo[@"description"], @"Retry Limit Reached");
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)503);
+    XCTAssertNotNil(fetcher.responseHeaders);
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -1095,6 +1097,118 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+- (void)testBigFileURLNewlyInstantiatedFetcherQueryFinalUploadFetch {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+  // Force a query that indicates the upload was done (status final.)
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  NSString *filename = @"gettysburgaddress.txt.upload?queryStatus=final";
+  NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"X-Goog-Upload-Status"], @"final");
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 1);
+  XCTAssertEqual(fnctr.retryDelayStarted, 0);
+  XCTAssertEqual(fnctr.retryDelayStopped, 0);
+  XCTAssertEqual(fnctr.uploadLocationObtained, 0);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
+- (void)testBigFileURLInterruptedFinalChunkUploadQueryFinal {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(5, 5);
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  // Add a sleep on the server side during each chunk fetch, to ensure there is time to pause
+  // the fetcher before all chunk fetches complete.
+  NSURLRequest *request = [self validUploadFileRequestWithParameters:@{@"sleep" : @"0.5"}];
+
+  GTMSessionUploadFetcher *fetcher = [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                                                        uploadMIMEType:@"text/plain"
+                                                                             chunkSize:75000
+                                                                        fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  __weak typeof(fetcher) weakFetcher = fetcher;
+  fetcher.sendProgressBlock =
+      ^(int64_t bytesSent, int64_t totalBytesSent, int64_t totalBytesExpectedToSend) {
+        GTMSessionUploadFetcher *strongFetcher = weakFetcher;
+        
+        NSNumber *pauseAtNum = [strongFetcher propertyForKey:kPauseAtKey];
+        if (pauseAtNum) {
+          int pauseAt = [pauseAtNum intValue];
+          if (pauseAt < totalBytesSent) {
+            [strongFetcher setProperty:nil forKey:kPauseAtKey];
+            
+            // Change the upload target so that the subsequent query returns final.
+            NSURL *origURL = strongFetcher.uploadLocationURL;
+            NSString *newURLStr = [[origURL absoluteString] stringByAppendingString:@"?queryStatus=final"];
+            strongFetcher.uploadLocationURL = [NSURL URLWithString:newURLStr];
+            
+            // Pause synchronously to ensure the task is cancelled before it finishes downloading the response.
+            [strongFetcher pauseFetching];
+            [strongFetcher performSelector:@selector(resumeFetching) withObject:nil afterDelay:1.0];
+          }
+        }
+      };
+  [fetcher setProperty:@151000 forKey:kPauseAtKey];
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertEqualObjects(data, [self gettysburgAddress]);
+    XCTAssertNil(error);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"X-Goog-Upload-Status"], @"final");
+    [expectation fulfill];
+  }];
+
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  NSArray *expectedCommands = @[ @"upload", @"upload", @"upload, finalize", @"query" ];
+  NSArray *expectedOffsets = @[ @0, @75000, @150000, @0 ];
+  NSArray *expectedLengths = @[ @75000, @75000, @49000, @0 ];
+  XCTAssertEqualObjects(fnctr.uploadChunkCommands, expectedCommands);
+  XCTAssertEqualObjects(fnctr.uploadChunkOffsets, expectedOffsets);
+  XCTAssertEqualObjects(fnctr.uploadChunkLengths, expectedLengths);
+
+  XCTAssertEqual(fnctr.fetchStarted, 5);
+  XCTAssertEqual(fnctr.fetchStopped, 5);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 4);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 4);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
 // Tests that currentOffset is set to the offset returned by query
 - (void)testBigFileURLQueryFinalUploadFetchWithOffset {
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(2, 2);
@@ -1143,6 +1257,83 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [self removeTemporaryFileURL:bigFileURL];
 }
 
+- (void)testBigFileURLChunkUploadFetchWith404Error {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(2, 2);
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  // Use a URL that will return 404 on the first chunk upload.
+  NSString *filename = @"gettysburgaddress.txt.upload?uploadStatus=404";
+  NSURL *uploadLocationURL = [_testServer localURLForFile:filename];
+
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, (NSInteger)404);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)404);
+    XCTAssertNotNil(fetcher.responseHeaders);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  XCTAssertEqual(fnctr.fetchStarted, 2);
+  XCTAssertEqual(fnctr.fetchStopped, 2);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 2);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 2);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
+- (void)testInitialFetchUploadError {
+  CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
+  FetcherNotificationsCounter *fnctr = [[FetcherNotificationsCounter alloc] init];
+
+  NSURL *bigFileURL = [self bigFileToUploadURLWithBaseName:NSStringFromSelector(_cmd)];
+  NSString *filename = @"gettysburgaddress.txt.upload?status=502";
+  NSURLRequest *request = [self validUploadFileRequestWithFileName:filename];
+
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithRequest:request
+                                         uploadMIMEType:@"text/plain"
+                                              chunkSize:5000
+                                         fetcherService:_service];
+  fetcher.uploadFileURL = bigFileURL;
+  fetcher.useBackgroundSession = NO;
+  fetcher.allowLocalhostRequest = YES;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetched"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(data);
+    XCTAssertEqual(error.code, (NSInteger)502);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)502);
+    XCTAssertNotNil(fetcher.responseHeaders);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  [self assertCallbacksReleasedForFetcher:fetcher];
+
+  WAIT_FOR_START_STOP_NOTIFICATION_EXPECTATIONS();
+
+  XCTAssertEqual(fnctr.fetchStarted, 1);
+  XCTAssertEqual(fnctr.fetchStopped, 1);
+  XCTAssertEqual(fnctr.uploadChunkFetchStarted, 0);
+  XCTAssertEqual(fnctr.uploadChunkFetchStopped, 0);
+
+  [self removeTemporaryFileURL:bigFileURL];
+}
+
 - (void)testBigFileURLQueryUploadFetchWithServerError {
   CREATE_START_STOP_NOTIFICATION_EXPECTATIONS(1, 1);
   // Force a query that fails.
@@ -1166,6 +1357,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertNil(data);
     XCTAssertEqual(error.code, (NSInteger)502);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)502);
+    XCTAssertNotNil(fetcher.responseHeaders);
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
@@ -1206,6 +1399,8 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     XCTAssertEqualObjects(data, [NSData data]);
     XCTAssertEqual(error.code, (NSInteger)501);
+    XCTAssertEqual(fetcher.statusCode, (NSInteger)200);
+    XCTAssertEqualObjects(fetcher.responseHeaders[@"X-Goog-Upload-Status"], @"cancelled");
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
