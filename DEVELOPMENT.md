@@ -17,22 +17,6 @@ file for how to contribute to this project.
    *  Choose a target platform by selecting the run destination along with the
       scheme
 
-## CocoaPods
-
-Install
-*  CocoaPods 1.10.0 (or later)
-*  [CocoaPods generate](https://github.com/square/cocoapods-generate) - This is
-    not part of the _core_ cocoapods install.
-
-Generate an Xcode project from the podspec:
-
-```
-pod gen GTMSessionFetcher.podspec --local-sources=./ --auto-open --platforms=ios
-```
-
-Note: Set the `--platforms` option to `macos`, `tvos`, or `watchos` to
-develop/test for those platforms.
-
 ---
 
 ## Releasing
