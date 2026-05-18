@@ -42,7 +42,7 @@ jobs:
   xcodebuild:
     # Job(s) to build for all the platforms to ensure that is working and the
     # tests are passing.
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
@@ -66,10 +66,10 @@ jobs:
           visionos)
             # As of Aug 15, 2025, "latest" was failing as it matched both the
             # beta and GM, use explict GM.
-            DESTINATION="platform=visionOS Simulator,name=Apple Vision Pro,OS=2.5"
+            DESTINATION="platform=visionOS Simulator,name=Apple Vision Pro,OS=latest"
             ;;
           watchos)
-            DESTINATION="platform=WatchOS Simulator,name=Apple Watch Series 10 (46mm),OS=latest"
+            DESTINATION="platform=WatchOS Simulator,name=Apple Watch Series 11 (46mm),OS=latest"
             ;;
         esac
 
