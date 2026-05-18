@@ -26,7 +26,7 @@ on:
 jobs:
   swift:
     # The swift command line only support build/testing for macOS on.
-    runs-on: macos-15
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
