@@ -8,6 +8,7 @@ on:
     - 'SwiftPMTests/**'
     - 'UnitTests/**'
     - 'Package*.swift'
+    - '.github/workflows/retry.sh'
     - '.github/workflows/swiftpm.yml'
   pull_request:
     branches: [ main ]
@@ -16,6 +17,7 @@ on:
     - 'SwiftPMTests/**'
     - 'UnitTests/**'
     - 'Package*.swift'
+    - '.github/workflows/retry.sh'
     - '.github/workflows/swiftpm.yml'
   schedule:
     # Run the first and fifteenth of every month at 5:12 UTC
@@ -73,8 +75,9 @@ jobs:
             ;;
         esac
 
-        xcodebuild \
-            -scheme GTMSessionFetcher-Package \
-            -configuration ${{ matrix.CONFIGURATION }} \
-            -destination "${DESTINATION}" \
-            build test
+        .github/workflows/retry.sh -- \
+          xcodebuild \
+              -scheme GTMSessionFetcher-Package \
+              -configuration ${{ matrix.CONFIGURATION }} \
+              -destination "${DESTINATION}" \
+              build test
