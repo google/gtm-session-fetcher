@@ -2,13 +2,9 @@
 
 ## Development
 
-You can use CocoaPods or Swift Package Manager.
-
 **Reminder:** Please see the
 [CONTRIBUTING.md](https://github.com/google/gtm-session-fetcher/blob/main/CONTRIBUTING.md)
 file for how to contribute to this project.
-
-## Swift Package Manager
 
 *  `open Package.swift` or double click `Package.swift` in Finder.
 *  Xcode will open the project
