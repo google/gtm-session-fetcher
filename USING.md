@@ -16,6 +16,10 @@ The Google Toolbox for Mac Session Fetcher is a set of classes to simplify HTTP 
 
 ### Integration via CocoaPods
 
+NOTE: CocoaPods is spinning down in 2026,
+[Announcement](https://blog.cocoapods.org/CocoaPods-Specs-Repo/), so it is in
+your interest to move to Swift Package Manager (SwiftPM) before then.
+
 If you are building from CocoaPods, just use the pod provided: `GTMSessionFetcher`.
 
 The `Core` subspec includes the minimum parts of the library. There is also a `Full` subspec that includes some the multipart MIME uploads and downloads and [resumable-uploads](https://developers.google.com/gdata/docs/resumable_upload). The `LogView` subspec provides an iOS view that can easily be added to applications to allow viewing of the [logging](#http-logging) this library supports.
