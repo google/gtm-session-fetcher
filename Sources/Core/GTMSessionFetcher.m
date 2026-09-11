@@ -97,13 +97,6 @@ NS_ASSUME_NONNULL_END
 #define GTM_TARGET_SUPPORTS_APP_TRANSPORT_SECURITY 1
 #endif
 
-#if __has_attribute(swift_async)
-// Once Clang 13/Xcode 13 can be assumed, can switch to NS_SWIFT_DISABLE_ASYNC.
-#define GTM_SWIFT_DISABLE_ASYNC __attribute__((swift_async(none)))
-#else
-#define GTM_SWIFT_DISABLE_ASYNC
-#endif
-
 // Internal tracking of the state within the `-beginFetch...` flow.
 typedef NS_ENUM(NSUInteger, GTMSessionFetcherStartingState) {
   // Not in any explcit part of the startup flow or about the re-enter the flow.
@@ -1598,7 +1591,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 + (void)application:(UIApplication *)application
     handleEventsForBackgroundURLSession:(NSString *)identifier
                       completionHandler:(GTMSessionFetcherSystemCompletionHandler)completionHandler
-    GTM_SWIFT_DISABLE_ASYNC {
+    NS_SWIFT_DISABLE_ASYNC {
   GTMSessionFetcher *fetcher = [self fetcherWithSessionIdentifier:identifier];
   if (fetcher != nil) {
     fetcher.systemCompletionHandler = completionHandler;
@@ -2224,11 +2217,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 }
 
 - (void)releaseCallbacks {
-  // The clang included with Xcode 13.3 betas added a -Wunused-but-set-variable warning,
-  // which doesn't (yet) skip variables annotated with objc_precie_lifetime. Since that
-  // warning is not available in all Xcodes, turn off the -Wunused warning group entirely.
+  // The clang -Wunused-but-set-variable warning doesn't (yet) skip variables annotated with
+  // objc_precie_lifetime.
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused"
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
   // Avoid releasing blocks in the sync section since objects dealloc'd by
   // the blocks being released may call back into the fetcher or fetcher
   // service.
@@ -3185,7 +3177,7 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
              dataTask:(NSURLSessionDataTask *)dataTask
     willCacheResponse:(NSCachedURLResponse *)proposedResponse
     completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
-    GTM_SWIFT_DISABLE_ASYNC {
+    NS_SWIFT_DISABLE_ASYNC {
   GTMSESSION_LOG_DEBUG_VERBOSE(@"%@ %p URLSession:%@ dataTask:%@ willCacheResponse:%@ %@",
                                [self class], self, session, dataTask, proposedResponse,
                                proposedResponse.response);
