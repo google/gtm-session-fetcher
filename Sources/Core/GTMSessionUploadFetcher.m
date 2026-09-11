@@ -1800,7 +1800,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   GTMSessionCheckNotSynchronized(self);
 
   // The clang -Wunused-but-set-variable warning doesn't (yet) skip variables annotated with
-  // objc_precie_lifetime.
+  // objc_precise_lifetime.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-but-set-variable"
   // Ensure the chunk fetcher survives the callback in case the user pauses the upload process.
