@@ -2218,7 +2218,7 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
 
 - (void)releaseCallbacks {
   // The clang -Wunused-but-set-variable warning doesn't (yet) skip variables annotated with
-  // objc_precie_lifetime.
+  // objc_precise_lifetime.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-but-set-variable"
   // Avoid releasing blocks in the sync section since objects dealloc'd by

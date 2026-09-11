@@ -406,7 +406,7 @@ static void SearchDataForBytes(NSData *data, const void *targetBytes, NSUInteger
         const void *partDataBuffer;
         size_t partDataBufferSize;
         // The clang -Wunused-but-set-variable warning doesn't (yet) skip variables annotated with
-        // objc_precie_lifetime.
+        // objc_precise_lifetime.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-but-set-variable"
         dispatch_data_t mappedPartData NS_VALID_UNTIL_END_OF_SCOPE =
