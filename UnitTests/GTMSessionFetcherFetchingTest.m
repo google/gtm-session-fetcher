@@ -1333,7 +1333,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [_testServer setRedirectEnabled:YES];
 
   if (![_testServer isRedirectEnabled]) {
-    NSLog(@"*** skipping %@: redirectServer failed to start", [self currentTestName]);
+    XCTFail(@"RedirectServer failed to start");
     return;
   }
 
@@ -1415,7 +1415,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [_testServer setRedirectEnabled:YES];
 
   if (![_testServer isRedirectEnabled]) {
-    XCTFail(@"*** skipping %@: redirectServer failed to start", [self currentTestName]);
+    XCTFail(@"RedirectServer failed to start");
     return;
   }
 
@@ -2187,10 +2187,9 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
 
-  XCTAssertNil(fetcher.session,
-               @"The session should be nil after failToBeginFetchWithError:; "
-               @"a non-nil session indicates the session was not invalidated, "
-               @"which would cause a retain cycle leak.");
+  XCTAssertNil(fetcher.session, @"The session should be nil after failToBeginFetchWithError:; "
+                                @"a non-nil session indicates the session was not invalidated, "
+                                @"which would cause a retain cycle leak.");
 }
 
 - (void)testCollectingMetrics_WithSuccessfulFetch {

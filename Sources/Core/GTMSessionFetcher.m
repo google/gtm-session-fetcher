@@ -138,6 +138,14 @@ typedef NS_ENUM(NSUInteger, GTMSessionFetcherStartingState) {
 
 NS_ASSUME_NONNULL_BEGIN
 
+static BOOL IsHttp(NSString *scheme) {
+  return [scheme caseInsensitiveCompare:@"http"] == NSOrderedSame;
+}
+
+static BOOL IsHttps(NSString *scheme) {
+  return [scheme caseInsensitiveCompare:@"https"] == NSOrderedSame;
+}
+
 static NSTimeInterval InitialMinRetryInterval(void) {
   return 1.0 + ((double)(arc4random_uniform(0x0FFFF)) / (double)0x0FFFF);
 }
@@ -626,8 +634,7 @@ static GTMSessionFetcherTestBlock _Nullable gGlobalTestBlock;
     // file: and data: schemes are usually safe if they are hardcoded in the client or provided
     // by a trusted source, but since it's fairly rare to need them, it's safest to make clients
     // explicitly allow them.
-    BOOL isSecure =
-        requestScheme != nil && [requestScheme caseInsensitiveCompare:@"https"] == NSOrderedSame;
+    BOOL isSecure = requestScheme != nil && IsHttps(requestScheme);
     if (!isSecure) {
       BOOL allowRequest = NO;
       NSString *host = fetchRequestURL.host;
@@ -1949,8 +1956,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
                completionHandler:^(NSError *_Nullable error) {
                  [weakSelf authorizer:nil request:mutableRequest finishedWithError:error];
                }];
-  } else if ([authorizer respondsToSelector:@selector(authorizeRequest:
-                                                              delegate:didFinishSelector:)]) {
+  } else if ([authorizer
+                 respondsToSelector:@selector(authorizeRequest:delegate:didFinishSelector:)]) {
     SEL callbackSel = @selector(authorizer:request:finishedWithError:);
     NSMutableURLRequest *mutableRequest = [self.request mutableCopy];
     [authorizer authorizeRequest:mutableRequest delegate:self didFinishSelector:callbackSel];
@@ -2821,9 +2828,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
     return redirectRequestURL;
   }
 
-  BOOL insecureToSecureRedirect =
-      (originalScheme != nil && [originalScheme caseInsensitiveCompare:@"http"] == NSOrderedSame &&
-       redirectScheme != nil && [redirectScheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
+  BOOL insecureToSecureRedirect = (originalScheme != nil && IsHttp(originalScheme) &&
+                                   redirectScheme != nil && IsHttps(redirectScheme));
 
   // This can't really be nil for the inputs, but to keep the analyzer happy
   // for the -caseInsensitiveCompare: call below, give it a value if it were.
@@ -4732,8 +4738,7 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
       }
 
       BOOL isPathOK = [cookiePath isEqual:@"/"] || [path hasPrefix:cookiePath];
-      BOOL isSecureOK =
-          (!cookieIsSecure || [scheme caseInsensitiveCompare:@"https"] == NSOrderedSame);
+      BOOL isSecureOK = (!cookieIsSecure || IsHttps(scheme));
 
       if (isDomainOK && isPathOK && isSecureOK) {
         if (foundCookies == nil) {
