@@ -430,15 +430,7 @@ static id<GTMUserAgentProvider> SharedStandardUserAgentProvider(void) {
   NSURLSession *fetcherSession = fetcher.session;
   if (fetcherSession) {
     id<NSURLSessionDelegate> fetcherDelegate = fetcherSession.delegate;
-    // If the delegate is non-nil and claims to be a GTMSessionFetcher, there is no dispatcher;
-    // assume the fetcher is the delegate or has been proxied (some third-party frameworks
-    // are known to swizzle NSURLSession to proxy its delegate).
-    BOOL hasDispatcher =
-        (fetcherDelegate != nil && ![fetcherDelegate isKindOfClass:[GTMSessionFetcher class]]);
-    if (hasDispatcher) {
-      GTMSESSION_ASSERT_DEBUG(
-          [fetcherDelegate isKindOfClass:[GTMSessionFetcherSessionDelegateDispatcher class]],
-          @"Fetcher delegate class: %@", [fetcherDelegate class]);
+    if ([fetcherDelegate isKindOfClass:[GTMSessionFetcherSessionDelegateDispatcher class]]) {
       return (GTMSessionFetcherSessionDelegateDispatcher *)fetcherDelegate;
     }
   }

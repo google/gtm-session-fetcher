@@ -1953,6 +1953,21 @@ static bool IsCurrentProcessBeingDebugged(void) {
       [service delegateDispatcherForFetcher:fetcher],
       @"dispatcher should be non-nil when session delegate is a proxy for the dispatcher");
   [session invalidateAndCancel];
+
+  // When the NSURLSession delegate is an arbitrary delegate (such as an APM or security proxy)
+  // that does not inherit from GTMSessionFetcherSessionDelegateDispatcher, the returned dispatcher
+  // should be nil.
+  fetcher = [service fetcherWithURLString:@"https://www.example.com"];
+  NSObject *customDelegate = [[NSObject alloc] init];
+  session = [NSURLSession sessionWithConfiguration:config
+                                          delegate:(id<NSURLSessionDelegate>)customDelegate
+                                     delegateQueue:fetcher.sessionDelegateQueue];
+  fetcher.session = session;
+
+  XCTAssertNil(
+      [service delegateDispatcherForFetcher:fetcher],
+      @"dispatcher should be nil when session delegate is not a dispatcher");
+  [session invalidateAndCancel];
 }
 
 - (void)testFetcherUsingMetricsCollectionBlockFromFetcherService {
