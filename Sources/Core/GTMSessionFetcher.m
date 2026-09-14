@@ -4578,6 +4578,13 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
 + (BOOL)isLoggingEnabled {
   return NO;
 }
+
++ (void)setReformatLoggedJSONEnabled:(BOOL)flag {
+}
+
++ (BOOL)isReformatLoggedJSONEnabled {
+  return NO;
+}
 #endif  // STRIP_GTM_FETCH_LOGGING
 
 @end

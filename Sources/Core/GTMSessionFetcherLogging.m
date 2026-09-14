@@ -72,6 +72,7 @@
 // initialize things in parallel causing issues.
 static BOOL gIsLoggingEnabled = NO;
 static BOOL gIsLoggingToFile = YES;
+static BOOL gIsReformatLoggedJSONEnabled = YES;
 static NSString *gLoggingDirectoryPath = nil;
 static NSString *gLogDirectoryForCurrentRun = nil;
 static NSString *gLoggingDateStamp = nil;
@@ -199,6 +200,18 @@ static NSString *gLoggingProcessName = nil;
   }  // @synchronized
 }
 
++ (void)setReformatLoggedJSONEnabled:(BOOL)isReformatLoggedJSONEnabled {
+  @synchronized([GTMSessionFetcher class]) {
+    gIsReformatLoggedJSONEnabled = isReformatLoggedJSONEnabled;
+  }  // @synchronized
+}
+
++ (BOOL)isReformatLoggedJSONEnabled {
+  @synchronized([GTMSessionFetcher class]) {
+    return gIsReformatLoggedJSONEnabled;
+  }  // @synchronized
+}
+
 + (void)setLoggingProcessName:(NSString *)processName {
   @synchronized([GTMSessionFetcher class]) {
     gLoggingProcessName = [processName copy];
@@ -276,21 +289,36 @@ static NSString *gLoggingProcessName = nil;
                                           error:NULL];
     if (obj) {
       if (outJSON) *outJSON = obj;
+      BOOL didRedact = NO;
       if ([obj isKindOfClass:[NSMutableDictionary class]]) {
         // for security and privacy, omit OAuth 2 response access and refresh tokens
         if ([obj valueForKey:@"refresh_token"] != nil) {
           [obj setObject:@"_snip_" forKey:@"refresh_token"];
+          didRedact = YES;
         }
         if ([obj valueForKey:@"access_token"] != nil) {
           [obj setObject:@"_snip_" forKey:@"access_token"];
+          didRedact = YES;
         }
       }
-      NSData *data = [NSJSONSerialization dataWithJSONObject:obj
-                                                     options:NSJSONWritingPrettyPrinted
-                                                       error:NULL];
-      if (data) {
-        NSString *jsonStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-        return jsonStr;
+      if ([[self class] isReformatLoggedJSONEnabled]) {
+        NSData *data = [NSJSONSerialization dataWithJSONObject:obj
+                                                       options:NSJSONWritingPrettyPrinted
+                                                         error:NULL];
+        if (data) {
+          NSString *jsonStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+          return jsonStr;
+        }
+      } else {
+        if (didRedact) {
+          // If sensitive tokens were present and reformatting is disabled, redact the entire payload
+          // in the log so unformatted logging never leaks tokens or falls back to re-serialization.
+          return @"_snip_";
+        } else {
+          // If no sensitive tokens were present and reformatting is disabled, return original raw data string
+          // to preserve exact numbers, precision, and whitespace formatting.
+          return [[NSString alloc] initWithData:inputData encoding:NSUTF8StringEncoding];
+        }
       }
     }
   }

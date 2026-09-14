@@ -72,6 +72,15 @@
 + (void)setLoggingToFileEnabled:(BOOL)isLoggingToFileEnabled;
 + (BOOL)isLoggingToFileEnabled;
 
+// client apps can configure whether JSON response data should be reformatted
+// in the debug logs. Defaults to YES. If set to NO, JSON response data will be
+// logged with its original formatting, preserving exact float/number representations
+// and whitespace. Note that if the payload contains sensitive tokens (e.g. refresh_token
+// or access_token) that require redaction, the entire payload in the log is redacted
+// to avoid reformatting.
++ (void)setReformatLoggedJSONEnabled:(BOOL)isReformatLoggedJSONEnabled;
++ (BOOL)isReformatLoggedJSONEnabled;
+
 // client apps can optionally specify process name and date string used in
 // log file names
 + (void)setLoggingProcessName:(NSString *)processName;
