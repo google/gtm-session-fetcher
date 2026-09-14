@@ -880,9 +880,15 @@ static bool IsCurrentProcessBeingDebugged(void) {
           ++completedFetchCounter;
           [expectation fulfill];
 
-          if (fetchError.code == EINVAL) {
+          BOOL isServerOverload = (fetchError.code == EINVAL) ||
+              ([fetchError.domain isEqualToString:NSURLErrorDomain] &&
+               (fetchError.code == NSURLErrorTimedOut ||
+                fetchError.code == NSURLErrorCannotConnectToHost ||
+                fetchError.code == NSURLErrorNetworkConnectionLost));
+          if (isServerOverload) {
             // Overloads of our test server are showing up as mysterious "invalid argument"
-            // POSIX domain errors. We'll check afterwards that most of the fetches succeeded.
+            // POSIX domain errors, timeouts, or connection failures.
+            // We'll check afterwards that most of the fetches succeeded.
             [overloadIndexes addIndex:(NSUInteger)index];
             return;
           }
