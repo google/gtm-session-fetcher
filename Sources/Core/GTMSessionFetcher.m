@@ -1372,6 +1372,10 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       if (downloadProgressBlock) {
         __auto_type block = ^(int64_t bytesDownloaded, int64_t totalBytesDownloaded,
                               int64_t totalBytesExpectedToDownload) {
+          @synchronized(self) {
+            GTMSessionMonitorSynchronized(self);
+            self->_downloadedLength = totalBytesDownloaded;
+          }
           // This is invoked on the callback queue unless
           // stopped.
           downloadProgressBlock(bytesDownloaded, totalBytesDownloaded,
@@ -1385,6 +1389,8 @@ NSData *_Nullable GTMDataFromInputStream(NSInputStream *inputStream, NSError **o
       if (writeError) {
         // Tell the test code that writing failed.
         responseError = writeError;
+      } else {
+        _downloadedLength = (int64_t)responseData.length;
       }
     } else {
       // Simulate download to NSData progress.
@@ -4449,6 +4455,11 @@ static NSMutableDictionary *gSystemCompletionHandlers = nil;
     if (((_destinationFileURL == nil) && (destinationFileURL == nil)) ||
         [_destinationFileURL isEqual:destinationFileURL]) {
       return;
+    }
+    if ([self isFetchingUnsynchronized]) {
+      GTMSESSION_ASSERT_DEBUG(
+          0, @"destinationFileURL may not be changed after beginFetch has been invoked: %@ -> %@",
+          _destinationFileURL, destinationFileURL);
     }
     if (_sessionIdentifier) {
       // This is something we don't expect to happen in production.

@@ -1758,6 +1758,32 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   [self testFetchToFile];
 }
 
+- (void)testDestinationFileURLCannotBeChangedAfterBeginFetch {
+  GTMSessionFetcher *fetcher =
+      [GTMSessionFetcher fetcherWithURLString:@"http://example.com/file"];
+  NSURL *initialURL = [NSURL fileURLWithPath:@"/tmp/initial_file"];
+  NSURL *newURL = [NSURL fileURLWithPath:@"/tmp/new_file"];
+  fetcher.destinationFileURL = initialURL;
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"fetch completed"];
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+#if !defined(NS_BLOCK_ASSERTIONS)
+        @try {
+          fetcherToTest.destinationFileURL = newURL;
+          XCTFail(@"Changing destinationFileURL while fetching should raise assertion exception");
+        } @catch (NSException *exception) {
+          XCTAssertEqualObjects(exception.name, NSInternalInconsistencyException);
+        }
+#endif
+        testResponse(nil, [NSData data], nil);
+      };
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+}
+
 - (void)testFetchDataSchemeToFile {
   if (!_isServerRunning) return;
 
@@ -3493,6 +3519,7 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
     bytesReceivedSum += bytesDownloaded;
     lastTotalBytesReceived = totalBytesDownloaded;
     XCTAssertEqual(totalBytesExpectedToDownload, expectedTotalBytesReceived);
+    XCTAssertEqual(fetcher.downloadedLength, totalBytesDownloaded);
   };
 
   fakedResultError = nil;
@@ -3514,6 +3541,7 @@ typedef void (^StopFetchingCallbackTestBlock)(GTMSessionFetcher *fetcher);
 
     XCTAssertEqual(bytesReceivedSum, expectedTotalBytesReceived);
     XCTAssertEqual(lastTotalBytesReceived, expectedTotalBytesReceived);
+    XCTAssertEqual(fetcher.downloadedLength, expectedTotalBytesReceived);
     [expectation fulfill];
   }];
 
