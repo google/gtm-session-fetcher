@@ -1719,6 +1719,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
                       totalWritten);
         totalWritten = totalBytesWritten;
+        XCTAssertEqual(fetcher.downloadedLength, totalBytesWritten);
       };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
@@ -1731,6 +1732,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                             error:NULL];
     XCTAssertEqualObjects(fetchedContents, origContents);
     XCTAssertEqual(totalWritten, origLength, @"downloadProgressBlock not called");
+    XCTAssertEqual(fetcher.downloadedLength, origLength);
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
