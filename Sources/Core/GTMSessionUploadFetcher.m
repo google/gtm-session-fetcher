@@ -977,7 +977,13 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   [self setDelegateCallbackQueue:self.callbackQueue];
   self.completionHandler = handler;
 
-  if ([self isRestartedUpload] && self.testBlock == nil) {
+#if GTM_DISABLE_FETCHER_TEST_BLOCK
+  BOOL hasTestBlock = NO;
+#else
+  BOOL hasTestBlock = (self.testBlock != nil);
+#endif
+
+  if ([self isRestartedUpload] && !hasTestBlock) {
     // When restarting an upload, we know the destination location for chunk fetches,
     // but we need to query to find the initial offset.
     if (![self isPaused]) {
@@ -992,7 +998,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   GTMSESSION_ASSERT_DEBUG(self.fetcherInFlight == nil, @"unexpected fetcher in flight: %@",
                           self.fetcherInFlight);
 
-  if (self.request == nil && _uploadLocationURL != nil) {
+  if (hasTestBlock && self.request == nil && _uploadLocationURL != nil) {
     [self setRequest:[NSMutableURLRequest requestWithURL:_uploadLocationURL]];
   }
 
@@ -1001,7 +1007,6 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     self.fetcherInFlight = nil;
     // callback
 
-    BOOL hasTestBlock = (self.testBlock != nil);
     if (![self isRestartedUpload] && !hasTestBlock) {
       if (error == nil) {
         [self beginChunkFetches];

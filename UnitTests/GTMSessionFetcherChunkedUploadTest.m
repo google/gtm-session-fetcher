@@ -2113,7 +2113,7 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
 }
 
 - (void)testRestartedUploadFetcherWithTestBlock {
-  NSURL *uploadLocationURL = [NSURL URLWithString:@"http://example.com/upload_location"];
+  NSURL *uploadLocationURL = [NSURL URLWithString:@"https://example.com/upload_location"];
   GTMSessionUploadFetcher *fetcher =
       [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
                                           uploadMIMEType:@"text/plain"
