@@ -1707,6 +1707,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
   NSString *validURLString = [self localURLStringToTestFileName:kGTMGettysburgFileName];
   GTMSessionFetcher *fetcher = [self fetcherWithURLString:validURLString];
   fetcher.destinationFileURL = destFileURL;
+  GTMSessionFetcher *__weak weakFetcher = fetcher;
   fetcher.downloadProgressBlock =
       ^(int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite) {
         // Verify the parameters are reasonable.
@@ -1719,6 +1720,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
         XCTAssertTrue(totalBytesWritten > totalWritten, @"%lld !> %lld", totalBytesWritten,
                       totalWritten);
         totalWritten = totalBytesWritten;
+        XCTAssertEqual(weakFetcher.downloadedLength, totalBytesWritten);
       };
 
   XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
@@ -1731,6 +1733,7 @@ NSString *const kGTMGettysburgFileName = @"gettysburgaddress.txt";
                                                             error:NULL];
     XCTAssertEqualObjects(fetchedContents, origContents);
     XCTAssertEqual(totalWritten, origLength, @"downloadProgressBlock not called");
+    XCTAssertEqual(weakFetcher.downloadedLength, origLength);
     [expectation fulfill];
   }];
   [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];

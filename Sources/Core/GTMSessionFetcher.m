@@ -3218,6 +3218,8 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
 
+    _downloadedLength = totalBytesWritten;
+
     if ((totalBytesExpectedToWrite != NSURLSessionTransferSizeUnknown) &&
         (totalBytesExpectedToWrite < totalBytesWritten)) {
       // Have observed cases were bytesWritten == totalBytesExpectedToWrite,
@@ -3244,6 +3246,11 @@ static _Nullable id<GTMUIApplicationProtocol> gSubstituteUIApp;
                                [self class], self, session, downloadTask, fileOffset,
                                expectedTotalBytes);
   [self setSessionTask:downloadTask];
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _downloadedLength = fileOffset;
+  }  // @synchronized(self)
 }
 
 - (void)URLSession:(NSURLSession *)session
