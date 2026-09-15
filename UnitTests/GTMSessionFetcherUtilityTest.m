@@ -29,11 +29,73 @@
 + (NSString *)snipSubstringOfString:(NSString *)originalStr
                  betweenStartString:(NSString *)startStr
                           endString:(NSString *)endStr;
+- (NSString *)formattedStringFromData:(NSData *)inputData
+                          contentType:(NSString *)contentType
+                                 JSON:(NSDictionary **)outJSON;
 @end
 
 @implementation GTMSessionFetcherUtilityTest
 
 #if !STRIP_GTM_FETCH_LOGGING
+- (void)testReformatLoggedJSON {
+  XCTAssertTrue([GTMSessionFetcher isReformatLoggedJSONEnabled]);
+
+  GTMSessionFetcher *fetcher =
+      [GTMSessionFetcher fetcherWithURL:[NSURL URLWithString:@"http://example.com"]];
+  NSString *jsonInputString = @"{\"number\":2.06}";
+  NSData *jsonData = [jsonInputString dataUsingEncoding:NSUTF8StringEncoding];
+
+  // Default behavior (reformatting enabled) produces indented JSON and roundtrips numbers.
+  NSDictionary *outJSON = nil;
+  NSString *prettyOutput = [fetcher formattedStringFromData:jsonData
+                                                contentType:@"application/json"
+                                                       JSON:&outJSON];
+  NSString *expectedPrettyOutput = @"{\n  \"number\" : 2.0600000000000001\n}";
+  XCTAssertEqualObjects(prettyOutput, expectedPrettyOutput);
+  XCTAssertEqualObjects(outJSON[@"number"], @2.06);
+
+  // Reformatting continues to redact sensitive OAuth tokens before serializing the JSON.
+  NSString *accessTokenJSONString = @"{\"access_token\":\"secret_access_123\"}";
+  NSData *accessTokenJSONData = [accessTokenJSONString dataUsingEncoding:NSUTF8StringEncoding];
+  NSDictionary *reformattedAuthOutJSON = nil;
+  NSString *reformattedRedactedOutput = [fetcher formattedStringFromData:accessTokenJSONData
+                                                             contentType:@"application/json"
+                                                                    JSON:&reformattedAuthOutJSON];
+  NSString *expectedRedactedPrettyOutput = @"{\n  \"access_token\" : \"_snip_\"\n}";
+  XCTAssertEqualObjects(reformattedRedactedOutput, expectedRedactedPrettyOutput);
+  XCTAssertEqualObjects(reformattedAuthOutJSON[@"access_token"], @"_snip_");
+
+  // Disable reformatting.
+  [GTMSessionFetcher setReformatLoggedJSONEnabled:NO];
+  XCTAssertFalse([GTMSessionFetcher isReformatLoggedJSONEnabled]);
+
+  NSDictionary *rawOutJSON = nil;
+  NSString *rawOutput = [fetcher formattedStringFromData:jsonData
+                                             contentType:@"application/json"
+                                                    JSON:&rawOutJSON];
+  // Verify it returns the raw string without roundtripping numbers (preserving 2.06) or adding
+  // indentation.
+  XCTAssertEqualObjects(rawOutput, jsonInputString);
+  XCTAssertEqualObjects(rawOutJSON[@"number"], @2.06);
+
+  // Verify that when reformatting is disabled, a payload containing sensitive OAuth tokens has the
+  // entire payload redacted in the log so tokens are not leaked and the payload is not
+  // re-serialized.
+  NSString *authJSONString = @"{\"access_token\":\"secret_access_123\",\"refresh_token\":\"secret_"
+                             @"refresh_456\",\"user\":\"test\"}";
+  NSData *authJSONData = [authJSONString dataUsingEncoding:NSUTF8StringEncoding];
+  NSDictionary *authOutJSON = nil;
+  NSString *redactedOutput = [fetcher formattedStringFromData:authJSONData
+                                                  contentType:@"application/json"
+                                                         JSON:&authOutJSON];
+  XCTAssertEqualObjects(redactedOutput, @"_snip_");
+  XCTAssertEqualObjects(authOutJSON[@"access_token"], @"_snip_");
+  XCTAssertEqualObjects(authOutJSON[@"refresh_token"], @"_snip_");
+
+  // Reset back to YES.
+  [GTMSessionFetcher setReformatLoggedJSONEnabled:YES];
+  XCTAssertTrue([GTMSessionFetcher isReformatLoggedJSONEnabled]);
+}
 - (void)testLogSnipping {
   // Enpty string.
   NSString *orig = @"";

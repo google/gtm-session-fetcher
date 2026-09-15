@@ -1261,6 +1261,8 @@ __deprecated_msg("implement GTMSessionFetcherAuthorizer instead")
 // for controlling logging.
 + (void)setLoggingEnabled:(BOOL)flag;
 + (BOOL)isLoggingEnabled;
++ (void)setReformatLoggedJSONEnabled:(BOOL)isReformatLoggedJSONEnabled;
++ (BOOL)isReformatLoggedJSONEnabled;
 
 #else
 
