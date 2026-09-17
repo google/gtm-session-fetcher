@@ -2112,6 +2112,40 @@ static void TestProgressBlock(GTMSessionUploadFetcher *fetcher, int64_t bytesSen
   XCTAssertEqual(fnctr.uploadLocationObtained, 1);
 }
 
+- (void)testRestartedUploadFetcherWithTestBlock {
+  NSURL *uploadLocationURL = [NSURL URLWithString:@"https://example.com/upload_location"];
+  GTMSessionUploadFetcher *fetcher =
+      [GTMSessionUploadFetcher uploadFetcherWithLocation:uploadLocationURL
+                                          uploadMIMEType:@"text/plain"
+                                               chunkSize:5000
+                                          fetcherService:_service];
+  fetcher.useBackgroundSession = NO;
+
+  NSData *fakedResponseData = [@"Upload complete" dataUsingEncoding:NSUTF8StringEncoding];
+  NSHTTPURLResponse *fakedResponse =
+      [[NSHTTPURLResponse alloc] initWithURL:uploadLocationURL
+                                  statusCode:200
+                                 HTTPVersion:@"HTTP/1.1"
+                                headerFields:@{@"Content-Type" : @"text/plain"}];
+
+  __block BOOL testBlockInvoked = NO;
+  fetcher.testBlock =
+      ^(GTMSessionFetcher *fetcherToTest, GTMSessionFetcherTestResponse testResponse) {
+        testBlockInvoked = YES;
+        testResponse(fakedResponse, fakedResponseData, nil);
+      };
+
+  XCTestExpectation *expectation = [self expectationWithDescription:@"completion handler"];
+  [fetcher beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
+    XCTAssertNil(error);
+    XCTAssertEqualObjects(data, fakedResponseData);
+    [expectation fulfill];
+  }];
+  [self waitForExpectationsWithTimeout:_timeoutInterval handler:nil];
+  XCTAssertTrue(testBlockInvoked);
+  [self assertCallbacksReleasedForFetcher:fetcher];
+}
+
 @end
 
 #endif  // !TARGET_OS_WATCH
