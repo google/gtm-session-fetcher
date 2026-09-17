@@ -998,6 +998,8 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   GTMSESSION_ASSERT_DEBUG(self.fetcherInFlight == nil, @"unexpected fetcher in flight: %@",
                           self.fetcherInFlight);
 
+  // Restarted fetchers created by uploadFetcherWithLocation: have no initial
+  // request, but the superclass requires one to invoke testBlock.
   if (hasTestBlock && self.request == nil && _uploadLocationURL != nil) {
     [self setRequest:[NSMutableURLRequest requestWithURL:_uploadLocationURL]];
   }
