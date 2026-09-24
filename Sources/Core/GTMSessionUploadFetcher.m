@@ -977,13 +977,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   [self setDelegateCallbackQueue:self.callbackQueue];
   self.completionHandler = handler;
 
-#if GTM_DISABLE_FETCHER_TEST_BLOCK
-  BOOL hasTestBlock = NO;
-#else
-  BOOL hasTestBlock = (self.testBlock != nil);
-#endif
-
-  if ([self isRestartedUpload] && !hasTestBlock) {
+  if ([self isRestartedUpload]) {
     // When restarting an upload, we know the destination location for chunk fetches,
     // but we need to query to find the initial offset.
     if (![self isPaused]) {
@@ -998,17 +992,12 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   GTMSESSION_ASSERT_DEBUG(self.fetcherInFlight == nil, @"unexpected fetcher in flight: %@",
                           self.fetcherInFlight);
 
-  // Restarted fetchers created by uploadFetcherWithLocation: have no initial
-  // request, but the superclass requires one to invoke testBlock.
-  if (hasTestBlock && self.request == nil && _uploadLocationURL != nil) {
-    [self setRequest:[NSMutableURLRequest requestWithURL:_uploadLocationURL]];
-  }
-
   self.fetcherInFlight = self;
   [super beginFetchWithCompletionHandler:^(NSData *data, NSError *error) {
     self.fetcherInFlight = nil;
     // callback
 
+    BOOL hasTestBlock = (self.testBlock != nil);
     if (![self isRestartedUpload] && !hasTestBlock) {
       if (error == nil) {
         [self beginChunkFetches];
@@ -1603,9 +1592,6 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   // copy other fetcher settings to the new fetcher
   chunkFetcher.retryEnabled = self.retryEnabled;
   chunkFetcher.maxRetryInterval = self.maxRetryInterval;
-#if !GTM_DISABLE_FETCHER_TEST_BLOCK
-  chunkFetcher.testBlock = self.testBlock;
-#endif
 
   if ([self isRetryEnabled]) {
     // We interpose our own retry method both so we can change the request to ask the server to
