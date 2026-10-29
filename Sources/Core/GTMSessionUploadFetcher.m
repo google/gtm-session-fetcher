@@ -148,6 +148,9 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   BOOL _shouldInitiateOffsetQuery;
 
   NSTimer *_uploadRetryTimer;
+  // YES from when a failed chunk upload or offset query is scheduled to be retried until the
+  // retry's offset query is sent, or until the retry is cancelled by pausing or stopping.
+  BOOL _isWaitingForUploadRetry;
   // Tied to useBackgroundSession property, since this property is applicable to chunk fetchers.
   BOOL _useBackgroundSessionOnChunkFetchers;
 
@@ -957,6 +960,19 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   }
 }
 
+// Cancels any pending upload retry, returning whether one was pending.
+- (BOOL)cancelUploadRetry {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    BOOL wasWaitingForUploadRetry = _isWaitingForUploadRetry;
+    _isWaitingForUploadRetry = NO;
+    [_uploadRetryTimer invalidate];
+    _uploadRetryTimer = nil;
+    return wasWaitingForUploadRetry;
+  }  // @synchronized(self)
+}
+
 - (void)beginFetchWithCompletionHandler:(GTMSessionFetcherCompletionHandler)handler {
   GTMSessionCheckNotSynchronized(self);
 
@@ -1204,7 +1220,13 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 
   [queryFetcher setRequestValue:@"query" forHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
 
-  self.fetcherInFlight = queryFetcher;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    _fetcherInFlight = queryFetcher;
+    // This query satisfies any pending upload retry.
+    _isWaitingForUploadRetry = NO;
+  }  // @synchronized(self)
   [queryFetcher beginFetchWithDelegate:self
                      didFinishSelector:@selector(queryFetcher:finishedWithData:error:)];
 }
@@ -1212,7 +1234,20 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 - (void)queryFetcher:(GTMSessionFetcher *)queryFetcher
     finishedWithData:(NSData *)data
                error:(NSError *)error {
-  self.fetcherInFlight = nil;
+  BOOL wasQueryFetcherInFlight;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    wasQueryFetcherInFlight = (_fetcherInFlight == queryFetcher);
+    if (wasQueryFetcherInFlight) {
+      _fetcherInFlight = nil;
+    }
+  }  // @synchronized(self)
+
+  // Ignore a query that is no longer in flight, such as one stopped by -pauseFetching that still
+  // calls back because stopFetchingTriggersCompletionHandler is set; -resumeFetching sends a new
+  // query. If the upload was stopped, let the query report the cancellation.
+  if (!wasQueryFetcherInFlight && !self.userStoppedFetching) return;
 
   NSDictionary *responseHeaders = [queryFetcher responseHeaders];
   NSString *sizeReceivedHeader;
@@ -1394,9 +1429,10 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 
   [self destroyUploadRetryTimer];
 
-  if (_nextUploadRetryInterval == 0.0) {
-    [self.chunkFetcher beginFetchWithDelegate:self
-                            didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
+  // Pausing or stopping cancels the retry, including a pause and resume while this was deferred to
+  // the main thread, since -resumeFetching sends its own offset query.
+  if (!self.isWaitingForUploadRetry || self.isPaused || self.userStoppedFetching) {
+    [self cancelUploadRetry];
     return;
   }
   @synchronized(self) {
@@ -1426,8 +1462,11 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 
   NSOperationQueue *queue = self.sessionDelegateQueue;
   [queue addOperationWithBlock:^{
-    [self.chunkFetcher beginFetchWithDelegate:self
-                            didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
+    // Pausing or stopping cancels the retry.
+    if (!self.isWaitingForUploadRetry) return;
+
+    // Ask the server where to resume.
+    [self sendQueryForUploadOffsetWithFetcherProperties:self.properties];
   }];
 }
 
@@ -1436,6 +1475,14 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     GTMSessionMonitorSynchronized(self);
 
     return _uploadRetryTimer;
+  }  // @synchronized(self)
+}
+
+- (BOOL)isWaitingForUploadRetry {
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    return _isWaitingForUploadRetry;
   }  // @synchronized(self)
 }
 
@@ -1490,14 +1537,8 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   // Update the last chunk request, including any request headers.
   self.lastChunkRequest = chunkFetcher.request;
 
-  if (_nextUploadRetryInterval < _maxUploadRetryInterval) {
-    [self beginUploadRetryTimer];
-
-  } else {
-    NSError *responseError =
-        [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
-    [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:NO];
-  }
+  [chunkFetcher beginFetchWithDelegate:self
+                     didFinishSelector:@selector(chunkFetcher:finishedWithData:error:)];
 }
 
 - (void)attachSendProgressBlockToChunkFetcher:(GTMSessionFetcher *)chunkFetcher {
@@ -1601,7 +1642,7 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
           void (^finish)(BOOL) = ^(BOOL shouldRetry) {
             // We'll retry by sending an offset query.
             if (shouldRetry) {
-              self.shouldInitiateOffsetQuery = !isQueryFetch;
+              self.shouldInitiateOffsetQuery = YES;
 
               // We don't know what our actual offset is anymore, but the server will tell us.
               self.currentOffset = 0;
@@ -1627,13 +1668,17 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     finishedWithData:(NSData *)data
                error:(NSError *)error {
   BOOL hasDestroyedOldChunkFetcher = NO;
-  self.fetcherInFlight = nil;
 
   NSDictionary *responseHeaders = chunkFetcher.responseHeaders;
   NSInteger statusCode = chunkFetcher.statusCode;
 
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
+    // A stopped query fetcher may call back after another fetcher, such as the cancel request, has
+    // become the fetcher in flight.
+    if (_fetcherInFlight == chunkFetcher) {
+      _fetcherInFlight = nil;
+    }
     if (responseHeaders) {
       _recentChunkReponseHeaders = responseHeaders;
       _recentChunkStatusCode = statusCode;
@@ -1648,8 +1693,8 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
       responseHeaders, self);
   BOOL isUploadStatusStopped = (uploadStatus == kStatusFinal || uploadStatus == kStatusCancelled);
 
-  // Check if the fetcher was actually querying. If it failed, do not retry,
-  // as it would enter an infinite retry loop.
+  // Check if the fetcher was actually querying. Failed queries are retried with backoff like failed
+  // chunk uploads, and maxUploadRetryInterval bounds the retries.
   NSString *uploadCommand =
       chunkFetcher.request.allHTTPHeaderFields[kGTMSessionHeaderXGoogUploadCommand];
   BOOL isQueryFetch = [uploadCommand isEqual:@"query"];
@@ -1678,18 +1723,49 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
       self.shouldInitiateOffsetQuery = NO;
       [self destroyChunkFetcher];
       hasDestroyedOldChunkFetcher = YES;
-      @synchronized(self) {
-        GTMSessionMonitorSynchronized(self);
-        _nextUploadRetryInterval = self.nextUploadRetryIntervalUnsynchronized;
-      }
 
-      [self sendQueryForUploadOffsetWithFetcherProperties:chunkFetcher.properties];
+      if (error == nil) {
+        // The chunk didn't fail, but its size is unknown, so ask the server where to resume.
+        [self sendQueryForUploadOffsetWithFetcherProperties:self.properties];
+      } else {
+        // Back off before sending the offset query, so that an outage isn't hit with an immediate
+        // query, and so that a failed query is retried after the next, longer interval.
+        BOOL shouldRetry;
+        @synchronized(self) {
+          GTMSessionMonitorSynchronized(self);
+
+          _nextUploadRetryInterval = self.nextUploadRetryIntervalUnsynchronized;
+          shouldRetry = (_nextUploadRetryInterval < _maxUploadRetryInterval);
+          if (shouldRetry) {
+            _isWaitingForUploadRetry = YES;
+          }
+        }  // @synchronized(self)
+
+        if (shouldRetry) {
+          [self beginUploadRetryTimer];
+        } else {
+          NSError *responseError =
+              [self uploadChunkUnavailableErrorWithDescription:@"Retry Limit Reached"];
+          [self invokeFinalCallbackWithData:nil error:responseError shouldInvalidateLocation:NO];
+        }
+      }
     } else {
       // Some unexpected status has occurred; handle it as we would a regular
       // object fetcher failure.
       [self invokeFinalCallbackWithData:data error:error shouldInvalidateLocation:NO];
     }
   } else {
+    if (!isQueryFetch) {
+      // A chunk uploaded, so later failures restart the backoff at minUploadRetryInterval. A
+      // successful query alone doesn't reset it, so that retries stay bounded if queries succeed
+      // but chunk uploads keep failing.
+      @synchronized(self) {
+        GTMSessionMonitorSynchronized(self);
+
+        _nextUploadRetryInterval = 0.0;
+      }  // @synchronized(self)
+    }
+
     int64_t newOffset;
     // The chunk has uploaded successfully.
     NSString *uploadSizeReceived =
@@ -1838,6 +1914,23 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   }  // @synchronized(self)
 }
 
+// Stops the offset query fetcher in flight, if any, since its completion would continue the upload.
+- (void)stopQueryFetcherInFlight {
+  GTMSessionFetcher *queryFetcher;
+  @synchronized(self) {
+    GTMSessionMonitorSynchronized(self);
+
+    queryFetcher = _fetcherInFlight;
+    NSString *uploadCommand =
+        [queryFetcher.request valueForHTTPHeaderField:kGTMSessionHeaderXGoogUploadCommand];
+    if (![uploadCommand isEqual:@"query"]) return;
+
+    _fetcherInFlight = nil;
+  }  // @synchronized(self)
+
+  [queryFetcher stopFetching];
+}
+
 - (void)pauseFetching {
   @synchronized(self) {
     GTMSessionMonitorSynchronized(self);
@@ -1845,12 +1938,14 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
     _isPaused = YES;
   }  // @synchronized(self)
 
-  // Pausing just means stopping the current chunk from uploading;
+  // Pausing just means stopping the current chunk upload, offset query, or pending retry;
   // when we resume, we will send a query request to the server to
   // figure out what bytes to resume sending.
   //
   // We won't try to cancel the initial data upload, but rather will check
   // for being paused in beginChunkFetches.
+  [self cancelUploadRetry];
+  [self stopQueryFetcherInFlight];
   [self destroyChunkFetcher];
 }
 
@@ -1862,6 +1957,10 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 
     wasPaused = _isPaused;
     _isPaused = NO;
+    if (wasPaused) {
+      // Pausing cancelled any pending retry, so restart the backoff.
+      _nextUploadRetryInterval = 0.0;
+    }
   }  // @synchronized(self)
 
   if (wasPaused) {
@@ -1871,6 +1970,8 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 
 - (void)stopFetching {
   // Overrides the superclass
+  BOOL wasWaitingForUploadRetry = [self cancelUploadRetry];
+  [self stopQueryFetcherInFlight];
   [self destroyChunkFetcher];
 
   // If we think the server is waiting for more data, then tell it there won't be more.
@@ -1895,6 +1996,15 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
   }
 
   [super stopFetching];
+
+  // While waiting to retry, no chunk or query fetcher is in flight to report the cancellation to
+  // the completion handler, so report it here.
+  if (wasWaitingForUploadRetry && self.stopFetchingTriggersCompletionHandler) {
+    NSError *error = [NSError errorWithDomain:kGTMSessionFetcherErrorDomain
+                                         code:GTMSessionFetcherErrorUserCancelled
+                                     userInfo:nil];
+    [self invokeFinalCallbackWithData:nil error:error shouldInvalidateLocation:NO];
+  }
 }
 
 // Fires the cancellation handler, returning whether there was a handler to be fired.
@@ -2150,9 +2260,9 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 }
 
 - (BOOL)isFetching {
-  // If there is an active chunk fetcher, then the upload fetcher is considered
-  // to still be fetching.
-  if (self.fetcherInFlight != nil) return YES;
+  // If there is an active chunk fetcher or upload retry backoff, then the upload fetcher is
+  // considered to still be fetching.
+  if (self.fetcherInFlight != nil || self.isWaitingForUploadRetry) return YES;
 
   return [super isFetching];
 }
@@ -2162,11 +2272,11 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
 - (BOOL)waitForCompletionWithTimeout:(NSTimeInterval)timeoutInSeconds {
   NSDate *timeoutDate = [NSDate dateWithTimeIntervalSinceNow:timeoutInSeconds];
 
-  while (self.fetcherInFlight || self.subdataGenerating) {
+  while (self.fetcherInFlight || self.subdataGenerating || self.isWaitingForUploadRetry) {
     if ([timeoutDate timeIntervalSinceNow] < 0) return NO;
 
-    if (self.subdataGenerating) {
-      // Allow time for subdata generation.
+    if (self.subdataGenerating || self.isWaitingForUploadRetry) {
+      // Allow time for subdata generation or upload retry backoff.
       NSDate *stopDate = [NSDate dateWithTimeIntervalSinceNow:0.001];
       [[NSRunLoop currentRunLoop] runUntilDate:stopDate];
     } else {
@@ -2174,10 +2284,13 @@ NSString *const kGTMSessionFetcherUploadInitialBackoffStartedNotification =
       // notifications.
       BOOL timedOut;
 
-      if (self.fetcherInFlight == self) {
+      GTMSessionFetcher *fetcherInFlight = self.fetcherInFlight;
+      if (fetcherInFlight == self) {
         timedOut = ![super waitForCompletionWithTimeout:timeoutInSeconds];
+      } else if (fetcherInFlight != nil) {
+        timedOut = ![fetcherInFlight waitForCompletionWithTimeout:timeoutInSeconds];
       } else {
-        timedOut = ![self.fetcherInFlight waitForCompletionWithTimeout:timeoutInSeconds];
+        timedOut = NO;
       }
       if (timedOut) return NO;
     }
